@@ -1,4 +1,4 @@
-name: Play Android ARM64 Build
+name: Play Android ARM64 Release
 
 on:
   workflow_dispatch:
@@ -15,81 +15,90 @@ jobs:
     timeout-minutes: 120
 
     steps:
-      - name: Checkout Play with submodules
+      - name: Checkout Play source
         uses: actions/checkout@v4
         with:
           submodules: recursive
           fetch-depth: 0
 
-      - name: Set up Java 17
+      - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "17"
 
-      - name: Locate Android SDK
-        run: |
-          echo "ANDROID_HOME=$ANDROID_HOME"
-          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" \
-            -type f -name sdkmanager | sort -V | tail -n 1)"
-          test -x "$SDKMANAGER"
-          echo "SDKMANAGER=$SDKMANAGER" >> "$GITHUB_ENV"
-          echo "$(dirname "$SDKMANAGER")" >> "$GITHUB_PATH"
-          echo "$ANDROID_HOME/platform-tools" >> "$GITHUB_PATH"
-          "$SDKMANAGER" --version
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
 
-      - name: Accept SDK licenses
+      - name: Install Android components
         run: |
-          yes | "$SDKMANAGER" --licenses >/dev/null || true
-
-      - name: Install Android build packages
-        run: |
-          "$SDKMANAGER" --install \
+          sdkmanager \
             "platforms;android-35" \
             "build-tools;35.0.1" \
             "ndk;29.0.14206865" \
             "cmake;3.31.1"
 
-      - name: Verify source and submodules
+      - name: Verify submodules
         run: |
           git submodule status --recursive
-          test -f build_android/build.gradle
-          test -f Source/ui_android/CMakeLists.txt
-  
+          if git submodule status --recursive | grep -q '^-'; then
+            echo "ERROR: Uninitialized submodule"
+            exit 1
+          fi
+
       - name: Prepare Git version
         run: |
           git config user.name "Android CI Builder"
           git config user.email "android-ci@localhost"
-
           git describe --tags >/dev/null 2>&1 || \
-            git tag -a android-ci-build \
-            -m "Local Android CI build"
-
+            git tag -a android-ci-build -m "Local Android CI build"
           git describe --tags --always
 
       - name: Restrict build to ARM64
         run: |
-          sed -i \
-            "s/'armeabi-v7a', 'x86', 'x86_64', 'arm64-v8a'/'arm64-v8a'/" \
+          sed -i "s/'armeabi-v7a', 'x86', 'x86_64', 'arm64-v8a'/'arm64-v8a'/g" \
             build_android/build.gradle
+          grep -n "abiFilters" build_android/build.gradle
 
-          grep -n -A2 'abiFilters' build_android/build.gradle
-
-      - name: Build Play APK
+      - name: Restore release keystore
+        env:
+          KEYSTORE_B64: ${{ secrets.PLAY_RELEASE_KEYSTORE_BASE64 }}
+          KEYSTORE_NAME: ${{ secrets.PLAY_RELEASE_STORE_FILE }}
         run: |
-          cd build_android
+          test -n "$KEYSTORE_B64"
+          test -n "$KEYSTORE_NAME"
+          printf '%s' "$KEYSTORE_B64" | base64 --decode \
+            > "$RUNNER_TEMP/$KEYSTORE_NAME"
+          chmod 600 "$RUNNER_TEMP/$KEYSTORE_NAME"
+          test -s "$RUNNER_TEMP/$KEYSTORE_NAME"
+
+      - name: Build signed Release APK
+        working-directory: build_android
+        env:
+          ORG_GRADLE_PROJECT_PLAY_RELEASE_STORE_FILE: ${{ runner.temp }}/${{ secrets.PLAY_RELEASE_STORE_FILE }}
+          ORG_GRADLE_PROJECT_PLAY_RELEASE_STORE_PASSWORD: ${{ secrets.PLAY_RELEASE_STORE_PASSWORD }}
+          ORG_GRADLE_PROJECT_PLAY_RELEASE_KEY_ALIAS: ${{ secrets.PLAY_RELEASE_KEY_ALIAS }}
+          ORG_GRADLE_PROJECT_PLAY_RELEASE_KEY_PASSWORD: ${{ secrets.PLAY_RELEASE_KEY_PASSWORD }}
+        run: |
           chmod +x gradlew
-          ./gradlew --no-daemon --stacktrace assembleDebug
+          ./gradlew --no-daemon --stacktrace assembleRelease
 
-      - name: Locate APK
+      - name: Verify APK signature and checksum
         run: |
-          find build_android -type f -name "*.apk" \
-            -path "*/outputs/apk/*" -print
+          APK="$(find build_android -type f \
+            -path '*/outputs/apk/release/*.apk' | head -n 1)"
+          test -n "$APK"
+          echo "APK: $APK"
+          "$ANDROID_HOME/build-tools/35.0.1/apksigner" verify \
+            --verbose --print-certs "$APK"
+          sha256sum "$APK" | tee APK_SHA256SUMS.txt
 
-      - name: Upload APK artifact
+      - name: Upload Release APK
         uses: actions/upload-artifact@v4
         with:
-          name: Play-Android-ARM64
-          path: build_android/**/outputs/apk/**/*.apk
+          name: Play-Android-ARM64-Release
+          path: |
+            build_android/**/outputs/apk/release/*.apk
+            APK_SHA256SUMS.txt
           if-no-files-found: error
           retention-days: 7
