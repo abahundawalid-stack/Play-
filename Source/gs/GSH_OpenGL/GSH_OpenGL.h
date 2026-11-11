@@ -478,7 +478,6 @@ private:
 
 	//If GPU has framebuffer fetch extension, some things will be done
 	//within the shader, such alpha blending
-	unsigned int m_fbScale = 1;
     bool m_hasFramebufferFetchExtension = false;
 	bool m_hasFramebufferFetchDepthExtension = false;
     };
