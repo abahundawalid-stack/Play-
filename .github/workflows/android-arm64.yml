@@ -27,12 +27,24 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Install official Android toolchain
+      - name: Locate Android SDK
         run: |
-          sdkmanager --install \
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" \
+            -type f -name sdkmanager | sort -V | tail -n 1)"
+          test -x "$SDKMANAGER"
+          echo "SDKMANAGER=$SDKMANAGER" >> "$GITHUB_ENV"
+          echo "$(dirname "$SDKMANAGER")" >> "$GITHUB_PATH"
+          echo "$ANDROID_HOME/platform-tools" >> "$GITHUB_PATH"
+          "$SDKMANAGER" --version
+
+      - name: Accept SDK licenses
+        run: |
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+
+      - name: Install Android build packages
+        run: |
+          "$SDKMANAGER" --install \
             "platforms;android-35" \
             "build-tools;35.0.1" \
             "ndk;29.0.14206865" \
@@ -41,7 +53,6 @@ jobs:
       - name: Verify source and submodules
         run: |
           git submodule status --recursive
-          git describe --tags --always || true
           test -f build_android/build.gradle
           test -f Source/ui_android/CMakeLists.txt
 
@@ -58,8 +69,7 @@ jobs:
             "s/'armeabi-v7a', 'x86', 'x86_64', 'arm64-v8a'/'arm64-v8a'/" \
             build_android/build.gradle
 
-          grep -n -A2 'abiFilters' \
-            build_android/build.gradle
+          grep -n -A2 'abiFilters' build_android/build.gradle
 
       - name: Build Play APK
         run: |
