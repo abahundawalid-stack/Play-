@@ -45,7 +45,15 @@
         <ListPreference
             android:defaultValue="1"
             android:entries="@array/pref_emu_video_res_factor_entries"
+        <string>1x</string>
+        <string>2x</string>
+        <string>4x</string>
+        <string>6x</string>
             android:entryValues="@array/pref_emu_video_res_factor_values"
+        <item>1</item>
+        <item>2</item>
+        <item>4</item>
+        <item>6</item>
             android:key="renderer.opengl.resfactor"
             android:negativeButtonText="@null"
             android:positiveButtonText="@null"
