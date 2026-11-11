@@ -39,7 +39,7 @@ android {
 	}
 
 	defaultConfig {
-    applicationId "com.virtualapplications.play.jpog"
+    applicationId 'com.virtualapplications.play.jpog'
     versionCode (100 + gitVersionCode)
     versionName gitVersionName
     minSdkVersion 21
