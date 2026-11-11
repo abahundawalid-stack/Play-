@@ -107,8 +107,9 @@ jobs:
             --verbose --print-certs "$APK"
           sha256sum "$APK" | tee APK_SHA256SUMS.txt
           
-       - name: Verify APK package and ARM64 libraries
-         run: |
+       
+      - name: Verify APK package and ARM64 libraries
+        run: |
           set -e
 
           APK="$(find build_android -type f \
@@ -117,14 +118,18 @@ jobs:
           test -n "$APK"
 
           echo "===== PACKAGE ID ====="
-          "$ANDROID_HOME/build-tools/35.0.1/aapt" \
-            dump badging "$APK" | head -n 1
+          PACKAGE_LINE="$("$ANDROID_HOME/build-tools/35.0.1/aapt" dump badging "$APK" | sed -n '1p')"
+          echo "$PACKAGE_LINE"
 
-          "$ANDROID_HOME/build-tools/35.0.1/aapt" \
-            dump badging "$APK" | \
-            grep -q "name='com.virtualapplications.play.jpog'"
-
-          echo "PACKAGE ID BENAR"
+          case "$PACKAGE_LINE" in
+            "package: name='com.virtualapplications.play.jpog'"*)
+              echo "PACKAGE ID BENAR"
+              ;;
+            *)
+              echo "ERROR: PACKAGE ID SALAH"
+              exit 1
+              ;;
+          esac
 
           echo
           echo "===== ARM64 LIBRARIES ====="
