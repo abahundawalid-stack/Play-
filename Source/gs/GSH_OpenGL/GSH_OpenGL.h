@@ -493,4 +493,4 @@ private:
 	unsigned int m_fbScale = 1;
     bool m_hasFramebufferFetchExtension = false;
 	bool m_hasFramebufferFetchDepthExtension = false;
-};
+    };
