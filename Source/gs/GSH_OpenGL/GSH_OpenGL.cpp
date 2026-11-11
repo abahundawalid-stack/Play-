@@ -272,8 +272,22 @@ void CGSH_OpenGL::NotifyPreferencesChangedImpl()
 
 void CGSH_OpenGL::LoadPreferences()
 {
-	m_fbScale = CAppConfig::GetInstance().GetPreferenceInteger(PREF_CGSH_OPENGL_RESOLUTION_FACTOR);
-	m_forceBilinearTextures = CAppConfig::GetInstance().GetPreferenceBoolean(PREF_CGSH_OPENGL_FORCEBILINEARTEXTURES);
+	int resolutionFactor = CAppConfig::GetInstance().GetPreferenceInteger(
+    PREF_CGSH_OPENGL_RESOLUTION_FACTOR);
+
+switch(resolutionFactor)
+{
+case 1:
+case 2:
+case 4:
+case 6:
+    break;
+default:
+    resolutionFactor = 1;
+    break;
+}
+
+m_fbScale = static_cast<unsigned int>(resolutionFactor);
 }
 
 void CGSH_OpenGL::InitializeRC()
