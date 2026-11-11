@@ -91,12 +91,13 @@ jobs:
             git tag -a android-ci-build -m "Local Android CI build"
           git describe --tags --always
 
-      - name: Restrict build to ARM64
+      - name: Check Android ABI configuration
         run: |
-          sed -i "s/'armeabi-v7a', 'x86', 'x86_64', 'arm64-v8a'/'arm64-v8a'/g" \
-            build_android/build.gradle
-          grep -n "abiFilters" build_android/build.gradle
-
+          echo "===== ABI CONFIGURATION ====="
+          grep -n -C 3 "abiFilters\|arm64-v8a" \
+            build_android/build.gradle || true
+          echo "===== CONTINUE BUILD ====="
+          
       - name: Restore release keystore
         env:
           KEYSTORE_B64: ${{ secrets.PLAY_RELEASE_KEYSTORE_BASE64 }}
