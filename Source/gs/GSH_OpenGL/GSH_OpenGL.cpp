@@ -288,6 +288,10 @@ default:
 }
 
 m_fbScale = static_cast<unsigned int>(resolutionFactor);
+
+m_forceBilinearTextures =
+CAppConfig::GetInstance().GetPreferenceBoolean(
+PREF_CGSH_OPENGL_FORCEBILINEARTEXTURES);
 }
 
 void CGSH_OpenGL::InitializeRC()
