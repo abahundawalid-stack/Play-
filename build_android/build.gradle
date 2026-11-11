@@ -44,6 +44,7 @@ android {
     versionName gitVersionName
     minSdkVersion 21
     targetSdkVersion 35
+    }
 
     externalNativeBuild {
         cmake {
