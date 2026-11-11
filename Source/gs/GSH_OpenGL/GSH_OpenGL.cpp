@@ -279,6 +279,8 @@ void CGSH_OpenGL::LoadPreferences()
 void CGSH_OpenGL::InitializeRC()
 {
 	//Initialize basic stuff
+	// PS2 texture conversion buffers use tightly packed rows.
+	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 	glClearDepthf(0.0f);
 
