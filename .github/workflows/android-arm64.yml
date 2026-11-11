@@ -26,31 +26,7 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
-
-      - name: Install Android components
-        run: |
-          set -e
-          SDK_ROOT="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
-          SDKMANAGER="$(find "$SDK_ROOT/cmdline-tools" -type f -name sdkmanager | head -n 1)"
-
-          if [ -z "$SDKMANAGER" ]; then
-            echo "ERROR: sdkmanager tidak ditemukan"
-            exit 1
-          fi
-
-          echo "ANDROID_HOME=$SDK_ROOT" >> "$GITHUB_ENV"
-          echo "ANDROID_SDK_ROOT=$SDK_ROOT" >> "$GITHUB_ENV"
-          echo "$SDK_ROOT/platform-tools" >> "$GITHUB_PATH"
-
-          yes | "$SDKMANAGER" --sdk_root="$SDK_ROOT" --licenses >/dev/null || true
-
-          "$SDKMANAGER" --sdk_root="$SDK_ROOT" \
-            "platform-tools" \
-            "platforms;android-35" \
-            "build-tools;35.0.1" \
-            "ndk;29.0.14206865" \
-            "cmake;3.31.1"
-
+          
       - name: Install Android components
         run: |
           set -e
@@ -130,6 +106,33 @@ jobs:
           "$ANDROID_HOME/build-tools/35.0.1/apksigner" verify \
             --verbose --print-certs "$APK"
           sha256sum "$APK" | tee APK_SHA256SUMS.txt
+          
+       - name: Verify APK package and ARM64 libraries
+         run: |
+          set -e
+
+          APK="$(find build_android -type f \
+            -path '*/outputs/apk/release/*.apk' | head -n 1)"
+
+          test -n "$APK"
+
+          echo "===== PACKAGE ID ====="
+          "$ANDROID_HOME/build-tools/35.0.1/aapt" \
+            dump badging "$APK" | head -n 1
+
+          "$ANDROID_HOME/build-tools/35.0.1/aapt" \
+            dump badging "$APK" | \
+            grep -q "name='com.virtualapplications.play.jpog'"
+
+          echo "PACKAGE ID BENAR"
+
+          echo
+          echo "===== ARM64 LIBRARIES ====="
+          unzip -l "$APK" | grep 'lib/arm64-v8a/'
+
+          echo
+          echo "===== SHA256 ====="
+          sha256sum "$APK"
 
       - name: Upload Release APK
         uses: actions/upload-artifact@v4
