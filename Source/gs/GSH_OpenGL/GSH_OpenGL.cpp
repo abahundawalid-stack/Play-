@@ -310,6 +310,8 @@ void CGSH_OpenGL::InitializeRC()
 	m_presentVertexArray = GeneratePresentVertexArray();
 	m_presentTextureUniform = glGetUniformLocation(*m_presentProgram, "g_texture");
 	m_presentTexCoordScaleUniform = glGetUniformLocation(*m_presentProgram, "g_texCoordScale");
+	m_presentInvTextureSizeUniform =
+    glGetUniformLocation(*m_presentProgram, "g_invTextureSize");
 
 	m_copyToFbProgram = GenerateCopyToFbProgram();
 	m_copyToFbTexture = Framework::OpenGl::CTexture::Create();
