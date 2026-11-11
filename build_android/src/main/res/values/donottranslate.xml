@@ -38,7 +38,7 @@
 		<item>1</item>
 		<item>2</item>
 		<item>4</item>
-		<item>8</item>
+		<item>6</item>
     </string-array>
 
 	<string-array name="pref_emu_video_presentation_mode_values">
