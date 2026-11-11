@@ -433,6 +433,7 @@ private:
 	Framework::OpenGl::CVertexArray m_presentVertexArray;
 	GLint m_presentTextureUniform = -1;
 	GLint m_presentTexCoordScaleUniform = -1;
+    GLint m_presentInvTextureSizeUniform = -1;
 
 	Framework::OpenGl::ProgramPtr m_copyToFbProgram;
 	Framework::OpenGl::CTexture m_copyToFbTexture;
