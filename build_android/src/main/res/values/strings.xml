@@ -123,7 +123,7 @@
 		<item>1x</item>
 		<item>2x</item>
 		<item>4x</item>
-		<item>8x</item>
+		<item>6x</item>
 	</string-array>
 
 	<string-array name="pref_emu_video_presentation_mode_entries">
