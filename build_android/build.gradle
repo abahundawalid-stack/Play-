@@ -61,7 +61,7 @@ android {
 		api 'androidx.appcompat:appcompat:1.6.1'
 		api 'androidx.preference:preference:1.2.1'
 		implementation 'androidx.documentfile:documentfile:1.0.1'
-		api 'org.apache.commons:commons-lang3:3.18.1'
+		api 'org.apache.commons:commons-lang3:3.18.0'
         api 'commons-io:commons-io:2.14.0'
 	}
 
