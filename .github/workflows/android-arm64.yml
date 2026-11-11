@@ -55,13 +55,17 @@ jobs:
           git submodule status --recursive
           test -f build_android/build.gradle
           test -f Source/ui_android/CMakeLists.txt
-
+  
       - name: Prepare Git version
         run: |
-          cd build_android
+          git config user.name "Android CI Builder"
+          git config user.email "android-ci@localhost"
+
           git describe --tags >/dev/null 2>&1 || \
-            git -C .. tag -a android-ci-build \
+            git tag -a android-ci-build \
             -m "Local Android CI build"
+
+          git describe --tags --always
 
       - name: Restrict build to ARM64
         run: |
