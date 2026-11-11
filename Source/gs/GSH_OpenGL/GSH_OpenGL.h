@@ -65,6 +65,19 @@ protected:
 	void FlipImpl(const DISPLAY_INFO&) override;
 
 	GLuint m_presentFramebuffer = 0;
+protected:
+    void PalCache_Flush();
+    void LoadPreferences();
+    void InitializeImpl() override;
+    void ReleaseImpl() override;
+    void ResetImpl() override;
+    void NotifyPreferencesChangedImpl() override;
+    void MarkNewFrame() override;
+    void FlipImpl(const DISPLAY_INFO&) override;
+
+    GLuint m_presentFramebuffer = 0;
+    bool m_forceBilinearTextures = false;
+    unsigned int m_fbScale = 1;
 
 private:
 	typedef CGsTextureCache<Framework::OpenGl::CTexture> TextureCache;
