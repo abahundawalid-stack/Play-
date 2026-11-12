@@ -454,85 +454,120 @@ std::vector<VkSurfaceFormatKHR> CGSH_Vulkan::GetDeviceSurfaceFormats(VkPhysicalD
 	return surfaceFormats;
 }
 
-void CGSH_Vulkan::CreateDevice(VkPhysicalDevice physicalDevice)
+void CGSH_Vulkan::CreateDevice(
+    VkPhysicalDevice physicalDevice,
+    uint32_t queueFamilyIndex)
 {
-	assert(m_context->device.IsEmpty());
+    assert(m_context->device.IsEmpty());
 
-	float queuePriorities[] = {1.0f};
+    float queuePriorities[] = {1.0f};
 
-	auto deviceQueueCreateInfo = Framework::Vulkan::DeviceQueueCreateInfo();
-	deviceQueueCreateInfo.flags = 0;
-	deviceQueueCreateInfo.queueFamilyIndex = 0;
-	deviceQueueCreateInfo.queueCount = 1;
-	deviceQueueCreateInfo.pQueuePriorities = queuePriorities;
+    auto deviceQueueCreateInfo =
+        Framework::Vulkan::DeviceQueueCreateInfo();
 
-	std::vector<const char*> enabledExtensions;
-	enabledExtensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
-#if GSH_VULKAN_IS_DESKTOP
-	enabledExtensions.push_back(VK_EXT_FRAGMENT_SHADER_INTERLOCK_EXTENSION_NAME);
+    deviceQueueCreateInfo.flags = 0;
+    deviceQueueCreateInfo.queueFamilyIndex = queueFamilyIndex;
+    deviceQueueCreateInfo.queueCount = 1;
+    deviceQueueCreateInfo.pQueuePriorities = queuePriorities;
+
+    std::vector<const char*> enabledExtensions;
+    enabledExtensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
+
+    #if GSH_VULKAN_IS_DESKTOP
+        enabledExtensions.push_back(
+VK_EXT_FRAGMENT_SHADER_INTERLOCK_EXTENSION_NAME);
 #endif
 
-	std::vector<const char*> enabledLayers;
-
-	Framework::Vulkan::CStructChain createDeviceStructs;
+    std::vector<const char*> enabledLayers;
+    Framework::Vulkan::CStructChain createDeviceStructs;
 
 #if GSH_VULKAN_IS_DESKTOP
-	{
-		auto physicalDeviceFeaturesInvocationInterlock = Framework::Vulkan::PhysicalDeviceFragmentShaderInterlockFeaturesEXT();
-		physicalDeviceFeaturesInvocationInterlock.fragmentShaderPixelInterlock = VK_TRUE;
-		createDeviceStructs.AddStruct(physicalDeviceFeaturesInvocationInterlock);
-	}
+    {
+        auto features =
+            Framework::Vulkan::PhysicalDeviceFragmentShaderInterlockFeaturesEXT();
+
+        features.fragmentShaderPixelInterlock = VK_TRUE;
+        createDeviceStructs.AddStruct(features);
+    }
 #endif
 
-	{
-		auto physicalDeviceFeatures2 = Framework::Vulkan::PhysicalDeviceFeatures2KHR();
+    {
+        auto features = Framework::Vulkan::PhysicalDeviceFeatures2KHR();
+
 #ifndef __APPLE__
-		//MoltenVK doesn't report this properly (probably due to mobile devices supporting buffer stores and not image stores)
-		physicalDeviceFeatures2.features.fragmentStoresAndAtomics = VK_TRUE;
+        features.features.fragmentStoresAndAtomics = VK_TRUE;
 #endif
-#if GSH_VULKAN_IS_DESKTOP
-		physicalDeviceFeatures2.features.shaderInt16 = VK_TRUE;
-#endif
-		createDeviceStructs.AddStruct(physicalDeviceFeatures2);
-	}
 
 #if GSH_VULKAN_IS_DESKTOP
-	{
-		auto physicalDeviceVulkan12Features = Framework::Vulkan::PhysicalDeviceVulkan12Features();
-		physicalDeviceVulkan12Features.shaderInt8 = VK_TRUE;
-		physicalDeviceVulkan12Features.storageBuffer8BitAccess = VK_TRUE;
-		physicalDeviceVulkan12Features.uniformAndStorageBuffer8BitAccess = VK_TRUE;
-		createDeviceStructs.AddStruct(physicalDeviceVulkan12Features);
-	}
-
-	{
-		auto physicalDevice16BitStorageFeatures = Framework::Vulkan::PhysicalDevice16BitStorageFeatures();
-		physicalDevice16BitStorageFeatures.storageBuffer16BitAccess = VK_TRUE;
-		physicalDevice16BitStorageFeatures.uniformAndStorageBuffer16BitAccess = VK_TRUE;
-		createDeviceStructs.AddStruct(physicalDevice16BitStorageFeatures);
-	}
+        features.features.shaderInt16 = VK_TRUE;
 #endif
 
-	auto deviceCreateInfo = Framework::Vulkan::DeviceCreateInfo();
-	deviceCreateInfo.pNext = createDeviceStructs.GetNext();
-	deviceCreateInfo.flags = 0;
-	deviceCreateInfo.enabledLayerCount = static_cast<uint32>(enabledLayers.size());
-	deviceCreateInfo.ppEnabledLayerNames = enabledLayers.data();
-	deviceCreateInfo.enabledExtensionCount = static_cast<uint32>(enabledExtensions.size());
-	deviceCreateInfo.ppEnabledExtensionNames = enabledExtensions.data();
-	deviceCreateInfo.queueCreateInfoCount = 1;
-	deviceCreateInfo.pQueueCreateInfos = &deviceQueueCreateInfo;
+        createDeviceStructs.AddStruct(features);
+    }
 
-	m_context->device = Framework::Vulkan::CDevice(m_instance, physicalDevice, deviceCreateInfo);
+#if GSH_VULKAN_IS_DESKTOP
+    {
+        auto features =
+            Framework::Vulkan::PhysicalDeviceVulkan12Features();
 
-	{
-		VkPhysicalDeviceProperties deviceProperties = {};
-		m_context->instance->vkGetPhysicalDeviceProperties(physicalDevice, &deviceProperties);
-		m_context->storageBufferAlignment = deviceProperties.limits.minStorageBufferOffsetAlignment;
-		m_context->computeWorkgroupInvocations = deviceProperties.limits.maxComputeWorkGroupInvocations;
-	}
+        features.shaderInt8 = VK_TRUE;
+        features.storageBuffer8BitAccess = VK_TRUE;
+        features.uniformAndStorageBuffer8BitAccess = VK_TRUE;
 
-	m_context->annotations = decltype(m_context->annotations)(m_context->instance, &m_context->device);
+        createDeviceStructs.AddStruct(features);
+    }
+
+    {
+        auto features =
+            Framework::Vulkan::PhysicalDevice16BitStorageFeatures();
+
+        features.storageBuffer16BitAccess = VK_TRUE;
+        features.uniformAndStorageBuffer16BitAccess = VK_TRUE;
+
+        createDeviceStructs.AddStruct(features);
+    }
+#endif
+
+    auto deviceCreateInfo =
+        Framework::Vulkan::DeviceCreateInfo();
+
+    deviceCreateInfo.pNext = createDeviceStructs.GetNext();
+    deviceCreateInfo.flags = 0;
+    deviceCreateInfo.enabledLayerCount =
+        static_cast<uint32>(enabledLayers.size());
+    deviceCreateInfo.ppEnabledLayerNames = enabledLayers.data();
+    deviceCreateInfo.enabledExtensionCount =
+        static_cast<uint32>(enabledExtensions.size());
+    deviceCreateInfo.ppEnabledExtensionNames = enabledExtensions.data();
+    deviceCreateInfo.queueCreateInfoCount = 1;
+    deviceCreateInfo.pQueueCreateInfos = &deviceQueueCreateInfo;
+
+    m_context->device =
+        Framework::Vulkan::CDevice(
+            m_instance,
+            physicalDevice,
+            deviceCreateInfo);
+
+    if(m_context->device.IsEmpty())
+    {
+        return;
+    }
+
+    VkPhysicalDeviceProperties deviceProperties = {};
+    m_context->instance->vkGetPhysicalDeviceProperties(
+        physicalDevice,
+        &deviceProperties);
+
+    m_context->storageBufferAlignment =
+        deviceProperties.limits.minStorageBufferOffsetAlignment;
+
+    m_context->computeWorkgroupInvocations =
+        deviceProperties.limits.maxComputeWorkGroupInvocations;
+
+    m_context->annotations =
+        decltype(m_context->annotations)(
+            m_context->instance,
+            &m_context->device);
 }
 
 void CGSH_Vulkan::CreateDescriptorPool()
