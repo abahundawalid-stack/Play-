@@ -74,7 +74,8 @@ void CPresent::SetPresentationViewport(const CGSHandler::PRESENTATION_VIEWPORT& 
 
 void CPresent::DoPresent(const CGSHandler::DISPLAY_INFO& dispInfo)
 {
-    if(m_context == nullptr ||
+    if(m_surfaceLost ||
+       m_context == nullptr ||
        m_context->surface == VK_NULL_HANDLE ||
        m_context->device.IsEmpty())
     {
