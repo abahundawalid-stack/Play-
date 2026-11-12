@@ -3,37 +3,23 @@
 #include <chrono>
 #include "Types.h"
 
-#ifdef _WIN32
-#include <Windows.h>
-#endif
-
 class CFrameLimiter
 {
 public:
-	CFrameLimiter();
-	~CFrameLimiter();
+	CFrameLimiter() = default;
+	~CFrameLimiter() = default;
 
 	void BeginFrame();
 	void EndFrame();
 
-	void SetFrameRate(uint32);
+	void SetFrameRate(uint32 fps);
 
 private:
-	typedef std::chrono::high_resolution_clock::time_point TimePoint;
+	using Clock = std::chrono::steady_clock;
+	using TimePoint = Clock::time_point;
+	using Duration = Clock::duration;
 
-	enum
-	{
-		MAX_FRAMETIMES = 4,
-	};
-
-	std::chrono::microseconds m_frameTimes[MAX_FRAMETIMES];
-	uint32 m_frameTimeIndex = 0;
-
-	std::chrono::microseconds m_minFrameDuration = std::chrono::microseconds(0);
+	Duration m_minFrameDuration = Duration::zero();
+	TimePoint m_frameStartTime{};
 	bool m_frameStarted = false;
-	TimePoint m_lastFrameTime;
-
-#ifdef _WIN32
-	HANDLE m_timer = 0;
-#endif
 };
