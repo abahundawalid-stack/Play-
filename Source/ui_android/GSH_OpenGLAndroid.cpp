@@ -44,31 +44,77 @@ CGSHandler::FactoryFunction CGSH_OpenGLAndroid::GetFactoryFunction(
     };
 }
 
-void CGSH_VulkanAndroid::InitializeImpl()
+void CGSH_OpenGLAndroid::InitializeImpl()
 {
-    // Queue/device initialization needs a valid Android surface.
-    // A later SetWindow() will retry initialization when one arrives.
-    if(m_window == nullptr)
+    if(m_window == nullptr || m_display != EGL_NO_DISPLAY)
     {
         return;
     }
 
-    m_instance = CreateInstance(true);
+    static const EGLint configAttribs[] = {
+        EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
+        EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
+        EGL_BLUE_SIZE, 8,
+        EGL_GREEN_SIZE, 8,
+        EGL_RED_SIZE, 8,
+        EGL_NONE
+    };
 
-    CreateSurface();
+    static const EGLint contextAttribs[] = {
+        EGL_CONTEXT_CLIENT_VERSION, 3,
+        EGL_NONE
+    };
 
-    if(m_context == nullptr ||
-       m_context->surface == VK_NULL_HANDLE)
+    m_display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+    if(m_display == EGL_NO_DISPLAY)
     {
         return;
     }
 
-    CGSH_Vulkan::InitializeImpl();
-
-    if(!m_context->device.IsEmpty())
+    if(eglInitialize(m_display, nullptr, nullptr) != EGL_TRUE)
     {
-        UpdateViewport();
+        eglTerminate(m_display);
+        m_display = EGL_NO_DISPLAY;
+        return;
     }
+
+    EGLint numConfigs = 0;
+    if(eglChooseConfig(
+           m_display, configAttribs, &m_config, 1, &numConfigs) != EGL_TRUE ||
+       numConfigs < 1)
+    {
+        eglTerminate(m_display);
+        m_display = EGL_NO_DISPLAY;
+        m_config = 0;
+        return;
+    }
+
+    m_context = eglCreateContext(
+        m_display, m_config, EGL_NO_CONTEXT, contextAttribs);
+
+    if(m_context == EGL_NO_CONTEXT)
+    {
+        eglTerminate(m_display);
+        m_display = EGL_NO_DISPLAY;
+        m_config = 0;
+        return;
+    }
+
+    SetupContext();
+
+    // Jangan hidupkan renderer dasar jika EGL surface belum berhasil dibuat.
+    if(m_surface == EGL_NO_SURFACE)
+    {
+        eglDestroyContext(m_display, m_context);
+        m_context = EGL_NO_CONTEXT;
+        eglTerminate(m_display);
+        m_display = EGL_NO_DISPLAY;
+        m_config = 0;
+        return;
+    }
+
+    CGSH_OpenGL::InitializeImpl();
+    m_rendererInitialized = true;
 }
 
 void CGSH_OpenGLAndroid::ReleaseImpl()
