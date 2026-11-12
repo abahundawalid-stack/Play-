@@ -35,12 +35,29 @@ CPresent::CPresent(const ContextPtr& context)
 
 CPresent::~CPresent()
 {
-	DestroySwapChain();
-	for(const auto& presentCommandBuffer : m_presentCommandBuffers)
-	{
-		m_context->device.vkDestroyFence(m_context->device, presentCommandBuffer.execCompleteFence, nullptr);
-	}
-	m_context->device.vkDestroyRenderPass(m_context->device, m_renderPass, nullptr);
+    // DestroySwapChain is the only owner of swapchain cleanup.
+    DestroySwapChain();
+
+    for(const auto& presentCommandBuffer : m_presentCommandBuffers)
+    {
+        if(presentCommandBuffer.execCompleteFence != VK_NULL_HANDLE)
+        {
+            m_context->device.vkDestroyFence(
+                m_context->device,
+                presentCommandBuffer.execCompleteFence,
+                nullptr);
+        }
+    }
+
+    if(m_renderPass != VK_NULL_HANDLE)
+    {
+        m_context->device.vkDestroyRenderPass(
+            m_context->device,
+            m_renderPass,
+            nullptr);
+
+        m_renderPass = VK_NULL_HANDLE;
+    }
 }
 
 void CPresent::ValidateSwapChain(const CGSHandler::PRESENTATION_PARAMS& presentationParams)
