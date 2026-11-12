@@ -41,22 +41,22 @@ android {
             abiFilters 'arm64-v8a'
         }
     }
-   
-externalNativeBuild {
-    cmake {
-        arguments.addAll([
-            "-DANDROID_ARM_NEON=TRUE",
-            "-DANDROID_TOOLCHAIN=clang",
-            "-DANDROID_CPP_FEATURES=exceptions rtti",
-            "-DANDROID_STL=c++_static"
-        ])
-        cppFlags.add("-frtti")
-        targets.add("Play")
-        path '../CMakeLists.txt'
-        version "3.31.1"
+
+    externalNativeBuild {
+        cmake {
+            arguments = [
+                "-DANDROID_ARM_NEON=TRUE",
+                "-DANDROID_TOOLCHAIN=clang",
+                "-DANDROID_CPP_FEATURES=exceptions rtti",
+                "-DANDROID_STL=c++_static"
+            ]
+            cppFlags = ["-frtti"]
+            targets = ["Play"]
+            path '../CMakeLists.txt'
+            version "3.31.1"
         }
     }
-    
+
     signingConfigs {
         if (project.ext.signingEnabled) {
             release {
