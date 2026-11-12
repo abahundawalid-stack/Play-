@@ -59,6 +59,11 @@ void CPresent::DoPresent(const CGSHandler::DISPLAY_INFO& dispInfo)
 {
 	auto result = VK_SUCCESS;
 
+	if(m_context->surface == VK_NULL_HANDLE)
+    {
+    return;
+    }
+
 	if(!m_swapChainValid && (m_swapChain != VK_NULL_HANDLE))
 	{
 		m_context->device.vkQueueWaitIdle(m_context->queue);
