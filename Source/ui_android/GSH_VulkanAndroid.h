@@ -10,18 +10,16 @@ public:
 	virtual ~CGSH_VulkanAndroid();
 
 	void SetWindow(ANativeWindow*) override;
-
-	static FactoryFunction GetFactoryFunction(ANativeWindow*);
-
-	void InitializeImpl() override;
-	void ReleaseImpl() override;
-	void PresentBackbuffer() override;
+    static FactoryFunction GetFactoryFunction(ANativeWindow*);
+    void InitializeImpl() override;
+    void ReleaseImpl() override;
 
 private:
-	void CreateSurface();
-	void UpdateViewport();
+    void CreateSurface();
+    void UpdateViewport();
 
-	// Owns the transferred ANativeWindow reference. nullptr means detached.
-ANativeWindow* m_window = nullptr;
+    // Owns the transferred ANativeWindow reference.
+    // nullptr means detached.
+    ANativeWindow* m_window = nullptr;
 
 };
