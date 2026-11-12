@@ -689,7 +689,8 @@ void CPresent::CreateSwapChain()
 
         if(result == VK_SUCCESS)
         {
-            m_swapChainImages.resize(retrievedCount);
+            imageCount = retrievedCount;
+            m_swapChainImages.resize(imageCount);
             imagesRetrieved = !m_swapChainImages.empty();
             break;
         }
