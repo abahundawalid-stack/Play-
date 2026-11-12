@@ -136,23 +136,40 @@ void CPresent::DoPresent(const CGSHandler::DISPLAY_INFO& dispInfo)
 	UpdateBackbuffer(imageIndex, swapChainSemaphores, dispInfo);
 
 	//Queue present
-	{
-		auto presentInfo = Framework::Vulkan::PresentInfoKHR();
-		presentInfo.swapchainCount = 1;
-		presentInfo.pSwapchains = &m_swapChain;
-		presentInfo.pImageIndices = &imageIndex;
-		presentInfo.waitSemaphoreCount = 1;
-		presentInfo.pWaitSemaphores = &swapChainSemaphores.renderCompleteSemaphore;
-		result = m_context->device.vkQueuePresentKHR(m_context->queue, &presentInfo);
-		if(result == VK_ERROR_OUT_OF_DATE_KHR)
-		{
-			m_context->device.vkQueueWaitIdle(m_context->queue);
-			DestroySwapChain();
-			return;
-		}
-		if(result != VK_SUBOPTIMAL_KHR) CHECKVULKANERROR(result);
-	}
-}
+	    {
+        auto presentInfo = Framework::Vulkan::PresentInfoKHR();
+
+        presentInfo.swapchainCount = 1;
+        presentInfo.pSwapchains = &m_swapChain;
+        presentInfo.pImageIndices = &imageIndex;
+        presentInfo.waitSemaphoreCount = 1;
+        presentInfo.pWaitSemaphores =
+            &swapChainSemaphores.renderCompleteSemaphore;
+
+        result = m_context->device.vkQueuePresentKHR(
+            m_context->queue,
+            &presentInfo);
+
+        if(result == VK_ERROR_SURFACE_LOST_KHR)
+        {
+            m_surfaceLost = true;
+            m_context->device.vkQueueWaitIdle(m_context->queue);
+            DestroySwapChain();
+            return;
+        }
+
+        if(result == VK_ERROR_OUT_OF_DATE_KHR)
+        {
+            m_context->device.vkQueueWaitIdle(m_context->queue);
+            DestroySwapChain();
+            return;
+        }
+
+        if(result != VK_SUBOPTIMAL_KHR)
+        {
+            CHECKVULKANERROR(result);
+        }
+    }
 
 void CPresent::UpdateBackbuffer(uint32 imageIndex, const SWAPCHAIN_SEMAPHORES& swapChainSemaphores, const CGSHandler::DISPLAY_INFO& dispInfo)
 {
