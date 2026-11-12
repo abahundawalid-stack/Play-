@@ -106,13 +106,25 @@ void CPresent::DoPresent(const CGSHandler::DISPLAY_INFO& dispInfo)
 
 	uint32_t imageIndex = 0;
 	result = m_context->device.vkAcquireNextImageKHR(m_context->device, m_swapChain, UINT64_MAX, swapChainSemaphores.imageAcquireSemaphore, VK_NULL_HANDLE, &imageIndex);
-	if((result == VK_ERROR_OUT_OF_DATE_KHR) || (result == VK_ERROR_SURFACE_LOST_KHR))
-	{
-		m_context->device.vkQueueWaitIdle(m_context->queue);
-		DestroySwapChain();
-		return;
-	}
-	if(result != VK_SUBOPTIMAL_KHR) CHECKVULKANERROR(result);
+	    if(result == VK_ERROR_SURFACE_LOST_KHR)
+    {
+        m_surfaceLost = true;
+        m_context->device.vkQueueWaitIdle(m_context->queue);
+        DestroySwapChain();
+        return;
+    }
+
+    if(result == VK_ERROR_OUT_OF_DATE_KHR)
+    {
+        m_context->device.vkQueueWaitIdle(m_context->queue);
+        DestroySwapChain();
+        return;
+    }
+
+    if(result != VK_SUBOPTIMAL_KHR)
+    {
+        CHECKVULKANERROR(result);
+    }
 	if(imageIndex >= m_swapChainImages.size() ||
        imageIndex >= m_swapChainFramebuffers.size())
     {
