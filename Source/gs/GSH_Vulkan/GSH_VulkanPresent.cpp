@@ -170,6 +170,7 @@ void CPresent::DoPresent(const CGSHandler::DISPLAY_INFO& dispInfo)
             CHECKVULKANERROR(result);
         }
     }
+}
 
 void CPresent::UpdateBackbuffer(uint32 imageIndex, const SWAPCHAIN_SEMAPHORES& swapChainSemaphores, const CGSHandler::DISPLAY_INFO& dispInfo)
 {
