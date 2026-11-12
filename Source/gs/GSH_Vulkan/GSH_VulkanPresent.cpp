@@ -481,27 +481,69 @@ void CPresent::CreateSwapChainFramebuffers()
 
 void CPresent::DestroySwapChain()
 {
-	for(auto swapChainFramebuffer : m_swapChainFramebuffers)
-	{
-		m_context->device.vkDestroyFramebuffer(m_context->device, swapChainFramebuffer, nullptr);
-	}
-	for(auto swapChainImageView : m_swapChainImageViews)
-	{
-		m_context->device.vkDestroyImageView(m_context->device, swapChainImageView, nullptr);
-	}
-	for(const auto& swapChainSemaphores : m_swapChainSemaphores)
-	{
-		m_context->device.vkDestroySemaphore(m_context->device, swapChainSemaphores.imageAcquireSemaphore, nullptr);
-		m_context->device.vkDestroySemaphore(m_context->device, swapChainSemaphores.renderCompleteSemaphore, nullptr);
-	}
-	m_context->device.vkDestroySwapchainKHR(m_context->device, m_swapChain, nullptr);
+    if(m_context == nullptr || m_context->device.IsEmpty())
+    {
+        m_swapChainImages.clear();
+        m_swapChainImageViews.clear();
+        m_swapChainFramebuffers.clear();
+        m_swapChainSemaphores.clear();
+        m_swapChain = VK_NULL_HANDLE;
+        m_swapChainValid = false;
+        m_currentSwapChainSemaphoreIndex = 0;
+        return;
+    }
 
-	m_swapChainImages.clear();
-	m_swapChainImageViews.clear();
-	m_swapChainFramebuffers.clear();
-	m_swapChainSemaphores.clear();
-	m_currentSwapChainSemaphoreIndex = 0;
-	m_swapChain = VK_NULL_HANDLE;
+    for(auto framebuffer : m_swapChainFramebuffers)
+    {
+        if(framebuffer != VK_NULL_HANDLE)
+        {
+            m_context->device.vkDestroyFramebuffer(
+                m_context->device, framebuffer, nullptr);
+        }
+    }
+
+    for(auto imageView : m_swapChainImageViews)
+    {
+        if(imageView != VK_NULL_HANDLE)
+        {
+            m_context->device.vkDestroyImageView(
+                m_context->device, imageView, nullptr);
+        }
+    }
+
+    for(const auto& semaphores : m_swapChainSemaphores)
+    {
+        if(semaphores.imageAcquireSemaphore != VK_NULL_HANDLE)
+        {
+            m_context->device.vkDestroySemaphore(
+                m_context->device,
+                semaphores.imageAcquireSemaphore,
+                nullptr);
+        }
+
+        if(semaphores.renderCompleteSemaphore != VK_NULL_HANDLE)
+        {
+            m_context->device.vkDestroySemaphore(
+                m_context->device,
+                semaphores.renderCompleteSemaphore,
+                nullptr);
+        }
+    }
+
+    if(m_swapChain != VK_NULL_HANDLE)
+    {
+        m_context->device.vkDestroySwapchainKHR(
+            m_context->device, m_swapChain, nullptr);
+    }
+
+    m_swapChainImages.clear();
+    m_swapChainImageViews.clear();
+    m_swapChainFramebuffers.clear();
+    m_swapChainSemaphores.clear();
+
+    m_currentSwapChainSemaphoreIndex = 0;
+    m_swapChain = VK_NULL_HANDLE;
+    m_swapChainValid = false;
 }
 
 void CPresent::CreateRenderPass()
