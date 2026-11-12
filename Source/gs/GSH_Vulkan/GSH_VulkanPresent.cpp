@@ -783,3 +783,18 @@ void CPresent::CreateVertexBuffer()
 		m_context->device.vkUnmapMemory(m_context->device, m_vertexBuffer.GetMemory());
 	}
 }
+
+void CPresent::OnSurfaceDetached()
+{
+    if(!m_context->device.IsEmpty())
+    {
+        m_context->device.vkQueueWaitIdle(m_context->queue);
+    }
+
+    if(m_swapChain != VK_NULL_HANDLE)
+    {
+        DestroySwapChain();
+    }
+
+    m_swapChainValid = false;
+}
