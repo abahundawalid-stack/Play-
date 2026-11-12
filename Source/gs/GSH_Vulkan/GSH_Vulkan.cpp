@@ -159,8 +159,25 @@ void CGSH_Vulkan::InitializeImpl()
 		m_context->surfaceFormat = surfaceFormats[surfaceFormatIndex];
 	}
 
-	CreateDevice(m_context->physicalDevice);
-	m_context->device.vkGetDeviceQueue(m_context->device, renderQueueFamily, 0, &m_context->queue);
+	CreateDevice(m_context->physicalDevice, renderQueueFamily);
+
+    if(m_context->device.IsEmpty())
+    {
+        return;
+    }
+
+    m_context->device.vkGetDeviceQueue(
+        m_context->device,
+        renderQueueFamily,
+        0,
+        &m_context->queue);
+
+    if(m_context->queue == VK_NULL_HANDLE)
+    {
+        m_context->device.Reset();
+        return;
+    }  
+	
 	m_context->commandBufferPool = Framework::Vulkan::CCommandBufferPool(m_context->device, renderQueueFamily);
 
 	CreateDescriptorPool();
