@@ -1,6 +1,5 @@
 cmake_minimum_required(VERSION 3.15)
 
-# macOS deployment target needs to be set before project().
 if(APPLE AND NOT TARGET_IOS)
     set(CMAKE_OSX_DEPLOYMENT_TARGET "10.15" CACHE STRING
         "Minimum OS X deployment version")
@@ -58,6 +57,7 @@ set(PROJECT_LIBS)
 
 include(PrecompiledHeader)
 
+# Libretro is independent from the Android Play application.
 if(BUILD_LIBRETRO_CORE)
     if(NOT MSVC)
         add_compile_options(
@@ -65,10 +65,10 @@ if(BUILD_LIBRETRO_CORE)
         )
     endif()
 
-if(NOT TARGET_PLATFORM_ANDROID)
-    add_subdirectory(tools/NamcoSys147NANDTools)
+    add_subdirectory(Source/ui_libretro)
 endif()
 
+# Main Play application.
 if(BUILD_PLAY)
 
     if(TARGET_PLATFORM_UNIX OR
@@ -89,8 +89,6 @@ if(BUILD_PLAY)
         endif()
 
         if(TARGET_PLATFORM_ANDROID)
-            # Android native target:
-            # Source/ui_android/CMakeLists.txt creates libPlay.so.
             add_subdirectory(Source/ui_android/)
         endif()
 
@@ -101,7 +99,7 @@ if(BUILD_PLAY)
     endif()
 endif()
 
-# Test targets are excluded from Android builds.
+# Desktop tests are not part of the Android build.
 if(BUILD_TESTS AND NOT TARGET_PLATFORM_ANDROID)
 
     add_subdirectory(tools/AutoTest/)
@@ -110,17 +108,15 @@ if(BUILD_TESTS AND NOT TARGET_PLATFORM_ANDROID)
     add_subdirectory(tools/SpuTest/)
     add_subdirectory(tools/VuTest/)
 
-    add_subdirectory(
-        deps/Framework/build_cmake/Tests
-    )
+    add_subdirectory(deps/Framework/build_cmake/Tests)
 
 endif()
 
-# Standalone utility tool is not required by Android.
+# Desktop utility only.
 if(NOT TARGET_PLATFORM_ANDROID)
     add_subdirectory(tools/NamcoSys147NANDTools)
 endif()
 
-if(BUILD_PSFPLAYER)
+if(BUILD_PSFPLAYER AND NOT TARGET_PLATFORM_ANDROID)
     add_subdirectory(tools/PsfPlayer)
 endif()
