@@ -365,11 +365,16 @@ VkDescriptorSet CPresent::PrepareDescriptorSet(VkDescriptorSetLayout descriptorS
 
 void CPresent::CreateSwapChain()
 {
-	assert(!m_context->device.IsEmpty());
-	assert(m_swapChain == VK_NULL_HANDLE);
-	assert(m_swapChainImages.empty());
+    if(m_context == nullptr ||
+       m_context->device.IsEmpty() ||
+       m_context->surface == VK_NULL_HANDLE ||
+       m_swapChain != VK_NULL_HANDLE ||
+       !m_swapChainImages.empty())
+    {
+        return;
+    }
 
-	auto result = VK_SUCCESS;
+    auto result = VK_SUCCESS;
 
 	VkSurfaceCapabilitiesKHR surfaceCaps = {};
 	result = m_context->instance->vkGetPhysicalDeviceSurfaceCapabilitiesKHR(m_context->physicalDevice, m_context->surface, &surfaceCaps);
