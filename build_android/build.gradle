@@ -21,6 +21,10 @@ project.ext {
     gitVersionName = "${git.describe()}"
 }
 
+project.afterEvaluate {
+    preBuild.dependsOn 'copyPatchesFile'
+}
+
 android {
     namespace 'com.virtualapplications.play'
     compileSdk 35
@@ -32,38 +36,70 @@ android {
 
     defaultConfig {
         applicationId 'com.virtualapplications.play.jpog'
+
         versionCode (100 + gitVersionCode)
         versionName gitVersionName
+
         minSdkVersion 21
         targetSdkVersion 35
 
+        // Build khusus ARM64.
         ndk {
             abiFilters 'arm64-v8a'
         }
+
+        // Parameter konfigurasi native CMake.
+        externalNativeBuild {
+            cmake {
+                arguments(
+                    "-DBUILD_PLAY=ON",
+                    "-DBUILD_TESTS=OFF",
+                    "-DBUILD_PSFPLAYER=OFF",
+                    "-DBUILD_LIBRETRO_CORE=OFF",
+                    "-DBUILD_AOT_CACHE=OFF",
+                    "-DUSE_AOT_CACHE=OFF",
+                    "-DANDROID_STL=c++_static"
+                )
+
+                cppFlags "-frtti -fexceptions"
+            }
+        }
     }
 
+    // Hubungkan Gradle ke CMakeLists.txt di root repository.
     externalNativeBuild {
-    cmake {
-        arguments(
-            "-DANDROID_ARM_NEON=TRUE",
-            "-DANDROID_TOOLCHAIN=clang",
-            "-DANDROID_CPP_FEATURES=exceptions rtti",
-            "-DANDROID_STL=c++_static"
-        )
-        cppFlags("-frtti")
-        targets("Play")
-        path file("../CMakeLists.txt")
-        version "3.31.1"
+        cmake {
+            path file("../CMakeLists.txt")
+            version "3.31.1"
+
+            // Bangun hanya shared library Android Play.
+            targets "Play"
+        }
     }
-}
+
+    repositories {
+        google()
+        mavenCentral()
+    }
+
+    dependencies {
+        api 'androidx.appcompat:appcompat:1.6.1'
+        api 'androidx.preference:preference:1.2.1'
+        implementation 'androidx.documentfile:documentfile:1.0.1'
+        api 'org.apache.commons:commons-lang3:3.4'
+        api 'commons-io:commons-io:2.13.0'
+    }
 
     signingConfigs {
-        if (project.ext.signingEnabled) {
+        if(project.ext.signingEnabled) {
             release {
                 storeFile file(PLAY_RELEASE_STORE_FILE)
                 storePassword PLAY_RELEASE_STORE_PASSWORD
                 keyAlias PLAY_RELEASE_KEY_ALIAS
                 keyPassword PLAY_RELEASE_KEY_PASSWORD
+            }
+        } else {
+            release {
             }
         }
     }
@@ -72,19 +108,26 @@ android {
         debug {
             debuggable true
             jniDebuggable true
-            buildConfigField "java.util.Date", "buildTime",
+
+            buildConfigField(
+                "java.util.Date",
+                "buildTime",
                 "new java.util.Date(" + System.currentTimeMillis() + "L)"
+            )
         }
 
         release {
             proguardFile getDefaultProguardFile('proguard-android.txt')
 
-            if (project.ext.signingEnabled) {
+            if(project.ext.signingEnabled) {
                 signingConfig signingConfigs.release
             }
 
-            buildConfigField "java.util.Date", "buildTime",
+            buildConfigField(
+                "java.util.Date",
+                "buildTime",
                 "new java.util.Date(" + System.currentTimeMillis() + "L)"
+            )
         }
     }
 
@@ -97,10 +140,19 @@ android {
         }
     }
 
+    task copyPatchesFile(type: Copy) {
+        from '../GameConfig.xml'
+        into 'src/main/assets'
+    }
+
     sourceSets {
         main {
-            java.srcDirs = ['../Source/ui_android/java']
-            jniLibs.srcDir 'src/main/libs'
+            java.srcDirs = [
+                '../Source/ui_android/java'
+            ]
+
+            // Jangan daftarkan src/main/libs sebagai jniLibs.
+            // Library native dihasilkan oleh externalNativeBuild.
         }
     }
 
@@ -112,18 +164,6 @@ android {
 }
 
 dependencies {
-    api 'androidx.appcompat:appcompat:1.6.1'
-    api 'androidx.preference:preference:1.2.1'
-    implementation 'androidx.documentfile:documentfile:1.0.1'
-    api 'org.apache.commons:commons-lang3:3.18.0'
-    api 'commons-io:commons-io:2.14.0'
-}
-
-task copyPatchesFile(type: Copy) {
-    from '../GameConfig.xml'
-    into 'src/main/assets'
-}
-
-project.afterEvaluate {
-    preBuild.dependsOn 'copyPatchesFile'
+    // Dependencies Android diletakkan di project dependencies.
+    // Tidak ada native library prebuilt yang didaftarkan di sini.
 }
