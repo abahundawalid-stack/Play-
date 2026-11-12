@@ -1895,11 +1895,16 @@ Framework::CBitmap CGSH_Vulkan::GetTextureImpl(uint64 tex0Reg, uint32 maxMip, ui
 
 void CGSH_Vulkan::OnSurfaceChanging()
 {
-    if(m_present)
+    if(m_context != nullptr && !m_context->device.IsEmpty())
     {
-        m_present->OnSurfaceDetached();
-        m_present.reset();
+        // Pastikan semua pekerjaan GPU selesai sebelum swapchain
+        // dan surface lama dihancurkan.
+        m_context->device.vkQueueWaitIdle(m_context->queue);
     }
+
+    // Destructor CPresent menjadi satu-satunya pemilik cleanup.
+    // Jangan panggil DestroySwapChain() secara terpisah di sini.
+    m_present.reset();
 }
 
 void CGSH_Vulkan::OnSurfaceChanged()
@@ -1911,33 +1916,34 @@ void CGSH_Vulkan::OnSurfaceChanged()
         return;
     }
 
-    auto surfaceFormats = GetDeviceSurfaceFormats(m_context->physicalDevice);
+    auto surfaceFormats =
+        GetDeviceSurfaceFormats(m_context->physicalDevice);
 
     if(surfaceFormats.empty())
     {
         return;
     }
 
-    int surfaceFormatIndex = 0;
+    auto selectedFormat = surfaceFormats.begin();
 
-    for(int i = 0; i < static_cast<int>(surfaceFormats.size()); i++)
+    for(auto it = surfaceFormats.begin();
+        it != surfaceFormats.end(); ++it)
     {
-        const auto& surfaceFormat = surfaceFormats[i];
-
-        if(surfaceFormat.colorSpace != VK_COLORSPACE_SRGB_NONLINEAR_KHR)
+        if(it->colorSpace != VK_COLORSPACE_SRGB_NONLINEAR_KHR)
         {
             continue;
         }
 
-        if(surfaceFormat.format == VK_FORMAT_B8G8R8A8_UNORM ||
-           surfaceFormat.format == VK_FORMAT_R8G8B8A8_UNORM)
+        if(it->format == VK_FORMAT_B8G8R8A8_UNORM ||
+           it->format == VK_FORMAT_R8G8B8A8_UNORM)
         {
-            surfaceFormatIndex = i;
+            selectedFormat = it;
             break;
         }
     }
 
-    m_context->surfaceFormat = surfaceFormats[surfaceFormatIndex];
+    m_context->surfaceFormat = *selectedFormat;
 
-    m_present = std::make_shared<CPresent>(m_context);
+    // CPresent membuat render pass dan swapchain sesuai format baru.
+    m_present = std::make_shared<GSH_Vulkan::CPresent>(m_context);
 }
