@@ -73,7 +73,6 @@ void CGSH_OpenGLAndroid::InitializeImpl()
 
     if(eglInitialize(m_display, nullptr, nullptr) != EGL_TRUE)
     {
-        eglTerminate(m_display);
         m_display = EGL_NO_DISPLAY;
         return;
     }
@@ -81,11 +80,11 @@ void CGSH_OpenGLAndroid::InitializeImpl()
     EGLint numConfigs = 0;
     if(eglChooseConfig(
            m_display, configAttribs, &m_config, 1, &numConfigs) != EGL_TRUE ||
-       numConfigs < 1)
+       numConfigs == 0)
     {
         eglTerminate(m_display);
         m_display = EGL_NO_DISPLAY;
-        m_config = 0;
+        m_config = nullptr;
         return;
     }
 
@@ -96,25 +95,99 @@ void CGSH_OpenGLAndroid::InitializeImpl()
     {
         eglTerminate(m_display);
         m_display = EGL_NO_DISPLAY;
-        m_config = 0;
+        m_config = nullptr;
         return;
     }
 
-    SetupContext();
-
-    // Jangan hidupkan renderer dasar jika EGL surface belum berhasil dibuat.
-    if(m_surface == EGL_NO_SURFACE)
+    if(!SetupContext())
     {
         eglDestroyContext(m_display, m_context);
         m_context = EGL_NO_CONTEXT;
+
         eglTerminate(m_display);
         m_display = EGL_NO_DISPLAY;
-        m_config = 0;
+        m_config = nullptr;
         return;
     }
 
     CGSH_OpenGL::InitializeImpl();
     m_rendererInitialized = true;
+}
+
+bool CGSH_OpenGLAndroid::SetupContext()
+{
+    if(m_display == EGL_NO_DISPLAY ||
+       m_context == EGL_NO_CONTEXT ||
+       m_window == nullptr)
+    {
+        return false;
+    }
+
+    if(m_surface != EGL_NO_SURFACE)
+    {
+        eglMakeCurrent(
+            m_display,
+            EGL_NO_SURFACE,
+            EGL_NO_SURFACE,
+            EGL_NO_CONTEXT);
+
+        eglDestroySurface(m_display, m_surface);
+        m_surface = EGL_NO_SURFACE;
+    }
+
+    EGLSurface newSurface = eglCreateWindowSurface(
+        m_display,
+        m_config,
+        m_window,
+        nullptr);
+
+    if(newSurface == EGL_NO_SURFACE)
+    {
+        return false;
+    }
+
+    if(eglMakeCurrent(
+           m_display,
+           newSurface,
+           newSurface,
+           m_context) != EGL_TRUE)
+    {
+        eglDestroySurface(m_display, newSurface);
+        return false;
+    }
+
+    EGLint width = 0;
+    EGLint height = 0;
+
+    if(eglQuerySurface(m_display, newSurface, EGL_WIDTH, &width) != EGL_TRUE ||
+       eglQuerySurface(m_display, newSurface, EGL_HEIGHT, &height) != EGL_TRUE ||
+       width <= 0 || height <= 0)
+    {
+        eglMakeCurrent(
+            m_display,
+            EGL_NO_SURFACE,
+            EGL_NO_SURFACE,
+            EGL_NO_CONTEXT);
+
+        eglDestroySurface(m_display, newSurface);
+        return false;
+    }
+
+    m_surface = newSurface;
+
+    PRESENTATION_PARAMS presentationParams;
+    presentationParams.mode =
+        static_cast<CGSHandler::PRESENTATION_MODE>(
+            CAppConfig::GetInstance().GetPreferenceInteger(
+                PREF_CGSHANDLER_PRESENTATION_MODE));
+
+    presentationParams.windowWidth = width;
+    presentationParams.windowHeight = height;
+
+    SetPresentationParams(presentationParams);
+
+    eglSwapInterval(m_display, 0);
+    return true;
 }
 
 void CGSH_OpenGLAndroid::ReleaseImpl()
