@@ -222,8 +222,15 @@ void CPS2VM::DestroySoundHandler()
 
 void CPS2VM::SetEeFrequencyScale(uint32 numerator, uint32 denominator)
 {
+	// Reject invalid scale values and preserve the last valid configuration.
+	if(numerator == 0 || denominator == 0)
+	{
+		return;
+	}
+
 	m_eeFreqScaleNumerator = numerator;
 	m_eeFreqScaleDenominator = denominator;
+
 	ReloadFrameRateLimit();
 }
 
@@ -231,26 +238,66 @@ void CPS2VM::ReloadFrameRateLimit()
 {
 	uint32 hRefreshRate = PS2::GS_NTSC_HSYNC_FREQ;
 	uint32 vRefreshRate = 60;
+
 	if(m_ee && m_ee->m_gs)
 	{
 		hRefreshRate = m_ee->m_gs->GetCrtHSyncFrequency();
 		vRefreshRate = m_ee->m_gs->GetCrtFrameRate();
 	}
-	bool limitFrameRate = CAppConfig::GetInstance().GetPreferenceBoolean(PREF_PS2_LIMIT_FRAMERATE);
-	m_frameLimiter.SetFrameRate(limitFrameRate ? vRefreshRate : 0);
 
-	//At 1x scale, IOP runs 8 times slower than EE
-	uint32 eeFreqScaled = PS2::EE_CLOCK_FREQ * m_eeFreqScaleNumerator / m_eeFreqScaleDenominator;
-	m_iopTickStep = (m_eeTickStep / 8) * m_eeFreqScaleDenominator / m_eeFreqScaleNumerator;
+	// Protect timing calculations against invalid GS refresh values.
+	if(hRefreshRate == 0)
+	{
+		hRefreshRate = PS2::GS_NTSC_HSYNC_FREQ;
+	}
 
-	m_hblankTicksTotal = eeFreqScaled / hRefreshRate;
+	if(vRefreshRate == 0)
+	{
+		vRefreshRate = 60;
+	}
 
-	uint32 frameTicks = eeFreqScaled / vRefreshRate;
-	m_onScreenTicksTotal = frameTicks * 9 / 10;
-	m_vblankTicksTotal = frameTicks / 10;
+	const uint32 scaleNumerator =
+	    (m_eeFreqScaleNumerator == 0) ? 1 : m_eeFreqScaleNumerator;
 
-	m_spuUpdateTicksTotal = (static_cast<int64>(eeFreqScaled) << SPU_UPDATE_TICKS_PRECISION) / (static_cast<int64>(DST_SAMPLE_RATE));
-	m_spuUpdateTicksTotal *= static_cast<int64>(SAMPLES_PER_UPDATE);
+	const uint32 scaleDenominator =
+	    (m_eeFreqScaleDenominator == 0) ? 1 : m_eeFreqScaleDenominator;
+
+	const bool limitFrameRate =
+	    CAppConfig::GetInstance().GetPreferenceBoolean(
+	        PREF_PS2_LIMIT_FRAMERATE);
+
+	// Uses the actual GS refresh rate: PAL or NTSC.
+	m_frameLimiter.SetFrameRate(
+	    limitFrameRate ? vRefreshRate : 0);
+
+	// At 1x scale, IOP runs 8 times slower than EE.
+	const uint64 eeFrequencyScaled =
+	    (static_cast<uint64>(PS2::EE_CLOCK_FREQ) * scaleNumerator) /
+	    scaleDenominator;
+
+	m_iopTickStep = static_cast<int>(
+	    (static_cast<uint64>(m_eeTickStep / 8) * scaleDenominator) /
+	    scaleNumerator);
+
+	m_hblankTicksTotal = static_cast<uint32>(
+	    eeFrequencyScaled / hRefreshRate);
+
+	const uint64 frameTicks =
+	    eeFrequencyScaled / vRefreshRate;
+
+	m_onScreenTicksTotal = static_cast<uint32>(
+	    frameTicks * 9 / 10);
+
+	m_vblankTicksTotal = static_cast<uint32>(
+	    frameTicks / 10);
+
+	m_spuUpdateTicksTotal =
+	    (static_cast<int64>(eeFrequencyScaled) <<
+	     SPU_UPDATE_TICKS_PRECISION) /
+	    static_cast<int64>(DST_SAMPLE_RATE);
+
+	m_spuUpdateTicksTotal *=
+	    static_cast<int64>(SAMPLES_PER_UPDATE);
 }
 
 CVirtualMachine::STATUS CPS2VM::GetStatus() const
