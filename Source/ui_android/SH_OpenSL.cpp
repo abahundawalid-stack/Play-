@@ -319,6 +319,7 @@ void CSH_OpenSL::QueueCallbackImpl()
 		}
 	}
 
+	// Beri tahu penulis sebelum callback dinyatakan selesai.
 	if(notifyWriter)
 	{
 		m_bufferAvailable.notify_one();
@@ -333,20 +334,6 @@ void CSH_OpenSL::QueueCallbackImpl()
 		{
 			m_callbackIdle.notify_all();
 		}
-	}
-}
-
-
-		--m_activeCallbacks;
-		if(m_activeCallbacks == 0)
-		{
-			m_callbackIdle.notify_all();
-		}
-	}
-
-	if(notifyWriter)
-	{
-		m_bufferAvailable.notify_one();
 	}
 }
 
