@@ -21,6 +21,7 @@ private:
 	void CreateSurface();
 	void UpdateViewport();
 
-	// Owns the reference returned by ANativeWindow_fromSurface().
-	ANativeWindow* m_window = nullptr;
+	// Owns the transferred ANativeWindow reference. nullptr means detached.
+ANativeWindow* m_window = nullptr;
+
 };
