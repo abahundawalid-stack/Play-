@@ -102,16 +102,31 @@ void CGSH_VulkanAndroid::SetWindow(ANativeWindow* window)
         [this, window]() {
             ANativeWindow* previousWindow = m_window;
 
-            // Lepaskan objek presentasi dan swapchain sebelum
-            // menghancurkan VkSurfaceKHR yang lama.
-            OnSurfaceChanging();
+            if(previousWindow == window)
+            {
+                if(window != nullptr)
+                {
+                    ANativeWindow_release(window);
+                }
+                return;
+            }
+
+            // Selesaikan pekerjaan GPU dan lepaskan objek presentasi lama.
+            if(m_rendererInitialized)
+            {
+                OnSurfaceChanging();
+            }
 
             m_window = window;
 
-            // Jika Vulkan belum diinisialisasi, simpan window saja.
-            // InitializeImpl akan menggunakan window tersebut.
-            if(m_instance.IsEmpty())
+            // Inisialisasi pertama atau inisialisasi tertunda.
+            if(!m_rendererInitialized)
             {
+                if(m_window != nullptr)
+                {
+                    InitializeImpl();
+                }
+
                 if(previousWindow != nullptr)
                 {
                     ANativeWindow_release(previousWindow);
@@ -119,23 +134,17 @@ void CGSH_VulkanAndroid::SetWindow(ANativeWindow* window)
                 return;
             }
 
-            // Hancurkan surface lama dan buat surface baru.
+            // Renderer sudah aktif: ganti atau lepaskan surface.
             CreateSurface();
 
-            if(m_window != nullptr &&
+            if(m_context != nullptr &&
                m_context->surface != VK_NULL_HANDLE)
             {
-                // Buat ulang presentasi berdasarkan surface baru.
                 OnSurfaceChanged();
-
-                if(m_present)
-                {
-                    UpdateViewport();
-                }
+                UpdateViewport();
             }
 
-            // Referensi window lama baru dilepas setelah surface
-            // Vulkan lama dan objek presentasinya selesai dihancurkan.
+            // Window lama dilepas setelah surface lamanya dihancurkan.
             if(previousWindow != nullptr)
             {
                 ANativeWindow_release(previousWindow);
