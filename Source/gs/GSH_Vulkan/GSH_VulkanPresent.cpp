@@ -112,6 +112,13 @@ void CPresent::DoPresent(const CGSHandler::DISPLAY_INFO& dispInfo)
 		return;
 	}
 	if(result != VK_SUBOPTIMAL_KHR) CHECKVULKANERROR(result);
+	if(imageIndex >= m_swapChainImages.size() ||
+       imageIndex >= m_swapChainFramebuffers.size())
+    {
+    m_context->device.vkQueueWaitIdle(m_context->queue);
+        DestroySwapChain();
+        return;
+    }
 
 	UpdateBackbuffer(imageIndex, swapChainSemaphores, dispInfo);
 
