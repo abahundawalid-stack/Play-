@@ -53,6 +53,7 @@ android {
         targets += ["Play"]
     }
 }
+    
     signingConfigs {
         if (project.ext.signingEnabled) {
             release {
