@@ -196,15 +196,26 @@ void CGSH_VulkanAndroid::CreateSurface()
 
 void CGSH_VulkanAndroid::UpdateViewport()
 {
-	if(m_window == nullptr)
-	{
-		return;
-	}
+    if(m_window == nullptr ||
+       m_context == nullptr ||
+       m_context->surface == VK_NULL_HANDLE ||
+       m_context->device.IsEmpty())
+    {
+        return;
+    }
 
-	PRESENTATION_PARAMS presentationParams;
-	presentationParams.mode = PRESENTATION_MODE_FIT;
-	presentationParams.windowWidth = ANativeWindow_getWidth(m_window);
-	presentationParams.windowHeight = ANativeWindow_getHeight(m_window);
+    const int32_t width = ANativeWindow_getWidth(m_window);
+    const int32_t height = ANativeWindow_getHeight(m_window);
 
-	SetPresentationParams(presentationParams);
+    if(width <= 0 || height <= 0)
+    {
+        return;
+    }
+
+    PRESENTATION_PARAMS presentationParams;
+    presentationParams.mode = PRESENTATION_MODE_FIT;
+    presentationParams.windowWidth = width;
+    presentationParams.windowHeight = height;
+
+    SetPresentationParams(presentationParams);
 }
