@@ -242,26 +242,31 @@ jobs:
 
           echo "===== VERIFY CMAKE LIBRARY MATCH ====="
 
-          CMAKE_LIB="$(find build_android/.cxx \
-                            build_android/build/intermediates/cxx \
-            -type f -path '*/arm64-v8a/libPlay.so' \
-            2>/dev/null | sort -u)"
+          mapfile -t CMAKE_LIBS < <(
+          find build_android/.cxx \
+          -type f \
+          -path '*/arm64-v8a/libPlay.so' \
+          2>/dev/null | sort -u
+          )
 
-          test -n "$CMAKE_LIB"
+          test "${#CMAKE_LIBS[@]}" -eq 1
+
+          CMAKE_LIB="${CMAKE_LIBS[0]}"
 
           unzip -p "$APK" lib/arm64-v8a/libPlay.so \
-            > "$RUNNER_TEMP/apk-libPlay.so"
+          > "$RUNNER_TEMP/apk-libPlay.so"
 
           SOURCE_HASH="$(sha256sum "$CMAKE_LIB" | awk '{print $1}')"
+
           APK_HASH="$(sha256sum "$RUNNER_TEMP/apk-libPlay.so" \
-            | awk '{print $1}')"
+          | awk '{print $1}')"
 
           echo "CMake SHA256: $SOURCE_HASH"
           echo "APK SHA256:   $APK_HASH"
 
           test "$SOURCE_HASH" = "$APK_HASH"
 
-          echo "PASS: APK libPlay.so matches current CMake output"
+          echo "PASS: APK library matches current CMake output"
 
           echo "===== ZIP ALIGNMENT ====="
           "$ZIPALIGN" -c -v 4 "$APK"
