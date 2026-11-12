@@ -280,10 +280,15 @@ void CGSH_Vulkan::ResetImpl()
 	WriteBackMemoryCache();
 }
 
-void CGSH_Vulkan::SetPresentationParams(const CGSHandler::PRESENTATION_PARAMS& presentationParams)
+void CGSH_Vulkan::SetPresentationParams(
+    const CGSHandler::PRESENTATION_PARAMS& presentationParams)
 {
-	CGSHandler::SetPresentationParams(presentationParams);
-	m_present->ValidateSwapChain(presentationParams);
+    CGSHandler::SetPresentationParams(presentationParams);
+
+    if(m_present)
+    {
+        m_present->ValidateSwapChain(presentationParams);
+    }
 }
 
 void CGSH_Vulkan::MarkNewFrame()
