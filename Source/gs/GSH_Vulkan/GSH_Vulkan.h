@@ -27,6 +27,8 @@ public:
 	static Framework::Vulkan::CInstance CreateInstance(bool);
 
 	void SetPresentationParams(const CGSHandler::PRESENTATION_PARAMS&) override;
+    void OnSurfaceChanging();
+    void OnSurfaceChanged();
 
 	void ProcessHostToLocalTransfer() override;
 	void ProcessLocalToHostTransfer() override;
