@@ -19,7 +19,7 @@ public:
 	void PresentBackbuffer() override;
 
 private:
-	void SetupContext();
+	bool SetupContext();
     bool m_rendererInitialized = false;
 
 	// Owns the transferred ANativeWindow reference. nullptr means detached.
