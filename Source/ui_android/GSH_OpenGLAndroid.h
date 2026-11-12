@@ -21,8 +21,8 @@ public:
 private:
 	void SetupContext();
 
-	// Owns the reference returned by ANativeWindow_fromSurface().
-	NativeWindowType m_window = nullptr;
+	// Owns the transferred ANativeWindow reference. nullptr means detached.
+NativeWindowType m_window = nullptr;
 
 	EGLConfig m_config = 0;
 	EGLDisplay m_display = EGL_NO_DISPLAY;
