@@ -7,7 +7,7 @@ class CGSH_VulkanAndroid : public CGSH_Vulkan, public INativeWindowUpdateListene
 {
 public:
 	CGSH_VulkanAndroid(ANativeWindow*);
-	virtual ~CGSH_VulkanAndroid() = default;
+	virtual ~CGSH_VulkanAndroid();
 
 	void SetWindow(ANativeWindow*) override;
 
@@ -21,5 +21,6 @@ private:
 	void CreateSurface();
 	void UpdateViewport();
 
+	// Owns the reference returned by ANativeWindow_fromSurface().
 	ANativeWindow* m_window = nullptr;
 };
