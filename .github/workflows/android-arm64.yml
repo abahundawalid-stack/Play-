@@ -162,7 +162,7 @@ jobs:
           echo "===== SEARCH CURRENT CMAKE OUTPUT ====="
 
           mapfile -t CMAKE_LIBS < <(
-          find build_android/.cxx \
+          find build_android/build/intermediates \
           -type f \
           -name 'libPlay.so' \
           -path '*/arm64-v8a/*' \
@@ -171,18 +171,16 @@ jobs:
 
           if [ "${#CMAKE_LIBS[@]}" -ne 1 ]; then
             echo "ERROR: Expected exactly one ARM64 CMake output."
-            printf '%s\n' "${CMAKE_LIBS[@]:-No output found}"
+            find build_android/build/intermediates \
+              -type f -name '*.so' -print 2>/dev/null || true
             exit 1
           fi
 
           CMAKE_LIB="${CMAKE_LIBS[0]}"
-
           test -s "$CMAKE_LIB"
 
           echo "CMake output: $CMAKE_LIB"
-
           sha256sum "$CMAKE_LIB" | tee CMAKE_LIB_SHA256.txt
-
           echo "PASS: one current CMake output"
 
       - name: Verify APK package, ABI, CMake library and signature
@@ -243,33 +241,35 @@ jobs:
 
           echo "===== VERIFY CMAKE LIBRARY MATCH ====="
 
+          
           mapfile -t CMAKE_LIBS < <(
-          find build_android/.cxx \
+          find build_android/build/intermediates \
           -type f \
           -name 'libPlay.so' \
           -path '*/arm64-v8a/*' \
           2>/dev/null | sort -u
           )
 
-          test "${#CMAKE_LIBS[@]}" -eq 1
+          if [ "${#CMAKE_LIBS[@]}" -ne 1 ]; then
+            echo "ERROR: Expected exactly one ARM64 CMake output."
+            exit 1
+          fi
 
           CMAKE_LIB="${CMAKE_LIBS[0]}"
+          test -s "$CMAKE_LIB"
 
           unzip -p "$APK" lib/arm64-v8a/libPlay.so \
-          > "$RUNNER_TEMP/apk-libPlay.so"
+            > "$RUNNER_TEMP/apk-libPlay.so"
 
           SOURCE_HASH="$(sha256sum "$CMAKE_LIB" | awk '{print $1}')"
-
-          APK_HASH="$(sha256sum "$RUNNER_TEMP/apk-libPlay.so" \
-          | awk '{print $1}')"
+          APK_HASH="$(sha256sum "$RUNNER_TEMP/apk-libPlay.so" | awk '{print $1}')"
 
           echo "CMake SHA256: $SOURCE_HASH"
           echo "APK SHA256:   $APK_HASH"
 
           test "$SOURCE_HASH" = "$APK_HASH"
-
           echo "PASS: APK library matches current CMake output"
-
+          
           echo "===== ZIP ALIGNMENT ====="
           "$ZIPALIGN" -c -v 4 "$APK"
 
