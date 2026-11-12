@@ -65,7 +65,8 @@ if(BUILD_LIBRETRO_CORE)
         )
     endif()
 
-    add_subdirectory(Source/ui_libretro)
+if(NOT TARGET_PLATFORM_ANDROID)
+    add_subdirectory(tools/NamcoSys147NANDTools)
 endif()
 
 if(BUILD_PLAY)
