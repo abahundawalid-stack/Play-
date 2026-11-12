@@ -1887,3 +1887,52 @@ Framework::CBitmap CGSH_Vulkan::GetTextureImpl(uint64 tex0Reg, uint32 maxMip, ui
 
 	return bitmap;
 }
+
+void CGSH_Vulkan::OnSurfaceChanging()
+{
+    if(m_present)
+    {
+        m_present->OnSurfaceDetached();
+        m_present.reset();
+    }
+}
+
+void CGSH_Vulkan::OnSurfaceChanged()
+{
+    if(m_context == nullptr ||
+       m_context->surface == VK_NULL_HANDLE ||
+       m_context->device.IsEmpty())
+    {
+        return;
+    }
+
+    auto surfaceFormats = GetDeviceSurfaceFormats(m_context->physicalDevice);
+
+    if(surfaceFormats.empty())
+    {
+        return;
+    }
+
+    int surfaceFormatIndex = 0;
+
+    for(int i = 0; i < static_cast<int>(surfaceFormats.size()); i++)
+    {
+        const auto& surfaceFormat = surfaceFormats[i];
+
+        if(surfaceFormat.colorSpace != VK_COLORSPACE_SRGB_NONLINEAR_KHR)
+        {
+            continue;
+        }
+
+        if(surfaceFormat.format == VK_FORMAT_B8G8R8A8_UNORM ||
+           surfaceFormat.format == VK_FORMAT_R8G8B8A8_UNORM)
+        {
+            surfaceFormatIndex = i;
+            break;
+        }
+    }
+
+    m_context->surfaceFormat = surfaceFormats[surfaceFormatIndex];
+
+    m_present = std::make_shared<CPresent>(m_context);
+}
