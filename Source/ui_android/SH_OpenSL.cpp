@@ -383,7 +383,6 @@ void CSH_OpenSL::Reset()
 		}
 
 		m_bufferAvailable.notify_all();
-		assert(result == SL_RESULT_SUCCESS);
 		return;
 	}
 
