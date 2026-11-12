@@ -78,18 +78,23 @@ void CGSH_VulkanAndroid::InitializeImpl()
 
 void CGSH_VulkanAndroid::ReleaseImpl()
 {
-	CGSH_Vulkan::ReleaseImpl();
+    if(m_rendererInitialized)
+    {
+        CGSH_Vulkan::ReleaseImpl();
+        m_rendererInitialized = false;
+    }
 
-	if(m_context != nullptr &&
-	   m_context->surface != VK_NULL_HANDLE)
-	{
-		m_instance.vkDestroySurfaceKHR(
-		    m_instance,
-		    m_context->surface,
-		    nullptr);
+    if(!m_instance.IsEmpty() &&
+       m_context != nullptr &&
+       m_context->surface != VK_NULL_HANDLE)
+    {
+        m_instance.vkDestroySurfaceKHR(
+            m_instance,
+            m_context->surface,
+            nullptr);
 
-		m_context->surface = VK_NULL_HANDLE;
-	}
+        m_context->surface = VK_NULL_HANDLE;
+    }
 }
 
 void CGSH_VulkanAndroid::PresentBackbuffer()
