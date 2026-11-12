@@ -17,7 +17,7 @@ class CSH_OpenSL : public CSoundHandler
 {
 public:
 	CSH_OpenSL();
-	virtual ~CSH_OpenSL();
+	~CSH_OpenSL() override;
 
 	static CSoundHandler* HandlerFactory();
 
@@ -26,7 +26,7 @@ public:
 	bool HasFreeBuffers() override;
 	void RecycleBuffers() override;
 
-	// Telemetry. These counters are diagnostic only.
+	// Diagnostic counters. These are not proof of audible dropouts.
 	uint64_t GetUnderrunCount() const;
 	uint64_t GetBackpressureWaitCount() const;
 	uint64_t GetBackpressureWaitNanoseconds() const;
@@ -39,8 +39,12 @@ private:
 
 	void CreateOutputMix();
 	void CreateAudioPlayer();
+	void DestroyOpenSLObjects();
 
-	static void QueueCallback(SLAndroidSimpleBufferQueueItf, void*);
+	static void QueueCallback(
+	    SLAndroidSimpleBufferQueueItf,
+	    void*);
+
 	void QueueCallbackImpl();
 
 	int FindFreeBufferLocked() const;
@@ -54,20 +58,29 @@ private:
 	SLPlayItf m_playerPlay = nullptr;
 	SLAndroidSimpleBufferQueueItf m_playerQueue = nullptr;
 
-	// Each queued OpenSL buffer owns its own memory.
+	// Each queued OpenSL buffer owns its own sample memory.
 	std::array<std::vector<int16>, BUFFER_COUNT> m_buffers;
 
-	// A slot remains occupied until its OpenSL callback arrives.
+	// A slot remains occupied until its queue callback completes.
 	std::array<bool, BUFFER_COUNT> m_bufferInUse = {};
 
-	// OpenSL callbacks complete buffers in FIFO order.
+	// OpenSL simple buffer queue callbacks complete in FIFO order.
 	std::deque<int> m_queuedSlots;
 
+	// Serializes complete Write and Reset operations.
+	// The callback does not acquire this mutex.
+	std::mutex m_operationMutex;
+
+	// Protects queue bookkeeping and lifecycle state.
 	mutable std::mutex m_mutex;
 	std::condition_variable m_bufferAvailable;
+	std::condition_variable m_callbackIdle;
 
 	bool m_isResetting = false;
 	bool m_isShuttingDown = false;
+
+	// Number of callbacks currently executing QueueCallbackImpl().
+	unsigned int m_activeCallbacks = 0;
 
 	std::atomic<uint64_t> m_underrunCount{0};
 	std::atomic<uint64_t> m_backpressureWaitCount{0};
