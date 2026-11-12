@@ -113,49 +113,27 @@ void CGSH_OpenGLAndroid::PresentBackbuffer()
 	eglSwapBuffers(m_display, m_surface);
 }
 
-void CGSH_VulkanAndroid::SetWindow(ANativeWindow* window)
+void CGSH_OpenGLAndroid::SetWindow(NativeWindowType window)
 {
     SendGSCall(
         [this, window]() {
-            ANativeWindow* previousWindow = m_window;
+            NativeWindowType previousWindow = m_window;
             m_window = window;
 
-            // Handler belum pernah diinisialisasi karena belum
-            // menerima window pertama.
-            if(m_instance.IsEmpty())
+            // First Android window: initialize EGL and the base renderer.
+            if(m_display == EGL_NO_DISPLAY)
             {
                 if(m_window != nullptr)
                 {
                     InitializeImpl();
                 }
-
-                if(previousWindow != nullptr)
-                {
-                    ANativeWindow_release(previousWindow);
-                }
-                return;
             }
-
-            // Stop GPU work and destroy CPresent before old surface.
-            OnSurfaceChanging();
-
-            // CreateSurface destroys the old VkSurfaceKHR first.
-            CreateSurface();
-
-            if(m_window != nullptr &&
-               m_context != nullptr &&
-               m_context->surface != VK_NULL_HANDLE)
+            else
             {
-                OnSurfaceChanged();
-
-                if(m_present)
-                {
-                    UpdateViewport();
-                }
+                // Replace or detach the current EGL surface.
+                SetupContext();
             }
 
-            // Release the previous native window only after the old
-            // Vulkan surface and presentation resources are gone.
             if(previousWindow != nullptr)
             {
                 ANativeWindow_release(previousWindow);
