@@ -17,6 +17,7 @@ public:
 private:
     void CreateSurface();
     void UpdateViewport();
+    bool m_rendererInitialized = false;
 
     // Owns the transferred ANativeWindow reference.
     // nullptr means detached.
