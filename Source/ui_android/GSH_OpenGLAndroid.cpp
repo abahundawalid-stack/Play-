@@ -1,5 +1,6 @@
 #include <cassert>
 #include <android/native_window.h>
+#include <EGL/eglext.h>
 #include <memory>
 
 #include "opengl/OpenGlDef.h"
