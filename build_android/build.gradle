@@ -29,7 +29,7 @@ android {
     buildFeatures {
         buildConfig true
     }
-
+       
     defaultConfig {
         applicationId 'com.virtualapplications.play.jpog'
 
@@ -56,15 +56,16 @@ android {
                 )
 
                 cppFlags "-frtti -fexceptions"
+
+                targets "Play"
             }
         }
     }
 
-    externalNativeBuild {
-        cmake {
-            path file("../CMakeLists.txt")
-            version "3.31.1"
-            targets "Play"
+      externalNativeBuild {
+          cmake {
+          path file("../CMakeLists.txt")
+          version "3.31.1"
         }
     }
 
