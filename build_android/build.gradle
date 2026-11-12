@@ -45,22 +45,19 @@ android {
 
         externalNativeBuild {
             cmake {
-                arguments(
-                    "-DBUILD_PLAY=ON",
-                    "-DBUILD_TESTS=OFF",
-                    "-DBUILD_PSFPLAYER=OFF",
-                    "-DBUILD_LIBRETRO_CORE=OFF",
-                    "-DBUILD_AOT_CACHE=OFF",
-                    "-DUSE_AOT_CACHE=OFF",
-                    "-DANDROID_STL=c++_static"
-                )
+                arguments "-DBUILD_PLAY=ON",
+                          "-DBUILD_TESTS=OFF",
+                          "-DBUILD_PSFPLAYER=OFF",
+                          "-DBUILD_LIBRETRO_CORE=OFF",
+                          "-DBUILD_AOT_CACHE=OFF",
+                          "-DUSE_AOT_CACHE=OFF",
+                          "-DANDROID_STL=c++_static"
 
-                cppFlags "-frtti -fexceptions"
+                cppFlags "-frtti", "-fexceptions"
 
                 targets "Play"
             }
         }
-    }
 
       externalNativeBuild {
           cmake {
