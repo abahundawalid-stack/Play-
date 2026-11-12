@@ -146,19 +146,16 @@ android {
     }
 
     sourceSets {
-        main {
-            java.srcDirs = [
-                '../Source/ui_android/java'
-            ]
-
-            // Jangan daftarkan src/main/libs sebagai jniLibs.
-            // Library native dihasilkan oleh externalNativeBuild.
-        }
+    main {
+        java.srcDirs = [
+            '../Source/ui_android/java'
+        ]
     }
-
+}
+    
     compileOptions {
         encoding "UTF-8"
-        sourceCompatibility JavaVersion.VERSION_1_8
+i        sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
     }
 }
