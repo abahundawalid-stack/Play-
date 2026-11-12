@@ -78,7 +78,7 @@ void CPresent::DoPresent(const CGSHandler::DISPLAY_INFO& dispInfo)
 
 	if(m_context->surface == VK_NULL_HANDLE)
     {
-    return;
+        return;
     }
 
 	if(!m_swapChainValid && (m_swapChain != VK_NULL_HANDLE))
