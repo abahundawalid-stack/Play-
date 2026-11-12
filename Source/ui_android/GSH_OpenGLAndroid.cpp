@@ -45,55 +45,31 @@ CGSHandler::FactoryFunction CGSH_VulkanAndroid::GetFactoryFunction(
     };
 }
 
-void CGSH_OpenGLAndroid::InitializeImpl()
+void CGSH_VulkanAndroid::InitializeImpl()
 {
-	if(m_window == nullptr)
-	{
-		return;
-	}
+    // Queue/device initialization needs a valid Android surface.
+    // A later SetWindow() will retry initialization when one arrives.
+    if(m_window == nullptr)
+    {
+        return;
+    }
 
-	static const EGLint configAttribs[] =
-	    {
-	        EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
-	        EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
-	        EGL_BLUE_SIZE, 8,
-	        EGL_GREEN_SIZE, 8,
-	        EGL_RED_SIZE, 8,
-	        EGL_NONE};
+    m_instance = CreateInstance(true);
 
-	static const EGLint contextAttribs[] =
-	    {
-	        EGL_CONTEXT_CLIENT_VERSION, 3,
-	        EGL_NONE};
+    CreateSurface();
 
-	m_display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
-	assert(m_display != EGL_NO_DISPLAY);
+    if(m_context == nullptr ||
+       m_context->surface == VK_NULL_HANDLE)
+    {
+        return;
+    }
 
-	EGLBoolean initialized = eglInitialize(m_display, 0, 0);
-	assert(initialized != EGL_FALSE);
+    CGSH_Vulkan::InitializeImpl();
 
-	EGLint numConfigs = 0;
-	EGLBoolean chosen = eglChooseConfig(
-	    m_display,
-	    configAttribs,
-	    &m_config,
-	    1,
-	    &numConfigs);
-
-	assert(chosen != EGL_FALSE);
-	assert(numConfigs > 0);
-
-	m_context = eglCreateContext(
-	    m_display,
-	    m_config,
-	    EGL_NO_CONTEXT,
-	    contextAttribs);
-
-	assert(m_context != EGL_NO_CONTEXT);
-
-	SetupContext();
-
-	CGSH_OpenGL::InitializeImpl();
+    if(!m_context->device.IsEmpty())
+    {
+        UpdateViewport();
+    }
 }
 
 void CGSH_OpenGLAndroid::ReleaseImpl()
