@@ -26,11 +26,6 @@ project.afterEvaluate {
 }
 
 android {
-    repositories {
-        google()
-        mavenCentral()
-    }
-
     namespace 'com.virtualapplications.play'
     compileSdk 35
 
