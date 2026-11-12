@@ -125,19 +125,6 @@
 		<item>4x</item>
 		<item>6x</item>
 	</string-array>
-	
-	<string-array name="pref_emu_video_res_factor_entries">
-        <item>1x</item>
-        <item>2x</item>
-        <item>4x</item>
-        <item>6x</item>
-    </string-array>
-
-    <string-array name="pref_emu_video_presentation_mode_entries">
-        <item>Fill Screen</item>
-        <item>Fit Screen(Default)</item>
-        <item>Original Size</item>
-    </string-array>
 
 	<string-array name="pref_emu_video_presentation_mode_entries">
 		<item>Fill Screen</item>
