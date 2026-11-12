@@ -41,18 +41,18 @@ android {
         targetSdkVersion 35
     }
 
- externalNativeBuild {
-    cmake {
-        arguments += [
-            "-DANDROID_ARM_NEON=TRUE",
-            "-DANDROID_TOOLCHAIN=clang",
-            "-DANDROID_CPP_FEATURES=exceptions rtti",
-            "-DANDROID_STL=c++_static"
-        ]
-        cppFlags += ["-frtti"]
-        targets += ["Play"]
+     externalNativeBuild {
+        cmake {
+            arguments = [
+                "-DANDROID_ARM_NEON=TRUE",
+                "-DANDROID_TOOLCHAIN=clang",
+                "-DANDROID_CPP_FEATURES=exceptions rtti",
+                "-DANDROID_STL=c++_static"
+            ]
+            cppFlags = ["-frtti"]
+            targets = ["Play"]
+        }
     }
-}
     
     signingConfigs {
         if (project.ext.signingEnabled) {
