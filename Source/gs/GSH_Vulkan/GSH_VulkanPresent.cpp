@@ -74,27 +74,31 @@ void CPresent::SetPresentationViewport(const CGSHandler::PRESENTATION_VIEWPORT& 
 
 void CPresent::DoPresent(const CGSHandler::DISPLAY_INFO& dispInfo)
 {
-	auto result = VK_SUCCESS;
-
-	if(m_context->surface == VK_NULL_HANDLE)
+    if(m_context == nullptr ||
+       m_context->surface == VK_NULL_HANDLE ||
+       m_context->device.IsEmpty())
     {
         return;
     }
 
-	if(!m_swapChainValid && (m_swapChain != VK_NULL_HANDLE))
-	{
-		m_context->device.vkQueueWaitIdle(m_context->queue);
-		DestroySwapChain();
-	}
+    if(!m_swapChainValid && m_swapChain != VK_NULL_HANDLE)
+    {
+        m_context->device.vkQueueWaitIdle(m_context->queue);
+        DestroySwapChain();
+    }
 
-	if(m_swapChain == VK_NULL_HANDLE)
-	{
-		//Try creating the swap chain
-		CreateSwapChain();
-		//If it's still not valid, nevermind presenting, try later
-		if(m_swapChain == VK_NULL_HANDLE) return;
-		assert(m_swapChainValid);
-	}
+    if(m_swapChain == VK_NULL_HANDLE)
+    {
+        CreateSwapChain();
+
+        if(m_swapChain == VK_NULL_HANDLE ||
+           m_swapChainSemaphores.empty())
+        {
+            return;
+        }
+    }
+
+    auto result = VK_SUCCESS;
 
 	const auto& swapChainSemaphores = m_swapChainSemaphores[m_currentSwapChainSemaphoreIndex++];
 	m_currentSwapChainSemaphoreIndex %= m_swapChainSemaphores.size();
