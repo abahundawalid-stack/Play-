@@ -114,20 +114,49 @@ void CGSH_OpenGLAndroid::PresentBackbuffer()
 	eglSwapBuffers(m_display, m_surface);
 }
 
-void CGSH_OpenGLAndroid::SetWindow(NativeWindowType window)
+void CGSH_VulkanAndroid::SetWindow(ANativeWindow* window)
 {
-    // Ownership of window transfers to this handler.
-    // nullptr is valid and means detach the current surface.
-
     SendGSCall(
         [this, window]() {
-            auto previousWindow = m_window;
+            ANativeWindow* previousWindow = m_window;
             m_window = window;
 
-            // Destroys the old EGL surface before releasing its window.
-            // Also handles nullptr by detaching the EGL surface.
-            SetupContext();
+            // Handler belum pernah diinisialisasi karena belum
+            // menerima window pertama.
+            if(m_instance.IsEmpty())
+            {
+                if(m_window != nullptr)
+                {
+                    InitializeImpl();
+                }
 
+                if(previousWindow != nullptr)
+                {
+                    ANativeWindow_release(previousWindow);
+                }
+                return;
+            }
+
+            // Stop GPU work and destroy CPresent before old surface.
+            OnSurfaceChanging();
+
+            // CreateSurface destroys the old VkSurfaceKHR first.
+            CreateSurface();
+
+            if(m_window != nullptr &&
+               m_context != nullptr &&
+               m_context->surface != VK_NULL_HANDLE)
+            {
+                OnSurfaceChanged();
+
+                if(m_present)
+                {
+                    UpdateViewport();
+                }
+            }
+
+            // Release the previous native window only after the old
+            // Vulkan surface and presentation resources are gone.
             if(previousWindow != nullptr)
             {
                 ANativeWindow_release(previousWindow);
