@@ -404,6 +404,7 @@ VkDescriptorSet CPresent::PrepareDescriptorSet(VkDescriptorSetLayout descriptorS
 void CPresent::CreateSwapChain()
 {
     if(m_context == nullptr ||
+       m_context->instance == nullptr ||
        m_context->device.IsEmpty() ||
        m_context->surface == VK_NULL_HANDLE ||
        m_swapChain != VK_NULL_HANDLE ||
@@ -414,84 +415,357 @@ void CPresent::CreateSwapChain()
 
     auto result = VK_SUCCESS;
 
-	VkSurfaceCapabilitiesKHR surfaceCaps = {};
-	result = m_context->instance->vkGetPhysicalDeviceSurfaceCapabilitiesKHR(m_context->physicalDevice, m_context->surface, &surfaceCaps);
-	if(result == VK_ERROR_SURFACE_LOST_KHR)
+    // ---------------------------------------------------------
+    // 1. Query surface capabilities
+    // ---------------------------------------------------------
+
+    VkSurfaceCapabilitiesKHR surfaceCaps = {};
+
+    result =
+        m_context->instance->vkGetPhysicalDeviceSurfaceCapabilitiesKHR(
+            m_context->physicalDevice,
+            m_context->surface,
+            &surfaceCaps);
+
+    if(result == VK_ERROR_SURFACE_LOST_KHR)
     {
-    m_surfaceLost = true;
-    return;
+        m_surfaceLost = true;
+        return;
     }
-	CHECKVULKANERROR(result);
-	m_surfaceExtents = surfaceCaps.currentExtent;
-	if(m_surfaceExtents.width == 0 ||
+
+    CHECKVULKANERROR(result);
+
+    // Surface harus mendukung color attachment.
+    if((surfaceCaps.supportedUsageFlags &
+        VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT) == 0)
+    {
+        return;
+    }
+
+    // ---------------------------------------------------------
+    // 2. Select a valid surface extent
+    // ---------------------------------------------------------
+
+    m_surfaceExtents = surfaceCaps.currentExtent;
+
+    // UINT32_MAX berarti extent ditentukan oleh aplikasi.
+    // Pada Android WSI umumnya currentExtent sudah ditentukan
+    // oleh surface. Jika tidak, gunakan extent minimum yang valid.
+    if(m_surfaceExtents.width == UINT32_MAX ||
+       m_surfaceExtents.height == UINT32_MAX)
+    {
+        m_surfaceExtents.width = surfaceCaps.minImageExtent.width;
+        m_surfaceExtents.height = surfaceCaps.minImageExtent.height;
+    }
+
+    if(m_surfaceExtents.width == 0 ||
        m_surfaceExtents.height == 0)
     {
         m_swapChainValid = false;
         return;
     }
 
-	auto swapChainCreateInfo = Framework::Vulkan::SwapchainCreateInfoKHR();
-	swapChainCreateInfo.surface = m_context->surface;
-	//Make sure to check that MAX_FRAMES in CFrameCommandBuffer is at least as big as minImageCount
-	swapChainCreateInfo.minImageCount = 3; //Recommended by nVidia in UsingtheVulkanAPI_20160216.pdf
-	swapChainCreateInfo.imageFormat = m_context->surfaceFormat.format;
-	swapChainCreateInfo.imageColorSpace = m_context->surfaceFormat.colorSpace;
-	swapChainCreateInfo.imageExtent = m_surfaceExtents;
-	swapChainCreateInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-	swapChainCreateInfo.preTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
-	swapChainCreateInfo.imageArrayLayers = 1;
-	swapChainCreateInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
-	swapChainCreateInfo.queueFamilyIndexCount = 0;
-	swapChainCreateInfo.pQueueFamilyIndices = nullptr;
-	swapChainCreateInfo.presentMode = VK_PRESENT_MODE_MAILBOX_KHR;
-	swapChainCreateInfo.clipped = VK_TRUE;
-	swapChainCreateInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+    m_surfaceExtents.width =
+        std::max(
+            surfaceCaps.minImageExtent.width,
+            std::min(
+                m_surfaceExtents.width,
+                surfaceCaps.maxImageExtent.width));
 
-	result = m_context->device.vkCreateSwapchainKHR(
-    m_context->device,
-    &swapChainCreateInfo,
-    nullptr,
-    &m_swapChain);
+    m_surfaceExtents.height =
+        std::max(
+            surfaceCaps.minImageExtent.height,
+            std::min(
+                m_surfaceExtents.height,
+                surfaceCaps.maxImageExtent.height));
 
-if(result == VK_ERROR_SURFACE_LOST_KHR)
-{
-    m_surfaceLost = true;
-    return;
-}
+    // ---------------------------------------------------------
+    // 3. Query supported presentation modes
+    // ---------------------------------------------------------
 
-CHECKVULKANERROR(result);
+    uint32_t presentModeCount = 0;
 
-	uint32_t imageCount = 0;
-	result = m_context->device.vkGetSwapchainImagesKHR(m_context->device, m_swapChain, &imageCount, nullptr);
-	CHECKVULKANERROR(result);
+    result =
+        m_context->instance->vkGetPhysicalDeviceSurfacePresentModesKHR(
+            m_context->physicalDevice,
+            m_context->surface,
+            &presentModeCount,
+            nullptr);
 
-	m_swapChainImages.resize(imageCount);
-	result = m_context->device.vkGetSwapchainImagesKHR(m_context->device, m_swapChain, &imageCount, m_swapChainImages.data());
-	CHECKVULKANERROR(result);
+    if(result == VK_ERROR_SURFACE_LOST_KHR)
+    {
+        m_surfaceLost = true;
+        return;
+    }
 
-	for(int i = 0; i < imageCount; i++)
-	{
-		SWAPCHAIN_SEMAPHORES swapChainSemaphores;
+    CHECKVULKANERROR(result);
 
-		{
-			auto semaphoreCreateInfo = Framework::Vulkan::SemaphoreCreateInfo();
-			auto result = m_context->device.vkCreateSemaphore(m_context->device, &semaphoreCreateInfo, nullptr, &swapChainSemaphores.imageAcquireSemaphore);
-			CHECKVULKANERROR(result);
-		}
+    if(presentModeCount == 0)
+    {
+        return;
+    }
 
-		{
-			auto semaphoreCreateInfo = Framework::Vulkan::SemaphoreCreateInfo();
-			auto result = m_context->device.vkCreateSemaphore(m_context->device, &semaphoreCreateInfo, nullptr, &swapChainSemaphores.renderCompleteSemaphore);
-			CHECKVULKANERROR(result);
-		}
+    std::vector<VkPresentModeKHR> presentModes(presentModeCount);
 
-		m_swapChainSemaphores.push_back(swapChainSemaphores);
-	}
+    result =
+        m_context->instance->vkGetPhysicalDeviceSurfacePresentModesKHR(
+            m_context->physicalDevice,
+            m_context->surface,
+            &presentModeCount,
+            presentModes.data());
 
-	CreateSwapChainImageViews();
-	CreateSwapChainFramebuffers();
+    if(result == VK_ERROR_SURFACE_LOST_KHR)
+    {
+        m_surfaceLost = true;
+        return;
+    }
 
-	m_swapChainValid = true;
+    CHECKVULKANERROR(result);
+
+    presentModes.resize(presentModeCount);
+
+    // FIFO wajib tersedia pada implementasi Vulkan yang sesuai.
+    // Gunakan MAILBOX jika tersedia, selain itu FIFO.
+    VkPresentModeKHR selectedPresentMode = VK_PRESENT_MODE_FIFO_KHR;
+
+    for(const auto presentMode : presentModes)
+    {
+        if(presentMode == VK_PRESENT_MODE_MAILBOX_KHR)
+        {
+            selectedPresentMode = VK_PRESENT_MODE_MAILBOX_KHR;
+            break;
+        }
+    }
+
+    // ---------------------------------------------------------
+    // 4. Select supported composite alpha
+    // ---------------------------------------------------------
+
+    VkCompositeAlphaFlagBitsKHR selectedCompositeAlpha =
+        VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+
+    const VkCompositeAlphaFlagBitsKHR compositeAlphaOptions[] =
+    {
+        VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
+        VK_COMPOSITE_ALPHA_PRE_MULTIPLIED_BIT_KHR,
+        VK_COMPOSITE_ALPHA_POST_MULTIPLIED_BIT_KHR,
+        VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR
+    };
+
+    bool compositeAlphaFound = false;
+
+    for(const auto option : compositeAlphaOptions)
+    {
+        if((surfaceCaps.supportedCompositeAlpha & option) != 0)
+        {
+            selectedCompositeAlpha = option;
+            compositeAlphaFound = true;
+            break;
+        }
+    }
+
+    if(!compositeAlphaFound)
+    {
+        return;
+    }
+
+    // ---------------------------------------------------------
+    // 5. Select supported surface transform
+    // ---------------------------------------------------------
+
+    VkSurfaceTransformFlagBitsKHR selectedTransform =
+        surfaceCaps.currentTransform;
+
+    if((surfaceCaps.supportedTransforms & selectedTransform) == 0)
+    {
+        if((surfaceCaps.supportedTransforms &
+            VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR) != 0)
+        {
+            selectedTransform =
+                VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
+        }
+        else
+        {
+            return;
+        }
+    }
+
+    // ---------------------------------------------------------
+    // 6. Select image count within surface limits
+    // ---------------------------------------------------------
+
+    uint32_t requestedImageCount =
+        std::max(surfaceCaps.minImageCount, 3U);
+
+    if(surfaceCaps.maxImageCount != 0)
+    {
+        requestedImageCount =
+            std::min(requestedImageCount, surfaceCaps.maxImageCount);
+    }
+
+    if(requestedImageCount < surfaceCaps.minImageCount)
+    {
+        return;
+    }
+
+    // ---------------------------------------------------------
+    // 7. Create swapchain
+    // ---------------------------------------------------------
+
+    auto swapChainCreateInfo =
+        Framework::Vulkan::SwapchainCreateInfoKHR();
+
+    swapChainCreateInfo.surface = m_context->surface;
+    swapChainCreateInfo.minImageCount = requestedImageCount;
+    swapChainCreateInfo.imageFormat = m_context->surfaceFormat.format;
+    swapChainCreateInfo.imageColorSpace = m_context->surfaceFormat.colorSpace;
+    swapChainCreateInfo.imageExtent = m_surfaceExtents;
+    swapChainCreateInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+    swapChainCreateInfo.preTransform = selectedTransform;
+    swapChainCreateInfo.imageArrayLayers = 1;
+    swapChainCreateInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    swapChainCreateInfo.queueFamilyIndexCount = 0;
+    swapChainCreateInfo.pQueueFamilyIndices = nullptr;
+    swapChainCreateInfo.presentMode = selectedPresentMode;
+    swapChainCreateInfo.clipped = VK_TRUE;
+    swapChainCreateInfo.compositeAlpha = selectedCompositeAlpha;
+
+    result =
+        m_context->device.vkCreateSwapchainKHR(
+            m_context->device,
+            &swapChainCreateInfo,
+            nullptr,
+            &m_swapChain);
+
+    if(result == VK_ERROR_SURFACE_LOST_KHR)
+    {
+        m_surfaceLost = true;
+        m_swapChain = VK_NULL_HANDLE;
+        return;
+    }
+
+    CHECKVULKANERROR(result);
+
+    // ---------------------------------------------------------
+    // 8. Retrieve swapchain images
+    // ---------------------------------------------------------
+
+    uint32_t imageCount = 0;
+
+    result =
+        m_context->device.vkGetSwapchainImagesKHR(
+            m_context->device,
+            m_swapChain,
+            &imageCount,
+            nullptr);
+
+    if(result != VK_SUCCESS || imageCount == 0)
+    {
+        DestroySwapChain();
+        CHECKVULKANERROR(result);
+        return;
+    }
+
+    m_swapChainImages.resize(imageCount);
+
+    result =
+        m_context->device.vkGetSwapchainImagesKHR(
+            m_context->device,
+            m_swapChain,
+            &imageCount,
+            m_swapChainImages.data());
+
+    if(result != VK_SUCCESS)
+    {
+        DestroySwapChain();
+        CHECKVULKANERROR(result);
+        return;
+    }
+
+    m_swapChainImages.resize(imageCount);
+
+    // ---------------------------------------------------------
+    // 9. Create synchronization semaphores
+    // ---------------------------------------------------------
+
+    for(uint32_t i = 0; i < imageCount; i++)
+    {
+        SWAPCHAIN_SEMAPHORES semaphores = {};
+
+        auto semaphoreCreateInfo =
+            Framework::Vulkan::SemaphoreCreateInfo();
+
+        result =
+            m_context->device.vkCreateSemaphore(
+                m_context->device,
+                &semaphoreCreateInfo,
+                nullptr,
+                &semaphores.imageAcquireSemaphore);
+
+        if(result != VK_SUCCESS)
+        {
+            if(semaphores.imageAcquireSemaphore != VK_NULL_HANDLE)
+            {
+                m_context->device.vkDestroySemaphore(
+                    m_context->device,
+                    semaphores.imageAcquireSemaphore,
+                    nullptr);
+            }
+
+            DestroySwapChain();
+            CHECKVULKANERROR(result);
+            return;
+        }
+
+        result =
+            m_context->device.vkCreateSemaphore(
+                m_context->device,
+                &semaphoreCreateInfo,
+                nullptr,
+                &semaphores.renderCompleteSemaphore);
+
+        if(result != VK_SUCCESS)
+        {
+            if(semaphores.imageAcquireSemaphore != VK_NULL_HANDLE)
+            {
+                m_context->device.vkDestroySemaphore(
+                    m_context->device,
+                    semaphores.imageAcquireSemaphore,
+                    nullptr);
+            }
+
+            if(semaphores.renderCompleteSemaphore != VK_NULL_HANDLE)
+            {
+                m_context->device.vkDestroySemaphore(
+                    m_context->device,
+                    semaphores.renderCompleteSemaphore,
+                    nullptr);
+            }
+
+            DestroySwapChain();
+            CHECKVULKANERROR(result);
+            return;
+        }
+
+        m_swapChainSemaphores.push_back(semaphores);
+    }
+
+    // ---------------------------------------------------------
+    // 10. Create image views and framebuffers
+    // ---------------------------------------------------------
+
+    CreateSwapChainImageViews();
+    CreateSwapChainFramebuffers();
+
+    if(m_swapChainFramebuffers.size() != m_swapChainImages.size() ||
+       m_swapChainImageViews.size() != m_swapChainImages.size())
+    {
+        DestroySwapChain();
+        return;
+    }
+
+    m_currentSwapChainSemaphoreIndex = 0;
+    m_swapChainValid = true;
 }
 
 void CPresent::CreateSwapChainImageViews()
