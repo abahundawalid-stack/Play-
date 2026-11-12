@@ -121,27 +121,24 @@ void CGSH_OpenGLAndroid::PresentBackbuffer()
 
 void CGSH_OpenGLAndroid::SetWindow(NativeWindowType window)
 {
-	if(window == nullptr)
-	{
-		return;
-	}
+    // Ownership of window transfers to this handler.
+    // nullptr is valid and means detach the current surface.
 
-	// ANativeWindow_fromSurface() has already acquired this reference.
-	// Ownership is transferred to this handler.
-	auto previousWindow = m_window;
-	m_window = window;
+    SendGSCall(
+        [this, window]() {
+            auto previousWindow = m_window;
+            m_window = window;
 
-	SendGSCall(
-	    [this]() {
-		    SetupContext();
-	    },
-	    true);
+            // Destroys the old EGL surface before releasing its window.
+            // Also handles nullptr by detaching the EGL surface.
+            SetupContext();
 
-	// The old EGL surface has been replaced before releasing its window.
-	if(previousWindow != nullptr)
-	{
-		ANativeWindow_release(previousWindow);
-	}
+            if(previousWindow != nullptr)
+            {
+                ANativeWindow_release(previousWindow);
+            }
+        },
+        true);
 }
 
 void CGSH_OpenGLAndroid::SetupContext()
