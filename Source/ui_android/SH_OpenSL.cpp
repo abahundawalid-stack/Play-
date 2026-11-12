@@ -70,7 +70,14 @@ CSH_OpenSL::~CSH_OpenSL()
 
 CSoundHandler* CSH_OpenSL::HandlerFactory()
 {
-	return new CSH_OpenSL();
+	try
+	{
+		return new CSH_OpenSL();
+	}
+	catch(...)
+	{
+		return nullptr;
+	}
 }
 
 void CSH_OpenSL::CreateOutputMix()
@@ -302,9 +309,6 @@ void CSH_OpenSL::QueueCallbackImpl()
 					notifyWriter = true;
 				}
 
-				// The final queued buffer has completed.
-				// This is a queue-drained diagnostic, not proof
-				// of an audible dropout.
 				if(m_queuedSlots.empty())
 				{
 					m_underrunCount.fetch_add(
@@ -313,6 +317,25 @@ void CSH_OpenSL::QueueCallbackImpl()
 				}
 			}
 		}
+	}
+
+	if(notifyWriter)
+	{
+		m_bufferAvailable.notify_one();
+	}
+
+	{
+		std::lock_guard<std::mutex> lock(m_mutex);
+
+		--m_activeCallbacks;
+
+		if(m_activeCallbacks == 0)
+		{
+			m_callbackIdle.notify_all();
+		}
+	}
+}
+
 
 		--m_activeCallbacks;
 		if(m_activeCallbacks == 0)
