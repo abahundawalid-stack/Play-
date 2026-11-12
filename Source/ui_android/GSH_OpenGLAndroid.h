@@ -15,12 +15,15 @@ public:
 	static FactoryFunction GetFactoryFunction(NativeWindowType);
 
 	void InitializeImpl() override;
+	void ReleaseImpl() override;
 	void PresentBackbuffer() override;
 
 private:
 	void SetupContext();
 
+	// Owns the reference returned by ANativeWindow_fromSurface().
 	NativeWindowType m_window = nullptr;
+
 	EGLConfig m_config = 0;
 	EGLDisplay m_display = EGL_NO_DISPLAY;
 	EGLContext m_context = EGL_NO_CONTEXT;
