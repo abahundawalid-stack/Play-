@@ -15,8 +15,9 @@ namespace GSH_Vulkan
 		virtual ~CPresent();
 
 		void ValidateSwapChain(const CGSHandler::PRESENTATION_PARAMS&);
-		void SetPresentationViewport(const CGSHandler::PRESENTATION_VIEWPORT&);
-		void DoPresent(const CGSHandler::DISPLAY_INFO&);
+        void SetPresentationViewport(const CGSHandler::PRESENTATION_VIEWPORT&);
+        void DoPresent(const CGSHandler::DISPLAY_INFO&);
+        void OnSurfaceDetached();
   
 	private:
 		enum BLEND_MODE
