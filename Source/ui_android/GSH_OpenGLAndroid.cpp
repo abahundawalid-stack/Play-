@@ -239,37 +239,59 @@ void CGSH_OpenGLAndroid::SetWindow(NativeWindowType window)
 {
     SendGSCall(
         [this, window]() {
+            // Setiap pemanggilan SetWindow menerima ownership satu
+            // reference dari pemanggil, termasuk jika pointer sama.
+            //
+            // Jika pointer sama, pertahankan reference yang sudah dimiliki
+            // handler dan lepaskan reference baru yang dialihkan.
+            if(window == m_window)
+            {
+                if(window != nullptr)
+                {
+                    ANativeWindow_release(window);
+                }
+                return;
+            }
+
             NativeWindowType previousWindow = m_window;
+
+            // Ambil alih reference window baru.
             m_window = window;
 
-            // First Android window: initialize EGL and the base renderer.
             if(m_display == EGL_NO_DISPLAY)
             {
+                // Surface pertama: buat EGL dan renderer.
                 if(m_window != nullptr)
                 {
                     InitializeImpl();
                 }
             }
+            else
+            {
+                if(m_window != nullptr)
+                {
+                    // Ganti EGL window surface dengan window baru.
+                    SetupContext();
+                }
+                else
+                {
+                    // Window dilepas: detach EGL surface.
+                    if(m_surface != EGL_NO_SURFACE)
+                    {
+                        eglMakeCurrent(
+                            m_display,
+                            EGL_NO_SURFACE,
+                            EGL_NO_SURFACE,
+                            EGL_NO_CONTEXT);
 
-			else
-{
-    if(m_window != nullptr)
-    {
-        SetupContext();
-    }
-    else if(m_surface != EGL_NO_SURFACE)
-    {
-        eglMakeCurrent(
-            m_display,
-            EGL_NO_SURFACE,
-            EGL_NO_SURFACE,
-            EGL_NO_CONTEXT);
+                        eglDestroySurface(m_display, m_surface);
+                        m_surface = EGL_NO_SURFACE;
+                    }
+                }
+            }
 
-        eglDestroySurface(m_display, m_surface);
-        m_surface = EGL_NO_SURFACE;
-    }
-}
-
+            // Lepaskan reference window lama setelah EGL tidak lagi
+            // menggunakan surface yang terhubung ke window tersebut.
             if(previousWindow != nullptr)
             {
                 ANativeWindow_release(previousWindow);
@@ -277,3 +299,4 @@ void CGSH_OpenGLAndroid::SetWindow(NativeWindowType window)
         },
         true);
 }
+
