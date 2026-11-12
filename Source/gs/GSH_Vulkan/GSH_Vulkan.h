@@ -146,7 +146,7 @@ private:
 	std::vector<uint32_t> GetRenderQueueFamilies(VkPhysicalDevice);
 	std::vector<VkSurfaceFormatKHR> GetDeviceSurfaceFormats(VkPhysicalDevice);
 
-	void CreateDevice(VkPhysicalDevice);
+	void CreateDevice(VkPhysicalDevice, uint32_t);
 	void CreateDescriptorPool();
 	void CreateMemoryBuffer();
 	void CreateClutBuffer();
