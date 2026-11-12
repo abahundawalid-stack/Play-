@@ -30,39 +30,40 @@ android {
         buildConfig true
     }
        
-    defaultConfig {
-        applicationId 'com.virtualapplications.play.jpog'
+defaultConfig {
+    applicationId 'com.virtualapplications.play.jpog'
 
-        versionCode (100 + gitVersionCode)
-        versionName gitVersionName
+    versionCode (100 + gitVersionCode)
+    versionName gitVersionName
 
-        minSdkVersion 21
-        targetSdkVersion 35
+    minSdkVersion 21
+    targetSdkVersion 35
 
-        ndk {
-            abiFilters 'arm64-v8a'
-        }
-
-      externalNativeBuild {
-          cmake {
-              arguments "-DBUILD_PLAY=ON",
-                        "-DBUILD_TESTS=OFF",
-                        "-DBUILD_PSFPLAYER=OFF",
-                        "-DBUILD_LIBRETRO_CORE=OFF",
-                        "-DBUILD_AOT_CACHE=OFF",
-                        "-DUSE_AOT_CACHE=OFF",
-                        "-DANDROID_STL=c++_static"
-
-              cppFlags "-frtti", "-fexceptions"
-
-              targets "Play"
-        }
+    ndk {
+        abiFilters 'arm64-v8a'
     }
 
-      externalNativeBuild {
-          cmake {
-          path file("../CMakeLists.txt")
-          version "3.31.1"
+    externalNativeBuild {
+        cmake {
+            arguments "-DBUILD_PLAY=ON",
+                      "-DBUILD_TESTS=OFF",
+                      "-DBUILD_PSFPLAYER=OFF",
+                      "-DBUILD_LIBRETRO_CORE=OFF",
+                      "-DBUILD_AOT_CACHE=OFF",
+                      "-DUSE_AOT_CACHE=OFF",
+                      "-DANDROID_STL=c++_static"
+
+            cppFlags "-frtti", "-fexceptions"
+
+            targets "Play"
+           }
+        }
+    }
+    
+ externalNativeBuild {
+     cmake {
+         path file("../CMakeLists.txt")
+         version "3.31.1"
         }
     }
 
