@@ -1,4 +1,5 @@
 #include <android/native_window.h>
+#include <memory>
 
 #include "GSH_VulkanAndroid.h"
 #include "vulkan/StructDefs.h"
