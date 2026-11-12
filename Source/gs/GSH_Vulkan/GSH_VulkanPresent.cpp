@@ -651,7 +651,7 @@ void CPresent::CreateSwapChain()
     CHECKVULKANERROR(result);
 
     // ---------------------------------------------------------
-    // 8. Retrieve swapchain images
+    // 8. Retrieve swapchain images safely
     // ---------------------------------------------------------
 
     uint32_t imageCount = 0;
@@ -670,21 +670,51 @@ void CPresent::CreateSwapChain()
         return;
     }
 
-    m_swapChainImages.resize(imageCount);
+    bool imagesRetrieved = false;
 
-    result =
-        m_context->device.vkGetSwapchainImagesKHR(
-            m_context->device,
-            m_swapChain,
-            &imageCount,
-            m_swapChainImages.data());
+    // Retry jika jumlah image berubah antara query dan retrieval.
+    for(uint32_t attempt = 0; attempt < 3; attempt++)
+    {
+        m_swapChainImages.resize(imageCount);
 
-    if(result != VK_SUCCESS)
+        uint32_t retrievedCount =
+            static_cast<uint32_t>(m_swapChainImages.size());
+
+        result =
+            m_context->device.vkGetSwapchainImagesKHR(
+                m_context->device,
+                m_swapChain,
+                &retrievedCount,
+                m_swapChainImages.data());
+
+        if(result == VK_SUCCESS)
+        {
+            m_swapChainImages.resize(retrievedCount);
+            imagesRetrieved = !m_swapChainImages.empty();
+            break;
+        }
+
+        if(result != VK_INCOMPLETE)
+        {
+            break;
+        }
+
+        imageCount = std::max(
+            retrievedCount,
+            static_cast<uint32_t>(m_swapChainImages.size()) + 1);
+    }
+
+    if(!imagesRetrieved)
     {
         DestroySwapChain();
-        CHECKVULKANERROR(result);
+
+        if(result != VK_SUCCESS)
+        {
+            CHECKVULKANERROR(result);
+        }
+
         return;
-    }
+	}
 
     m_swapChainImages.resize(imageCount);
 
