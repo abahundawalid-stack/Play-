@@ -153,7 +153,7 @@ jobs:
             --stacktrace \
             clean \
             assembleRelease
-
+     
       - name: Verify CMake output provenance
         shell: bash
         run: |
@@ -163,23 +163,26 @@ jobs:
 
           mapfile -t CMAKE_LIBS < <(
             find build_android/.cxx \
-                 build_android/build/intermediates/cxx \
-              -type f -path '*/arm64-v8a/libPlay.so' \
+              -type f \
+              -path '*/arm64-v8a/libPlay.so' \
               2>/dev/null | sort -u
           )
 
           if [ "${#CMAKE_LIBS[@]}" -ne 1 ]; then
-            echo "ERROR: Expected exactly one ARM64 CMake libPlay.so."
+            echo "ERROR: Expected exactly one ARM64 CMake output."
             printf '%s\n' "${CMAKE_LIBS[@]:-No output found}"
             exit 1
           fi
 
           CMAKE_LIB="${CMAKE_LIBS[0]}"
 
+          test -s "$CMAKE_LIB"
+
           echo "CMake output: $CMAKE_LIB"
+
           sha256sum "$CMAKE_LIB" | tee CMAKE_LIB_SHA256.txt
 
-          test -s "$CMAKE_LIB"
+          echo "PASS: one current CMake output"
 
       - name: Verify APK package, ABI, CMake library and signature
         shell: bash
