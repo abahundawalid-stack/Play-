@@ -160,13 +160,12 @@ void CGSH_VulkanAndroid::SetWindow(ANativeWindow* window)
 
 void CGSH_VulkanAndroid::CreateSurface()
 {
-    if(m_instance.IsEmpty())
+    if(m_instance.IsEmpty() || m_context == nullptr)
     {
         return;
     }
 
-    if(m_context != nullptr &&
-       m_context->surface != VK_NULL_HANDLE)
+    if(m_context->surface != VK_NULL_HANDLE)
     {
         m_instance.vkDestroySurfaceKHR(
             m_instance,
@@ -176,7 +175,7 @@ void CGSH_VulkanAndroid::CreateSurface()
         m_context->surface = VK_NULL_HANDLE;
     }
 
-    if(m_window == nullptr || m_context == nullptr)
+    if(m_window == nullptr)
     {
         return;
     }
