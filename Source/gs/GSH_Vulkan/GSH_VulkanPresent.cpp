@@ -445,12 +445,18 @@ void CPresent::CreateSwapChain()
 	swapChainCreateInfo.clipped = VK_TRUE;
 	swapChainCreateInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
 
-	result = m_context->device.vkCreateSwapchainKHR(m_context->device, &swapChainCreateInfo, nullptr, &m_swapChain);
-	if(result == VK_ERROR_SURFACE_LOST_KHR)
+	result = m_context->device.vkCreateSwapchainKHR(
+    m_context->device,
+    &swapChainCreateInfo,
+    nullptr,
+    &m_swapChain);
+
+if(result == VK_ERROR_SURFACE_LOST_KHR)
 {
     m_surfaceLost = true;
     return;
 }
+
 CHECKVULKANERROR(result);
 
 	uint32_t imageCount = 0;
