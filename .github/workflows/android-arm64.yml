@@ -159,20 +159,19 @@ jobs:
         run: |
           set -euo pipefail
 
-          echo "===== SEARCH CURRENT CMAKE OUTPUT ====="
+          echo "===== VERIFY ORIGINAL CMAKE OUTPUT ====="
 
           mapfile -t CMAKE_LIBS < <(
-          find build_android/build/intermediates \
-          -type f \
-          -name 'libPlay.so' \
-          -path '*/arm64-v8a/*' \
-          2>/dev/null | sort -u
+            find build_android/build/intermediates \
+              -type f \
+              -name 'libPlay.so' \
+              -path '*/cxx/*/obj/arm64-v8a/libPlay.so' \
+              -print | sort -u
           )
 
           if [ "${#CMAKE_LIBS[@]}" -ne 1 ]; then
-            echo "ERROR: Expected exactly one ARM64 CMake output."
-            find build_android/build/intermediates \
-              -type f -name '*.so' -print 2>/dev/null || true
+            echo "ERROR: Expected exactly one original ARM64 CMake output."
+            printf '%s\n' "${CMAKE_LIBS[@]:-No CMake output found}"
             exit 1
           fi
 
@@ -181,7 +180,8 @@ jobs:
 
           echo "CMake output: $CMAKE_LIB"
           sha256sum "$CMAKE_LIB" | tee CMAKE_LIB_SHA256.txt
-          echo "PASS: one current CMake output"
+
+          echo "PASS: original ARM64 CMake output verified"
 
       - name: Verify APK package, ABI, CMake library and signature
         shell: bash
@@ -205,12 +205,9 @@ jobs:
           fi
 
           APK="${APKS[0]}"
-
-          echo "===== APK ====="
-          echo "$APK"
           test -s "$APK"
 
-          echo "===== PACKAGE ID ====="
+          echo "===== APK PACKAGE ====="
           "$AAPT" dump badging "$APK" | tee APK_BADGING.txt
 
           grep -Fq \
@@ -219,7 +216,7 @@ jobs:
 
           echo "PASS: package ID"
 
-          echo "===== ABI ====="
+          echo "===== VERIFY ARM64 ABI ====="
           unzip -Z1 "$APK" > APK_ENTRIES.txt
 
           grep -Fxq 'lib/arm64-v8a/libPlay.so' APK_ENTRIES.txt
@@ -236,40 +233,61 @@ jobs:
           )"
 
           test "$PLAY_COUNT" -eq 1
+          echo "PASS: ARM64 library"
 
-          echo "PASS: exactly one ARM64 libPlay.so"
+          echo "===== VERIFY CURRENT CMAKE OUTPUT ====="
 
-          echo "===== VERIFY CMAKE LIBRARY MATCH ====="
-
-          
           mapfile -t CMAKE_LIBS < <(
-          find build_android/build/intermediates \
-          -type f \
-          -name 'libPlay.so' \
-          -path '*/arm64-v8a/*' \
-          2>/dev/null | sort -u
+            find build_android/build/intermediates \
+              -type f \
+              -name 'libPlay.so' \
+              -path '*/cxx/*/obj/arm64-v8a/libPlay.so' \
+              -print | sort -u
           )
 
-          if [ "${#CMAKE_LIBS[@]}" -ne 1 ]; then
-            echo "ERROR: Expected exactly one ARM64 CMake output."
-            exit 1
-          fi
+          test "${#CMAKE_LIBS[@]}" -eq 1
 
           CMAKE_LIB="${CMAKE_LIBS[0]}"
           test -s "$CMAKE_LIB"
 
+          echo "CMake source: $CMAKE_LIB"
+
+          echo "===== VERIFY STRIPPED LIBRARY ====="
+
+          mapfile -t STRIPPED_LIBS < <(
+            find build_android/build/intermediates \
+              -type f \
+              -name 'libPlay.so' \
+              -path '*/stripped_native_libs/release/stripReleaseDebugSymbols/out/lib/arm64-v8a/libPlay.so' \
+              -print | sort -u
+          )
+
+          if [ "${#STRIPPED_LIBS[@]}" -ne 1 ]; then
+            echo "ERROR: Expected exactly one stripped ARM64 library."
+            printf '%s\n' "${STRIPPED_LIBS[@]:-No stripped library found}"
+            exit 1
+          fi
+
+          STRIPPED_LIB="${STRIPPED_LIBS[0]}"
+          test -s "$STRIPPED_LIB"
+
+          echo "Stripped library: $STRIPPED_LIB"
+
+          echo "===== COMPARE APK WITH STRIPPED OUTPUT ====="
+
           unzip -p "$APK" lib/arm64-v8a/libPlay.so \
             > "$RUNNER_TEMP/apk-libPlay.so"
 
-          SOURCE_HASH="$(sha256sum "$CMAKE_LIB" | awk '{print $1}')"
+          STRIPPED_HASH="$(sha256sum "$STRIPPED_LIB" | awk '{print $1}')"
           APK_HASH="$(sha256sum "$RUNNER_TEMP/apk-libPlay.so" | awk '{print $1}')"
 
-          echo "CMake SHA256: $SOURCE_HASH"
-          echo "APK SHA256:   $APK_HASH"
+          echo "Stripped SHA256: $STRIPPED_HASH"
+          echo "APK SHA256:      $APK_HASH"
 
-          test "$SOURCE_HASH" = "$APK_HASH"
-          echo "PASS: APK library matches current CMake output"
-          
+          test "$STRIPPED_HASH" = "$APK_HASH"
+
+          echo "PASS: APK contains the current build's stripped ARM64 library"
+
           echo "===== ZIP ALIGNMENT ====="
           "$ZIPALIGN" -c -v 4 "$APK"
 
@@ -278,7 +296,7 @@ jobs:
 
           echo "===== APK SHA256 ====="
           sha256sum "$APK" | tee APK_SHA256SUMS.txt
-
+      
       - name: Upload verified Release artifacts
         uses: actions/upload-artifact@v4
         with:
