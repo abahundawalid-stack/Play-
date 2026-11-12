@@ -6,13 +6,7 @@ on:
     branches:
       - master
     paths:
-      - ".github/workflows/android-arm64.yml"
-      - "build_android/**"
-      - "Source/**"
-      - "CMakeLists.txt"
-      - "GameConfig.xml"
-      - "deps/**"
-      - "tools/**"
+      - '**'
 
 permissions:
   contents: read
@@ -23,24 +17,27 @@ jobs:
     timeout-minutes: 120
 
     steps:
-      - name: Checkout Play source
+      - name: Checkout source and submodules
         uses: actions/checkout@v4
         with:
           submodules: recursive
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "17"
+          java-version: '17'
 
-      - name: Install Android components
+      - name: Install Android SDK, NDK and CMake
+        shell: bash
         run: |
-          set -e
+          set -euo pipefail
+
           SDK_ROOT="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
           SDKMANAGER="$(find "$SDK_ROOT/cmdline-tools" \
-            -type f -name sdkmanager | head -n 1)"
+            -type f -name sdkmanager | sort -V | tail -n 1)"
 
           test -n "$SDKMANAGER"
 
@@ -58,41 +55,71 @@ jobs:
             "ndk;29.0.14206865" \
             "cmake;3.31.1"
 
-      - name: Verify submodules
+          test -x "$SDK_ROOT/build-tools/35.0.1/apksigner"
+          test -x "$SDK_ROOT/build-tools/35.0.1/zipalign"
+          test -x "$SDK_ROOT/ndk/29.0.14206865/ndk-build"
+
+      - name: Synchronize and verify submodules
+        shell: bash
         run: |
-          set -e
+          set -euo pipefail
+
+          git submodule sync --recursive
+          git submodule update --init --recursive
+
+          echo "===== SUBMODULE STATUS ====="
           git submodule status --recursive
-          if git submodule status --recursive | grep -q '^-'; then
-            echo "ERROR: Uninitialized submodule"
+
+          STATUS="$(git submodule status --recursive)"
+
+          if printf '%s\n' "$STATUS" | grep -Eq '^[+-U]'; then
+            echo "ERROR: Submodule belum sesuai commit repository."
             exit 1
           fi
 
       - name: Prepare Git version
+        shell: bash
         run: |
+          set -euo pipefail
+
           git config user.name "Android CI Builder"
           git config user.email "android-ci@localhost"
 
-          git describe --tags >/dev/null 2>&1 || \
-            git tag -a android-ci-build \
-              -m "Local Android CI build"
+          if ! git describe --tags --always >/dev/null 2>&1; then
+            git tag android-ci-build
+          fi
 
           git describe --tags --always
 
-      - name: Verify build configuration
+      - name: Verify Android native build configuration
+        shell: bash
         run: |
-          set -e
-          grep -q "com.virtualapplications.play.jpog" \
+          set -euo pipefail
+
+          test -f CMakeLists.txt
+          test -f Source/ui_android/CMakeLists.txt
+          test -f build_android/build.gradle
+          test -f build_android/gradlew
+
+          grep -q 'path file("../CMakeLists.txt")' \
             build_android/build.gradle
-          grep -q "arm64-v8a" build_android/build.gradle
-          grep -q '29.0.14206865' build_android/build.gradle
-          grep -q '3.31.1' build_android/build.gradle
+
+          grep -q 'arm64-v8a' build_android/build.gradle
+
+          if grep -q "jniLibs.srcDir 'src/main/libs'" \
+            build_android/build.gradle; then
+            echo "ERROR: prebuilt JNI source masih didaftarkan."
+            exit 1
+          fi
 
       - name: Restore release keystore
+        shell: bash
         env:
           KEYSTORE_B64: ${{ secrets.PLAY_RELEASE_KEYSTORE_BASE64 }}
           KEYSTORE_NAME: ${{ secrets.PLAY_RELEASE_STORE_FILE }}
         run: |
-          set -e
+          set -euo pipefail
+
           test -n "$KEYSTORE_B64"
           test -n "$KEYSTORE_NAME"
 
@@ -102,76 +129,154 @@ jobs:
           chmod 600 "$RUNNER_TEMP/$KEYSTORE_NAME"
           test -s "$RUNNER_TEMP/$KEYSTORE_NAME"
 
-      - name: Build signed Release APK
+      - name: Build ARM64 Release from current source
         working-directory: build_android
+        shell: bash
         env:
           ORG_GRADLE_PROJECT_PLAY_RELEASE_STORE_FILE: ${{ runner.temp }}/${{ secrets.PLAY_RELEASE_STORE_FILE }}
           ORG_GRADLE_PROJECT_PLAY_RELEASE_STORE_PASSWORD: ${{ secrets.PLAY_RELEASE_STORE_PASSWORD }}
           ORG_GRADLE_PROJECT_PLAY_RELEASE_KEY_ALIAS: ${{ secrets.PLAY_RELEASE_KEY_ALIAS }}
           ORG_GRADLE_PROJECT_PLAY_RELEASE_KEY_PASSWORD: ${{ secrets.PLAY_RELEASE_KEY_PASSWORD }}
         run: |
-          set -e
+          set -euo pipefail
+
           chmod +x gradlew
-          ./gradlew --no-daemon --stacktrace \
-            clean assembleRelease
 
-      - name: Verify APK signature
+          # Hilangkan output native lama agar tidak dapat dipakai
+          # sebagai hasil build baru.
+          rm -rf .cxx build
+
+          ./gradlew \
+            --no-daemon \
+            --no-build-cache \
+            --rerun-tasks \
+            --stacktrace \
+            clean \
+            assembleRelease
+
+      - name: Verify CMake output provenance
+        shell: bash
         run: |
-          set -e
-          APK="$(find build_android -type f \
-            -path '*/outputs/apk/release/*.apk' | head -n 1)"
+          set -euo pipefail
 
-          test -n "$APK"
-          echo "APK=$APK"
+          echo "===== SEARCH CURRENT CMAKE OUTPUT ====="
 
-          "$ANDROID_HOME/build-tools/35.0.1/apksigner" \
-            verify --verbose --print-certs "$APK"
+          mapfile -t CMAKE_LIBS < <(
+            find build_android/.cxx \
+                 build_android/build/intermediates/cxx \
+              -type f -path '*/arm64-v8a/libPlay.so' \
+              2>/dev/null | sort -u
+          )
 
-          echo "$APK" > APK_PATH.txt
+          if [ "${#CMAKE_LIBS[@]}" -ne 1 ]; then
+            echo "ERROR: Expected exactly one ARM64 CMake libPlay.so."
+            printf '%s\n' "${CMAKE_LIBS[@]:-No output found}"
+            exit 1
+          fi
 
-      - name: Verify package and ARM64 native library
+          CMAKE_LIB="${CMAKE_LIBS[0]}"
+
+          echo "CMake output: $CMAKE_LIB"
+          sha256sum "$CMAKE_LIB" | tee CMAKE_LIB_SHA256.txt
+
+          test -s "$CMAKE_LIB"
+
+      - name: Verify APK package, ABI, CMake library and signature
+        shell: bash
         run: |
-          set -e
-          APK="$(cat APK_PATH.txt)"
+          set -euo pipefail
 
-          PACKAGE_LINE="$(
-            "$ANDROID_HOME/build-tools/35.0.1/aapt" \
-            dump badging "$APK" | sed -n '1p'
+          BUILD_TOOLS="$ANDROID_HOME/build-tools/35.0.1"
+          AAPT="$BUILD_TOOLS/aapt"
+          APKSIGNER="$BUILD_TOOLS/apksigner"
+          ZIPALIGN="$BUILD_TOOLS/zipalign"
+
+          mapfile -t APKS < <(
+            find build_android -type f \
+              -path '*/outputs/apk/release/*.apk' | sort
+          )
+
+          if [ "${#APKS[@]}" -ne 1 ]; then
+            echo "ERROR: Expected exactly one Release APK."
+            printf '%s\n' "${APKS[@]:-No APK found}"
+            exit 1
+          fi
+
+          APK="${APKS[0]}"
+
+          echo "===== APK ====="
+          echo "$APK"
+          test -s "$APK"
+
+          echo "===== PACKAGE ID ====="
+          "$AAPT" dump badging "$APK" | tee APK_BADGING.txt
+
+          grep -Fq \
+            "package: name='com.virtualapplications.play.jpog'" \
+            APK_BADGING.txt
+
+          echo "PASS: package ID"
+
+          echo "===== ABI ====="
+          unzip -Z1 "$APK" > APK_ENTRIES.txt
+
+          grep -Fxq 'lib/arm64-v8a/libPlay.so' APK_ENTRIES.txt
+
+          if grep '^lib/' APK_ENTRIES.txt \
+            | grep -v '^lib/arm64-v8a/'; then
+            echo "ERROR: Unexpected ABI found in APK."
+            exit 1
+          fi
+
+          PLAY_COUNT="$(
+            grep -Ec '^lib/arm64-v8a/libPlay\.so$' \
+              APK_ENTRIES.txt || true
           )"
 
-          echo "$PACKAGE_LINE"
+          test "$PLAY_COUNT" -eq 1
 
-          echo "$PACKAGE_LINE" | grep -F \
-            "name='com.virtualapplications.play.jpog'"
+          echo "PASS: exactly one ARM64 libPlay.so"
 
-          echo "===== NATIVE LIBRARIES ====="
-          unzip -l "$APK" | grep \
-            'lib/arm64-v8a/'
+          echo "===== VERIFY CMAKE LIBRARY MATCH ====="
 
-          unzip -l "$APK" | grep -q \
-            'lib/arm64-v8a/libPlay.so'
+          CMAKE_LIB="$(find build_android/.cxx \
+                            build_android/build/intermediates/cxx \
+            -type f -path '*/arm64-v8a/libPlay.so' \
+            2>/dev/null | sort -u)"
 
-      - name: Verify APK alignment
-        run: |
-          set -e
-          APK="$(cat APK_PATH.txt)"
+          test -n "$CMAKE_LIB"
 
-          "$ANDROID_HOME/build-tools/35.0.1/zipalign" \
-            -c -v 4 "$APK"
+          unzip -p "$APK" lib/arm64-v8a/libPlay.so \
+            > "$RUNNER_TEMP/apk-libPlay.so"
 
-      - name: Generate SHA256
-        run: |
-          set -e
-          APK="$(cat APK_PATH.txt)"
+          SOURCE_HASH="$(sha256sum "$CMAKE_LIB" | awk '{print $1}')"
+          APK_HASH="$(sha256sum "$RUNNER_TEMP/apk-libPlay.so" \
+            | awk '{print $1}')"
+
+          echo "CMake SHA256: $SOURCE_HASH"
+          echo "APK SHA256:   $APK_HASH"
+
+          test "$SOURCE_HASH" = "$APK_HASH"
+
+          echo "PASS: APK libPlay.so matches current CMake output"
+
+          echo "===== ZIP ALIGNMENT ====="
+          "$ZIPALIGN" -c -v 4 "$APK"
+
+          echo "===== APK SIGNATURE ====="
+          "$APKSIGNER" verify --verbose --print-certs "$APK"
+
+          echo "===== APK SHA256 ====="
           sha256sum "$APK" | tee APK_SHA256SUMS.txt
 
-      - name: Upload verified Release APK
+      - name: Upload verified Release artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: Play-JPOG-Android-ARM64-Release
+          name: Play-Android-ARM64-Release
           path: |
-            ${{ github.workspace }}/APK_PATH.txt
-            ${{ github.workspace }}/APK_SHA256SUMS.txt
-            ${{ github.workspace }}/build_android/**/outputs/apk/release/*.apk
+            build_android/**/outputs/apk/release/*.apk
+            APK_SHA256SUMS.txt
+            CMAKE_LIB_SHA256.txt
+            APK_BADGING.txt
           if-no-files-found: error
           retention-days: 7
