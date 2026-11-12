@@ -20,6 +20,7 @@ public:
 
 private:
 	void SetupContext();
+    bool m_rendererInitialized = false;
 
 	// Owns the transferred ANativeWindow reference. nullptr means detached.
 NativeWindowType m_window = nullptr;
