@@ -1,10 +1,18 @@
 name: Play Android ARM64 Release
 
-"on":
+on:
   workflow_dispatch:
   push:
+    branches:
+      - master
     paths:
       - ".github/workflows/android-arm64.yml"
+      - "build_android/**"
+      - "Source/**"
+      - "CMakeLists.txt"
+      - "GameConfig.xml"
+      - "deps/**"
+      - "tools/**"
 
 permissions:
   contents: read
@@ -26,23 +34,22 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
-          
+
       - name: Install Android components
         run: |
           set -e
           SDK_ROOT="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
-          SDKMANAGER="$(find "$SDK_ROOT/cmdline-tools" -type f -name sdkmanager | head -n 1)"
+          SDKMANAGER="$(find "$SDK_ROOT/cmdline-tools" \
+            -type f -name sdkmanager | head -n 1)"
 
-          if [ -z "$SDKMANAGER" ]; then
-            echo "ERROR: sdkmanager tidak ditemukan"
-            exit 1
-          fi
+          test -n "$SDKMANAGER"
 
           echo "ANDROID_HOME=$SDK_ROOT" >> "$GITHUB_ENV"
           echo "ANDROID_SDK_ROOT=$SDK_ROOT" >> "$GITHUB_ENV"
           echo "$SDK_ROOT/platform-tools" >> "$GITHUB_PATH"
 
-          yes | "$SDKMANAGER" --sdk_root="$SDK_ROOT" --licenses >/dev/null || true
+          yes | "$SDKMANAGER" --sdk_root="$SDK_ROOT" \
+            --licenses >/dev/null || true
 
           "$SDKMANAGER" --sdk_root="$SDK_ROOT" \
             "platform-tools" \
@@ -53,6 +60,7 @@ jobs:
 
       - name: Verify submodules
         run: |
+          set -e
           git submodule status --recursive
           if git submodule status --recursive | grep -q '^-'; then
             echo "ERROR: Uninitialized submodule"
@@ -63,26 +71,34 @@ jobs:
         run: |
           git config user.name "Android CI Builder"
           git config user.email "android-ci@localhost"
+
           git describe --tags >/dev/null 2>&1 || \
-            git tag -a android-ci-build -m "Local Android CI build"
+            git tag -a android-ci-build \
+              -m "Local Android CI build"
+
           git describe --tags --always
 
-      - name: Check Android ABI configuration
+      - name: Verify build configuration
         run: |
-          echo "===== ABI CONFIGURATION ====="
-          grep -n -C 3 "abiFilters\|arm64-v8a" \
-            build_android/build.gradle || true
-          echo "===== CONTINUE BUILD ====="
-          
+          set -e
+          grep -q "com.virtualapplications.play.jpog" \
+            build_android/build.gradle
+          grep -q "arm64-v8a" build_android/build.gradle
+          grep -q '29.0.14206865' build_android/build.gradle
+          grep -q '3.31.1' build_android/build.gradle
+
       - name: Restore release keystore
         env:
           KEYSTORE_B64: ${{ secrets.PLAY_RELEASE_KEYSTORE_BASE64 }}
           KEYSTORE_NAME: ${{ secrets.PLAY_RELEASE_STORE_FILE }}
         run: |
+          set -e
           test -n "$KEYSTORE_B64"
           test -n "$KEYSTORE_NAME"
+
           printf '%s' "$KEYSTORE_B64" | base64 --decode \
             > "$RUNNER_TEMP/$KEYSTORE_NAME"
+
           chmod 600 "$RUNNER_TEMP/$KEYSTORE_NAME"
           test -s "$RUNNER_TEMP/$KEYSTORE_NAME"
 
@@ -94,57 +110,68 @@ jobs:
           ORG_GRADLE_PROJECT_PLAY_RELEASE_KEY_ALIAS: ${{ secrets.PLAY_RELEASE_KEY_ALIAS }}
           ORG_GRADLE_PROJECT_PLAY_RELEASE_KEY_PASSWORD: ${{ secrets.PLAY_RELEASE_KEY_PASSWORD }}
         run: |
+          set -e
           chmod +x gradlew
-          ./gradlew --no-daemon --stacktrace assembleRelease
+          ./gradlew --no-daemon --stacktrace \
+            clean assembleRelease
 
-      - name: Verify APK signature and checksum
-        run: |
-          APK="$(find build_android -type f \
-            -path '*/outputs/apk/release/*.apk' | head -n 1)"
-          test -n "$APK"
-          echo "APK: $APK"
-          "$ANDROID_HOME/build-tools/35.0.1/apksigner" verify \
-            --verbose --print-certs "$APK"
-          sha256sum "$APK" | tee APK_SHA256SUMS.txt
-          
-       
-      - name: Verify APK package and ARM64 libraries
+      - name: Verify APK signature
         run: |
           set -e
-
           APK="$(find build_android -type f \
             -path '*/outputs/apk/release/*.apk' | head -n 1)"
 
           test -n "$APK"
+          echo "APK=$APK"
 
-          echo "===== PACKAGE ID ====="
-          PACKAGE_LINE="$("$ANDROID_HOME/build-tools/35.0.1/aapt" dump badging "$APK" | sed -n '1p')"
+          "$ANDROID_HOME/build-tools/35.0.1/apksigner" \
+            verify --verbose --print-certs "$APK"
+
+          echo "$APK" > APK_PATH.txt
+
+      - name: Verify package and ARM64 native library
+        run: |
+          set -e
+          APK="$(cat APK_PATH.txt)"
+
+          PACKAGE_LINE="$(
+            "$ANDROID_HOME/build-tools/35.0.1/aapt" \
+            dump badging "$APK" | sed -n '1p'
+          )"
+
           echo "$PACKAGE_LINE"
 
-          case "$PACKAGE_LINE" in
-            "package: name='com.virtualapplications.play.jpog'"*)
-              echo "PACKAGE ID BENAR"
-              ;;
-            *)
-              echo "ERROR: PACKAGE ID SALAH"
-              exit 1
-              ;;
-          esac
+          echo "$PACKAGE_LINE" | grep -F \
+            "name='com.virtualapplications.play.jpog'"
 
-          echo
-          echo "===== ARM64 LIBRARIES ====="
-          unzip -l "$APK" | grep 'lib/arm64-v8a/'
+          echo "===== NATIVE LIBRARIES ====="
+          unzip -l "$APK" | grep \
+            'lib/arm64-v8a/'
 
-          echo
-          echo "===== SHA256 ====="
-          sha256sum "$APK"
+          unzip -l "$APK" | grep -q \
+            'lib/arm64-v8a/libPlay.so'
 
-      - name: Upload Release APK
+      - name: Verify APK alignment
+        run: |
+          set -e
+          APK="$(cat APK_PATH.txt)"
+
+          "$ANDROID_HOME/build-tools/35.0.1/zipalign" \
+            -c -v 4 "$APK"
+
+      - name: Generate SHA256
+        run: |
+          set -e
+          APK="$(cat APK_PATH.txt)"
+          sha256sum "$APK" | tee APK_SHA256SUMS.txt
+
+      - name: Upload verified Release APK
         uses: actions/upload-artifact@v4
         with:
-          name: Play-Android-ARM64-Release
+          name: Play-JPOG-Android-ARM64-Release
           path: |
-            build_android/**/outputs/apk/release/*.apk
-            APK_SHA256SUMS.txt
+            ${{ github.workspace }}/APK_PATH.txt
+            ${{ github.workspace }}/APK_SHA256SUMS.txt
+            ${{ github.workspace }}/build_android/**/outputs/apk/release/*.apk
           if-no-files-found: error
           retention-days: 7
