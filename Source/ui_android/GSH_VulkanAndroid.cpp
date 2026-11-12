@@ -62,57 +62,61 @@ void CGSH_VulkanAndroid::PresentBackbuffer()
 
 void CGSH_VulkanAndroid::SetWindow(ANativeWindow* window)
 {
-	if(window == nullptr)
-	{
-		return;
-	}
+    // Ownership of window transfers to this handler.
+    // nullptr means detach the current Android surface.
 
-	// Ownership of the newly acquired ANativeWindow reference transfers here.
-	auto previousWindow = m_window;
-	m_window = window;
+    SendGSCall(
+        [this, window]() {
+            auto previousWindow = m_window;
+            m_window = window;
 
-	SendGSCall(
-	    [this]() {
-		    CreateSurface();
-		    UpdateViewport();
-	    },
-	    true);
+            // Destroys the old Vulkan surface before releasing its window.
+            CreateSurface();
 
-	if(previousWindow != nullptr)
-	{
-		ANativeWindow_release(previousWindow);
-	}
+            if(m_window != nullptr)
+            {
+                UpdateViewport();
+            }
+
+            if(previousWindow != nullptr)
+            {
+                ANativeWindow_release(previousWindow);
+            }
+        },
+        true);
 }
 
 void CGSH_VulkanAndroid::CreateSurface()
 {
-	if(m_window == nullptr || m_context == nullptr)
-	{
-		return;
-	}
+    if(m_context != nullptr &&
+       m_context->surface != VK_NULL_HANDLE)
+    {
+        m_instance.vkDestroySurfaceKHR(
+            m_instance,
+            m_context->surface,
+            nullptr);
 
-	if(m_context->surface != VK_NULL_HANDLE)
-	{
-		m_instance.vkDestroySurfaceKHR(
-		    m_instance,
-		    m_context->surface,
-		    nullptr);
+        m_context->surface = VK_NULL_HANDLE;
+    }
 
-		m_context->surface = VK_NULL_HANDLE;
-	}
+    // A null window means the Android surface was detached.
+    if(m_window == nullptr || m_context == nullptr)
+    {
+        return;
+    }
 
-	auto surfaceCreateInfo =
-	    Framework::Vulkan::AndroidSurfaceCreateInfoKHR();
+    auto surfaceCreateInfo =
+        Framework::Vulkan::AndroidSurfaceCreateInfoKHR();
 
-	surfaceCreateInfo.window = m_window;
+    surfaceCreateInfo.window = m_window;
 
-	auto result = m_instance.vkCreateAndroidSurfaceKHR(
-	    m_instance,
-	    &surfaceCreateInfo,
-	    nullptr,
-	    &m_context->surface);
+    auto result = m_instance.vkCreateAndroidSurfaceKHR(
+        m_instance,
+        &surfaceCreateInfo,
+        nullptr,
+        &m_context->surface);
 
-	CHECKVULKANERROR(result);
+    CHECKVULKANERROR(result);
 }
 
 void CGSH_VulkanAndroid::UpdateViewport()
