@@ -143,51 +143,62 @@ void CGSH_OpenGLAndroid::SetWindow(NativeWindowType window)
 
 void CGSH_OpenGLAndroid::SetupContext()
 {
-	if(m_display == EGL_NO_DISPLAY ||
-	   m_context == EGL_NO_CONTEXT ||
-	   m_window == nullptr)
-	{
-		return;
-	}
+    if(m_display == EGL_NO_DISPLAY)
+    {
+        return;
+    }
 
-	if(m_surface != EGL_NO_SURFACE)
-	{
-		eglDestroySurface(m_display, m_surface);
-		m_surface = EGL_NO_SURFACE;
-	}
+    if(m_surface != EGL_NO_SURFACE)
+    {
+        eglMakeCurrent(
+            m_display,
+            EGL_NO_SURFACE,
+            EGL_NO_SURFACE,
+            EGL_NO_CONTEXT);
 
-	m_surface = eglCreateWindowSurface(
-	    m_display,
-	    m_config,
-	    m_window,
-	    nullptr);
+        eglDestroySurface(m_display, m_surface);
+        m_surface = EGL_NO_SURFACE;
+    }
 
-	assert(m_surface != EGL_NO_SURFACE);
+    // A null window means the Android surface was detached.
+    if(m_context == EGL_NO_CONTEXT || m_window == nullptr)
+    {
+        return;
+    }
 
-	auto makeCurrentResult = eglMakeCurrent(
-	    m_display,
-	    m_surface,
-	    m_surface,
-	    m_context);
+    m_surface = eglCreateWindowSurface(
+        m_display,
+        m_config,
+        m_window,
+        nullptr);
 
-	assert(makeCurrentResult != EGL_FALSE);
+    assert(m_surface != EGL_NO_SURFACE);
 
-	GLint w = 0;
-	GLint h = 0;
+    auto makeCurrentResult = eglMakeCurrent(
+        m_display,
+        m_surface,
+        m_surface,
+        m_context);
 
-	eglQuerySurface(m_display, m_surface, EGL_WIDTH, &w);
-	eglQuerySurface(m_display, m_surface, EGL_HEIGHT, &h);
+    assert(makeCurrentResult != EGL_FALSE);
 
-	PRESENTATION_PARAMS presentationParams;
-	presentationParams.mode =
-	    static_cast<CGSHandler::PRESENTATION_MODE>(
-	        CAppConfig::GetInstance().GetPreferenceInteger(
-	            PREF_CGSHANDLER_PRESENTATION_MODE));
+    GLint w = 0;
+    GLint h = 0;
 
-	presentationParams.windowWidth = w;
-	presentationParams.windowHeight = h;
+    eglQuerySurface(m_display, m_surface, EGL_WIDTH, &w);
+    eglQuerySurface(m_display, m_surface, EGL_HEIGHT, &h);
 
-	SetPresentationParams(presentationParams);
+    PRESENTATION_PARAMS presentationParams;
+    presentationParams.mode =
+        static_cast<CGSHandler::PRESENTATION_MODE>(
+            CAppConfig::GetInstance().GetPreferenceInteger(
+                PREF_CGSHANDLER_PRESENTATION_MODE));
 
-	eglSwapInterval(m_display, 0);
+    presentationParams.windowWidth = w;
+    presentationParams.windowHeight = h;
+
+    SetPresentationParams(presentationParams);
+
+    eglSwapInterval(m_display, 0);
 }
+
