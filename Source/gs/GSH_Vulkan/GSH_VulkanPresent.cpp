@@ -1,3 +1,7 @@
+#include <algorithm>
+#include <vector>
+#include <cstdint>
+
 #include "GSH_VulkanPresent.h"
 #include "GSH_VulkanMemoryUtils.h"
 #include "MemStream.h"
