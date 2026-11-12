@@ -1,29 +1,54 @@
 #include <cassert>
 #include <chrono>
-#include <cstring>
-#include <utility>
+#include <limits>
+#include <stdexcept>
 
 #include "SH_OpenSL.h"
 
 CSH_OpenSL::CSH_OpenSL()
 {
-	SLresult result = SL_RESULT_SUCCESS;
+	try
+	{
+		SLresult result = slCreateEngine(
+		    &m_engineObject,
+		    0,
+		    nullptr,
+		    0,
+		    nullptr,
+		    nullptr);
 
-	result = slCreateEngine(&m_engineObject, 0, nullptr, 0, nullptr, nullptr);
-	assert(result == SL_RESULT_SUCCESS);
-	if(result != SL_RESULT_SUCCESS) return;
+		if(result != SL_RESULT_SUCCESS)
+		{
+			throw std::runtime_error("OpenSL: slCreateEngine failed.");
+		}
 
-	result = (*m_engineObject)->Realize(m_engineObject, SL_BOOLEAN_FALSE);
-	assert(result == SL_RESULT_SUCCESS);
-	if(result != SL_RESULT_SUCCESS) return;
+		result = (*m_engineObject)->Realize(
+		    m_engineObject,
+		    SL_BOOLEAN_FALSE);
 
-	result = (*m_engineObject)->GetInterface(
-	    m_engineObject, SL_IID_ENGINE, &m_engine);
-	assert(result == SL_RESULT_SUCCESS);
-	if(result != SL_RESULT_SUCCESS) return;
+		if(result != SL_RESULT_SUCCESS)
+		{
+			throw std::runtime_error("OpenSL: engine Realize failed.");
+		}
 
-	CreateOutputMix();
-	CreateAudioPlayer();
+		result = (*m_engineObject)->GetInterface(
+		    m_engineObject,
+		    SL_IID_ENGINE,
+		    &m_engine);
+
+		if(result != SL_RESULT_SUCCESS)
+		{
+			throw std::runtime_error("OpenSL: engine interface failed.");
+		}
+
+		CreateOutputMix();
+		CreateAudioPlayer();
+	}
+	catch(...)
+	{
+		DestroyOpenSLObjects();
+		throw;
+	}
 }
 
 CSH_OpenSL::~CSH_OpenSL()
@@ -34,38 +59,13 @@ CSH_OpenSL::~CSH_OpenSL()
 		m_isResetting = true;
 	}
 
-	// Wake a Write() call if it is waiting for an available slot.
+	// Release a Write() call waiting for a free buffer.
 	m_bufferAvailable.notify_all();
 
-	// Stop queued playback before destroying the OpenSL objects.
-	if(m_playerQueue != nullptr)
-	{
-		SLresult result = (*m_playerQueue)->Clear(m_playerQueue);
-		assert(result == SL_RESULT_SUCCESS);
-	}
+	// Wait until any active Write() or Reset() operation exits.
+	std::lock_guard<std::mutex> operationLock(m_operationMutex);
 
-	if(m_playerObject != nullptr)
-	{
-		(*m_playerObject)->Destroy(m_playerObject);
-		m_playerObject = nullptr;
-	}
-
-	m_playerPlay = nullptr;
-	m_playerQueue = nullptr;
-
-	if(m_outputMixObject != nullptr)
-	{
-		(*m_outputMixObject)->Destroy(m_outputMixObject);
-		m_outputMixObject = nullptr;
-	}
-
-	if(m_engineObject != nullptr)
-	{
-		(*m_engineObject)->Destroy(m_engineObject);
-		m_engineObject = nullptr;
-	}
-
-	m_engine = nullptr;
+	DestroyOpenSLObjects();
 }
 
 CSoundHandler* CSH_OpenSL::HandlerFactory()
@@ -75,35 +75,49 @@ CSoundHandler* CSH_OpenSL::HandlerFactory()
 
 void CSH_OpenSL::CreateOutputMix()
 {
+	if(m_engine == nullptr)
+	{
+		throw std::runtime_error("OpenSL: engine is unavailable.");
+	}
+
 	assert(m_outputMixObject == nullptr);
 
-	SLresult result = SL_RESULT_SUCCESS;
+	static const SLInterfaceID interfaceIds[] =
+	    {SL_IID_VOLUME};
 
-	static const SLInterfaceID interfaceIds[] = {SL_IID_VOLUME};
-	static const SLboolean required[] = {SL_BOOLEAN_FALSE};
+	static const SLboolean required[] =
+	    {SL_BOOLEAN_FALSE};
 
-	result = (*m_engine)->CreateOutputMix(
+	SLresult result = (*m_engine)->CreateOutputMix(
 	    m_engine,
 	    &m_outputMixObject,
 	    1,
 	    interfaceIds,
 	    required);
 
-	assert(result == SL_RESULT_SUCCESS);
-	if(result != SL_RESULT_SUCCESS) return;
+	if(result != SL_RESULT_SUCCESS)
+	{
+		throw std::runtime_error("OpenSL: CreateOutputMix failed.");
+	}
 
 	result = (*m_outputMixObject)->Realize(
 	    m_outputMixObject,
 	    SL_BOOLEAN_FALSE);
 
-	assert(result == SL_RESULT_SUCCESS);
+	if(result != SL_RESULT_SUCCESS)
+	{
+		throw std::runtime_error("OpenSL: output mix Realize failed.");
+	}
 }
 
 void CSH_OpenSL::CreateAudioPlayer()
 {
-	assert(m_playerObject == nullptr);
+	if(m_engine == nullptr || m_outputMixObject == nullptr)
+	{
+		throw std::runtime_error("OpenSL: output mix is unavailable.");
+	}
 
-	SLresult result = SL_RESULT_SUCCESS;
+	assert(m_playerObject == nullptr);
 
 	SLDataLocator_AndroidSimpleBufferQueue bufferQueueLocator = {};
 	bufferQueueLocator.locatorType =
@@ -130,13 +144,15 @@ void CSH_OpenSL::CreateAudioPlayer()
 
 	SLDataSink dataSink = {};
 	dataSink.pLocator = &outputMixLocator;
+	dataSink.pFormat = nullptr;
 
 	static const SLInterfaceID interfaceIds[] =
 	    {SL_IID_ANDROIDSIMPLEBUFFERQUEUE};
 
-	static const SLboolean required[] = {SL_BOOLEAN_TRUE};
+	static const SLboolean required[] =
+	    {SL_BOOLEAN_TRUE};
 
-	result = (*m_engine)->CreateAudioPlayer(
+	SLresult result = (*m_engine)->CreateAudioPlayer(
 	    m_engine,
 	    &m_playerObject,
 	    &dataSource,
@@ -145,45 +161,112 @@ void CSH_OpenSL::CreateAudioPlayer()
 	    interfaceIds,
 	    required);
 
-	assert(result == SL_RESULT_SUCCESS);
-	if(result != SL_RESULT_SUCCESS) return;
+	if(result != SL_RESULT_SUCCESS)
+	{
+		throw std::runtime_error("OpenSL: CreateAudioPlayer failed.");
+	}
 
 	result = (*m_playerObject)->Realize(
 	    m_playerObject,
 	    SL_BOOLEAN_FALSE);
 
-	assert(result == SL_RESULT_SUCCESS);
-	if(result != SL_RESULT_SUCCESS) return;
+	if(result != SL_RESULT_SUCCESS)
+	{
+		throw std::runtime_error("OpenSL: player Realize failed.");
+	}
 
 	result = (*m_playerObject)->GetInterface(
 	    m_playerObject,
 	    SL_IID_PLAY,
 	    &m_playerPlay);
 
-	assert(result == SL_RESULT_SUCCESS);
-	if(result != SL_RESULT_SUCCESS) return;
+	if(result != SL_RESULT_SUCCESS)
+	{
+		throw std::runtime_error("OpenSL: player interface failed.");
+	}
 
 	result = (*m_playerObject)->GetInterface(
 	    m_playerObject,
 	    SL_IID_ANDROIDSIMPLEBUFFERQUEUE,
 	    &m_playerQueue);
 
-	assert(result == SL_RESULT_SUCCESS);
-	if(result != SL_RESULT_SUCCESS) return;
+	if(result != SL_RESULT_SUCCESS)
+	{
+		throw std::runtime_error("OpenSL: buffer queue interface failed.");
+	}
 
 	result = (*m_playerQueue)->RegisterCallback(
 	    m_playerQueue,
 	    &CSH_OpenSL::QueueCallback,
 	    this);
 
-	assert(result == SL_RESULT_SUCCESS);
-	if(result != SL_RESULT_SUCCESS) return;
+	if(result != SL_RESULT_SUCCESS)
+	{
+		throw std::runtime_error("OpenSL: RegisterCallback failed.");
+	}
 
 	result = (*m_playerPlay)->SetPlayState(
 	    m_playerPlay,
 	    SL_PLAYSTATE_PLAYING);
 
-	assert(result == SL_RESULT_SUCCESS);
+	if(result != SL_RESULT_SUCCESS)
+	{
+		throw std::runtime_error("OpenSL: SetPlayState failed.");
+	}
+}
+
+void CSH_OpenSL::DestroyOpenSLObjects()
+{
+	// This function is called only after new writes have been blocked
+	// and the operation mutex has excluded active Write/Reset calls.
+
+	if(m_playerPlay != nullptr)
+	{
+		(*m_playerPlay)->SetPlayState(
+		    m_playerPlay,
+		    SL_PLAYSTATE_STOPPED);
+	}
+
+	if(m_playerQueue != nullptr)
+	{
+		(*m_playerQueue)->Clear(m_playerQueue);
+	}
+
+	if(m_playerObject != nullptr)
+	{
+		// Destroy the player before allowing this object to disappear.
+		// OpenSL object destruction is expected to stop further queue
+		// callbacks; callbacks already executing are waited for below.
+		(*m_playerObject)->Destroy(m_playerObject);
+		m_playerObject = nullptr;
+	}
+
+	m_playerPlay = nullptr;
+	m_playerQueue = nullptr;
+
+	{
+		std::unique_lock<std::mutex> lock(m_mutex);
+
+		m_callbackIdle.wait(
+		    lock,
+		    [this]() {
+			    return m_activeCallbacks == 0;
+		    });
+	}
+
+	if(m_outputMixObject != nullptr)
+	{
+		(*m_outputMixObject)->Destroy(m_outputMixObject);
+		m_outputMixObject = nullptr;
+	}
+
+	if(m_engineObject != nullptr)
+	{
+		(*m_engineObject)->Destroy(m_engineObject);
+		m_engineObject = nullptr;
+	}
+
+	m_engine = nullptr;
 }
 
 void CSH_OpenSL::QueueCallback(
@@ -198,35 +281,50 @@ void CSH_OpenSL::QueueCallback(
 
 void CSH_OpenSL::QueueCallbackImpl()
 {
+	bool notifyWriter = false;
+
 	{
 		std::lock_guard<std::mutex> lock(m_mutex);
 
-		if(m_isShuttingDown || m_isResetting)
+		++m_activeCallbacks;
+
+		if(!m_isShuttingDown && !m_isResetting)
 		{
-			return;
+			if(!m_queuedSlots.empty())
+			{
+				const int completedSlot = m_queuedSlots.front();
+				m_queuedSlots.pop_front();
+
+				if(completedSlot >= 0 &&
+				   completedSlot < BUFFER_COUNT)
+				{
+					m_bufferInUse[completedSlot] = false;
+					notifyWriter = true;
+				}
+
+				// The final queued buffer has completed.
+				// This is a queue-drained diagnostic, not proof
+				// of an audible dropout.
+				if(m_queuedSlots.empty())
+				{
+					m_underrunCount.fetch_add(
+					    1,
+					    std::memory_order_relaxed);
+				}
+			}
 		}
 
-		// A callback means the oldest queued slot has finished playback.
-		if(m_queuedSlots.empty())
+		--m_activeCallbacks;
+		if(m_activeCallbacks == 0)
 		{
-			return;
-		}
-
-		const int completedSlot = m_queuedSlots.front();
-		m_queuedSlots.pop_front();
-
-		m_bufferInUse[completedSlot] = false;
-
-		// The final queued buffer has completed. The output queue
-		// has drained and may experience an underrun until refilled.
-		if(m_queuedSlots.empty())
-		{
-			m_underrunCount.fetch_add(1, std::memory_order_relaxed);
+			m_callbackIdle.notify_all();
 		}
 	}
 
-	// Wake the emulation thread if it is waiting for a free slot.
-	m_bufferAvailable.notify_one();
+	if(notifyWriter)
+	{
+		m_bufferAvailable.notify_one();
+	}
 }
 
 int CSH_OpenSL::FindFreeBufferLocked() const
@@ -244,8 +342,13 @@ int CSH_OpenSL::FindFreeBufferLocked() const
 
 void CSH_OpenSL::Reset()
 {
-	assert(m_playerQueue != nullptr);
-	if(m_playerQueue == nullptr) return;
+	// Reset and Write are serialized for their entire operation.
+	std::lock_guard<std::mutex> operationLock(m_operationMutex);
+
+	if(m_playerQueue == nullptr)
+	{
+		return;
+	}
 
 	{
 		std::lock_guard<std::mutex> lock(m_mutex);
@@ -258,19 +361,30 @@ void CSH_OpenSL::Reset()
 		m_isResetting = true;
 	}
 
-	// Clear the OpenSL queue without holding the mutex:
-	// callbacks must be able to finish without deadlocking Clear().
+	// Do not hold m_mutex while calling Clear:
+	// OpenSL may need to complete a callback during this operation.
 	SLresult result = (*m_playerQueue)->Clear(m_playerQueue);
-	assert(result == SL_RESULT_SUCCESS);
+
+	if(result != SL_RESULT_SUCCESS)
+	{
+		{
+			std::lock_guard<std::mutex> lock(m_mutex);
+			m_isResetting = false;
+		}
+
+		m_bufferAvailable.notify_all();
+		assert(result == SL_RESULT_SUCCESS);
+		return;
+	}
 
 	{
 		std::lock_guard<std::mutex> lock(m_mutex);
 
 		m_queuedSlots.clear();
 
-		for(auto& slot : m_bufferInUse)
+		for(auto& inUse : m_bufferInUse)
 		{
-			slot = false;
+			inUse = false;
 		}
 
 		m_isResetting = false;
@@ -284,8 +398,8 @@ void CSH_OpenSL::Write(
     unsigned int sampleCount,
     unsigned int sampleRate)
 {
-	// The PS2 SPU path currently produces 44.1 kHz audio.
-	// OpenSL output format remains 44.1 kHz in this patch.
+	// Current SPU output and OpenSL PCM format are both 44.1 kHz.
+	// No resampling or time stretching is performed here.
 	(void)sampleRate;
 
 	if(buffer == nullptr || sampleCount == 0)
@@ -298,14 +412,30 @@ void CSH_OpenSL::Write(
 		return;
 	}
 
+	if(sampleCount >
+	   std::numeric_limits<SLuint32>::max() / sizeof(int16))
+	{
+		return;
+	}
+
 	using Clock = std::chrono::steady_clock;
 
 	const auto waitStart = Clock::now();
 	bool hadToWait = false;
+
+	// This lock prevents Reset() from clearing or reusing a slot
+	// between reservation, sample copy and Enqueue().
+	std::lock_guard<std::mutex> operationLock(m_operationMutex);
+
 	int slot = -1;
 
 	{
 		std::unique_lock<std::mutex> lock(m_mutex);
+
+		if(m_isShuttingDown)
+		{
+			return;
+		}
 
 		slot = FindFreeBufferLocked();
 
@@ -333,12 +463,12 @@ void CSH_OpenSL::Write(
 			slot = FindFreeBufferLocked();
 		}
 
-		if(slot < 0 || m_isShuttingDown)
+		if(slot < 0)
 		{
 			return;
 		}
 
-		// Reserve this slot before releasing the mutex.
+		// Reserve the slot before releasing the state mutex.
 		m_bufferInUse[slot] = true;
 	}
 
@@ -353,11 +483,12 @@ void CSH_OpenSL::Write(
 		    std::memory_order_relaxed);
 	}
 
-	// Copy the samples into memory owned by this queue slot.
-	// The source buffer can now be reused by CPS2VM safely.
+	// The operation mutex remains held, so Reset cannot reuse this slot.
 	try
 	{
-		m_buffers[slot].assign(buffer, buffer + sampleCount);
+		m_buffers[slot].assign(
+		    buffer,
+		    buffer + sampleCount);
 	}
 	catch(...)
 	{
@@ -367,8 +498,11 @@ void CSH_OpenSL::Write(
 		}
 
 		m_bufferAvailable.notify_one();
-		throw;
+		return;
 	}
+
+	const SLuint32 bufferSize = static_cast<SLuint32>(
+	    m_buffers[slot].size() * sizeof(int16));
 
 	SLresult result = SL_RESULT_SUCCESS;
 
@@ -382,19 +516,27 @@ void CSH_OpenSL::Write(
 			return;
 		}
 
-		// Record the slot before Enqueue. The callback takes this
-		// same mutex, so it cannot consume the slot prematurely.
-		m_queuedSlots.push_back(slot);
+		// Queue bookkeeping is recorded before Enqueue.
+		// The callback uses this same mutex and cannot consume
+		// this entry until Enqueue has returned.
+		try
+		{
+			m_queuedSlots.push_back(slot);
+		}
+		catch(...)
+		{
+			m_bufferInUse[slot] = false;
+			m_bufferAvailable.notify_one();
+			return;
+		}
 
 		result = (*m_playerQueue)->Enqueue(
 		    m_playerQueue,
 		    m_buffers[slot].data(),
-		    static_cast<SLuint32>(
-		        m_buffers[slot].size() * sizeof(int16)));
+		    bufferSize);
 
 		if(result != SL_RESULT_SUCCESS)
 		{
-			// Enqueue failed: return the reserved slot.
 			if(!m_queuedSlots.empty() &&
 			   m_queuedSlots.back() == slot)
 			{
@@ -427,9 +569,8 @@ bool CSH_OpenSL::HasFreeBuffers()
 
 void CSH_OpenSL::RecycleBuffers()
 {
-	// OpenSL returns each slot through QueueCallbackImpl().
-	// Do not reset the slot count here: that would incorrectly
-	// mark buffers still being played as available.
+	// Buffer ownership returns through QueueCallbackImpl().
+	// Do not free slots here while OpenSL may still be playing them.
 }
 
 uint64_t CSH_OpenSL::GetUnderrunCount() const
