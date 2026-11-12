@@ -417,9 +417,10 @@ void CPresent::CreateSwapChain()
 	VkSurfaceCapabilitiesKHR surfaceCaps = {};
 	result = m_context->instance->vkGetPhysicalDeviceSurfaceCapabilitiesKHR(m_context->physicalDevice, m_context->surface, &surfaceCaps);
 	if(result == VK_ERROR_SURFACE_LOST_KHR)
-	{
-		return;
-	}
+    {
+    m_surfaceLost = true;
+    return;
+    }
 	CHECKVULKANERROR(result);
 	m_surfaceExtents = surfaceCaps.currentExtent;
 	if(m_surfaceExtents.width == 0 ||
