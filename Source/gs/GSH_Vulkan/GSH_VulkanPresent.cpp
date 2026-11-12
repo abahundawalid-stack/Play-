@@ -375,6 +375,12 @@ void CPresent::CreateSwapChain()
 	}
 	CHECKVULKANERROR(result);
 	m_surfaceExtents = surfaceCaps.currentExtent;
+	if(m_surfaceExtents.width == 0 ||
+       m_surfaceExtents.height == 0)
+    {
+        m_swapChainValid = false;
+        return;
+    }
 
 	auto swapChainCreateInfo = Framework::Vulkan::SwapchainCreateInfoKHR();
 	swapChainCreateInfo.surface = m_context->surface;
