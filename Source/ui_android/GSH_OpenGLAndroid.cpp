@@ -119,34 +119,37 @@ void CGSH_OpenGLAndroid::InitializeImpl()
 
 void CGSH_OpenGLAndroid::ReleaseImpl()
 {
-	// Release the base renderer while its EGL context still exists.
-	CGSH_OpenGL::ReleaseImpl();
+    if(m_rendererInitialized)
+    {
+        CGSH_OpenGL::ReleaseImpl();
+        m_rendererInitialized = false;
+    }
 
-	if(m_display != EGL_NO_DISPLAY)
-	{
-		eglMakeCurrent(
-		    m_display,
-		    EGL_NO_SURFACE,
-		    EGL_NO_SURFACE,
-		    EGL_NO_CONTEXT);
+    if(m_display != EGL_NO_DISPLAY)
+    {
+        eglMakeCurrent(
+            m_display,
+            EGL_NO_SURFACE,
+            EGL_NO_SURFACE,
+            EGL_NO_CONTEXT);
 
-		if(m_surface != EGL_NO_SURFACE)
-		{
-			eglDestroySurface(m_display, m_surface);
-			m_surface = EGL_NO_SURFACE;
-		}
+        if(m_surface != EGL_NO_SURFACE)
+        {
+            eglDestroySurface(m_display, m_surface);
+            m_surface = EGL_NO_SURFACE;
+        }
 
-		if(m_context != EGL_NO_CONTEXT)
-		{
-			eglDestroyContext(m_display, m_context);
-			m_context = EGL_NO_CONTEXT;
-		}
+        if(m_context != EGL_NO_CONTEXT)
+        {
+            eglDestroyContext(m_display, m_context);
+            m_context = EGL_NO_CONTEXT;
+        }
 
-		eglTerminate(m_display);
-		m_display = EGL_NO_DISPLAY;
-	}
+        eglTerminate(m_display);
+        m_display = EGL_NO_DISPLAY;
+    }
 
-	m_config = 0;
+    m_config = 0;
 }
 
 void CGSH_OpenGLAndroid::PresentBackbuffer()
