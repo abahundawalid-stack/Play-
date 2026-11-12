@@ -62,22 +62,44 @@ void CGSH_VulkanAndroid::PresentBackbuffer()
 
 void CGSH_VulkanAndroid::SetWindow(ANativeWindow* window)
 {
-    // Ownership of window transfers to this handler.
-    // nullptr means detach the current Android surface.
-
     SendGSCall(
         [this, window]() {
-            auto previousWindow = m_window;
+            ANativeWindow* previousWindow = m_window;
+
+            // Lepaskan objek presentasi dan swapchain sebelum
+            // menghancurkan VkSurfaceKHR yang lama.
+            OnSurfaceChanging();
+
             m_window = window;
 
-            // Destroys the old Vulkan surface before releasing its window.
-            CreateSurface();
-
-            if(m_window != nullptr)
+            // Jika Vulkan belum diinisialisasi, simpan window saja.
+            // InitializeImpl akan menggunakan window tersebut.
+            if(m_instance.IsEmpty())
             {
-                UpdateViewport();
+                if(previousWindow != nullptr)
+                {
+                    ANativeWindow_release(previousWindow);
+                }
+                return;
             }
 
+            // Hancurkan surface lama dan buat surface baru.
+            CreateSurface();
+
+            if(m_window != nullptr &&
+               m_context->surface != VK_NULL_HANDLE)
+            {
+                // Buat ulang presentasi berdasarkan surface baru.
+                OnSurfaceChanged();
+
+                if(m_present)
+                {
+                    UpdateViewport();
+                }
+            }
+
+            // Referensi window lama baru dilepas setelah surface
+            // Vulkan lama dan objek presentasinya selesai dihancurkan.
             if(previousWindow != nullptr)
             {
                 ANativeWindow_release(previousWindow);
@@ -88,6 +110,11 @@ void CGSH_VulkanAndroid::SetWindow(ANativeWindow* window)
 
 void CGSH_VulkanAndroid::CreateSurface()
 {
+    if(m_instance.IsEmpty())
+    {
+        return;
+    }
+
     if(m_context != nullptr &&
        m_context->surface != VK_NULL_HANDLE)
     {
@@ -99,7 +126,6 @@ void CGSH_VulkanAndroid::CreateSurface()
         m_context->surface = VK_NULL_HANDLE;
     }
 
-    // A null window means the Android surface was detached.
     if(m_window == nullptr || m_context == nullptr)
     {
         return;
