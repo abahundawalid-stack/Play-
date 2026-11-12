@@ -3,11 +3,6 @@ import org.ajoberstar.grgit.Grgit
 apply plugin: 'com.android.application'
 
 buildscript {
-    repositories {
-        google()
-        mavenCentral()
-    }
-
     dependencies {
         classpath 'com.android.tools.build:gradle:8.13.2'
         classpath 'org.ajoberstar.grgit:grgit-gradle:4.1.1'
