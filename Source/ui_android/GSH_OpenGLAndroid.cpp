@@ -250,11 +250,25 @@ void CGSH_OpenGLAndroid::SetWindow(NativeWindowType window)
                     InitializeImpl();
                 }
             }
-            else
-            {
-                // Replace or detach the current EGL surface.
-                SetupContext();
-            }
+
+			else
+{
+    if(m_window != nullptr)
+    {
+        SetupContext();
+    }
+    else if(m_surface != EGL_NO_SURFACE)
+    {
+        eglMakeCurrent(
+            m_display,
+            EGL_NO_SURFACE,
+            EGL_NO_SURFACE,
+            EGL_NO_CONTEXT);
+
+        eglDestroySurface(m_display, m_surface);
+        m_surface = EGL_NO_SURFACE;
+    }
+}
 
             if(previousWindow != nullptr)
             {
