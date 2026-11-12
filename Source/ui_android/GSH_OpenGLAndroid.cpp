@@ -20,8 +20,8 @@ CGSH_OpenGLAndroid::~CGSH_OpenGLAndroid()
 	}
 }
 
-CGSHandler::FactoryFunction CGSH_VulkanAndroid::GetFactoryFunction(
-    ANativeWindow* window)
+CGSHandler::FactoryFunction CGSH_OpenGLAndroid::GetFactoryFunction(
+    NativeWindowType window)
 {
     auto windowOwner = std::shared_ptr<ANativeWindow>(
         window,
@@ -37,11 +37,10 @@ CGSHandler::FactoryFunction CGSH_VulkanAndroid::GetFactoryFunction(
 
         if(handlerWindow != nullptr)
         {
-            // Handler receives its own reference.
             ANativeWindow_acquire(handlerWindow);
         }
 
-        return new CGSH_VulkanAndroid(handlerWindow);
+        return new CGSH_OpenGLAndroid(handlerWindow);
     };
 }
 
