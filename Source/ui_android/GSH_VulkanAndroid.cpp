@@ -17,11 +17,28 @@ CGSH_VulkanAndroid::~CGSH_VulkanAndroid()
 	}
 }
 
-CGSHandler::FactoryFunction CGSH_VulkanAndroid::GetFactoryFunction(ANativeWindow* window)
+CGSHandler::FactoryFunction CGSH_VulkanAndroid::GetFactoryFunction(
+    ANativeWindow* window)
 {
-	return [window]() {
-		return new CGSH_VulkanAndroid(window);
-	};
+    auto windowOwner = std::shared_ptr<ANativeWindow>(
+        window,
+        [](ANativeWindow* ownedWindow) {
+            if(ownedWindow != nullptr)
+            {
+                ANativeWindow_release(ownedWindow);
+            }
+        });
+
+    return [windowOwner]() {
+        ANativeWindow* handlerWindow = windowOwner.get();
+
+        if(handlerWindow != nullptr)
+        {
+            ANativeWindow_acquire(handlerWindow);
+        }
+
+        return new CGSH_VulkanAndroid(handlerWindow);
+    };
 }
 
 void CGSH_VulkanAndroid::InitializeImpl()
