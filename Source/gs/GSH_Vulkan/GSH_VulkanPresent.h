@@ -96,6 +96,7 @@ namespace GSH_Vulkan
 		std::vector<SWAPCHAIN_SEMAPHORES> m_swapChainSemaphores;
 		uint32 m_currentSwapChainSemaphoreIndex = 0;
 		bool m_swapChainValid = false;
+        bool m_surfaceLost = false;
 		CGSHandler::PRESENTATION_VIEWPORT m_presentationViewport;
 		VkRenderPass m_renderPass = VK_NULL_HANDLE;
 		Framework::Vulkan::CBuffer m_vertexBuffer;
