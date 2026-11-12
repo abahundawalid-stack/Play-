@@ -44,18 +44,36 @@ CGSHandler::FactoryFunction CGSH_VulkanAndroid::GetFactoryFunction(
 
 void CGSH_VulkanAndroid::InitializeImpl()
 {
-	if(m_window == nullptr)
-	{
-		return;
-	}
+    if(m_rendererInitialized || m_window == nullptr)
+    {
+        return;
+    }
 
-	m_instance = CreateInstance(true);
+    if(m_instance.IsEmpty())
+    {
+        m_instance = CreateInstance(true);
+    }
 
-	CreateSurface();
+    if(m_instance.IsEmpty())
+    {
+        return;
+    }
 
-	CGSH_Vulkan::InitializeImpl();
+    CreateSurface();
 
-	UpdateViewport();
+    if(m_context == nullptr ||
+       m_context->surface == VK_NULL_HANDLE)
+    {
+        return;
+    }
+
+    CGSH_Vulkan::InitializeImpl();
+
+    if(!m_context->device.IsEmpty())
+    {
+        m_rendererInitialized = true;
+        UpdateViewport();
+    }
 }
 
 void CGSH_VulkanAndroid::ReleaseImpl()
