@@ -43,19 +43,19 @@ android {
     }
 
     externalNativeBuild {
-        cmake {
-            arguments = [
-                "-DANDROID_ARM_NEON=TRUE",
-                "-DANDROID_TOOLCHAIN=clang",
-                "-DANDROID_CPP_FEATURES=exceptions rtti",
-                "-DANDROID_STL=c++_static"
-            ]
-            cppFlags = ["-frtti"]
-            targets = ["Play"]
-            path '../CMakeLists.txt'
-            version "3.31.1"
-        }
+    cmake {
+        arguments(
+            "-DANDROID_ARM_NEON=TRUE",
+            "-DANDROID_TOOLCHAIN=clang",
+            "-DANDROID_CPP_FEATURES=exceptions rtti",
+            "-DANDROID_STL=c++_static"
+        )
+        cppFlags("-frtti")
+        targets("Play")
+        path file("../CMakeLists.txt")
+        version "3.31.1"
     }
+}
 
     signingConfigs {
         if (project.ext.signingEnabled) {
