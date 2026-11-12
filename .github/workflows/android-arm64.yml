@@ -162,10 +162,11 @@ jobs:
           echo "===== SEARCH CURRENT CMAKE OUTPUT ====="
 
           mapfile -t CMAKE_LIBS < <(
-            find build_android/.cxx \
-              -type f \
-              -path '*/arm64-v8a/libPlay.so' \
-              2>/dev/null | sort -u
+          find build_android/.cxx \
+          -type f \
+          -name 'libPlay.so' \
+          -path '*/arm64-v8a/*' \
+          2>/dev/null | sort -u
           )
 
           if [ "${#CMAKE_LIBS[@]}" -ne 1 ]; then
@@ -245,7 +246,8 @@ jobs:
           mapfile -t CMAKE_LIBS < <(
           find build_android/.cxx \
           -type f \
-          -path '*/arm64-v8a/libPlay.so' \
+          -name 'libPlay.so' \
+          -path '*/arm64-v8a/*' \
           2>/dev/null | sort -u
           )
 
