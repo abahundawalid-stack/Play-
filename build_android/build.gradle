@@ -43,39 +43,33 @@ android {
         minSdkVersion 21
         targetSdkVersion 35
 
-        // Build khusus ARM64.
         ndk {
-            abiFilters 'arm64-v8a'
-        }
+    abiFilters 'arm64-v8a'
+}
 
-        // Parameter konfigurasi native CMake.
-        externalNativeBuild {
-            cmake {
-                arguments(
-                    "-DBUILD_PLAY=ON",
-                    "-DBUILD_TESTS=OFF",
-                    "-DBUILD_PSFPLAYER=OFF",
-                    "-DBUILD_LIBRETRO_CORE=OFF",
-                    "-DBUILD_AOT_CACHE=OFF",
-                    "-DUSE_AOT_CACHE=OFF",
-                    "-DANDROID_STL=c++_static"
-                )
+externalNativeBuild {
+    cmake {
+        arguments(
+            "-DBUILD_PLAY=ON",
+            "-DBUILD_TESTS=OFF",
+            "-DBUILD_PSFPLAYER=OFF",
+            "-DBUILD_LIBRETRO_CORE=OFF",
+            "-DBUILD_AOT_CACHE=OFF",
+            "-DUSE_AOT_CACHE=OFF",
+            "-DANDROID_STL=c++_static"
+        )
 
-                cppFlags "-frtti -fexceptions"
-            }
-        }
+        cppFlags "-frtti -fexceptions"
     }
-
-    // Hubungkan Gradle ke CMakeLists.txt di root repository.
+}
+        
     externalNativeBuild {
-        cmake {
-            path file("../CMakeLists.txt")
-            version "3.31.1"
-
-            // Bangun hanya shared library Android Play.
-            targets "Play"
-        }
+    cmake {
+        path file("../CMakeLists.txt")
+        version "3.31.1"
+        targets "Play"
     }
+}
 
     repositories {
         google()
