@@ -447,10 +447,11 @@ void CPresent::CreateSwapChain()
 
 	result = m_context->device.vkCreateSwapchainKHR(m_context->device, &swapChainCreateInfo, nullptr, &m_swapChain);
 	if(result == VK_ERROR_SURFACE_LOST_KHR)
-	{
-		return;
-	}
-	CHECKVULKANERROR(result);
+{
+    m_surfaceLost = true;
+    return;
+}
+CHECKVULKANERROR(result);
 
 	uint32_t imageCount = 0;
 	result = m_context->device.vkGetSwapchainImagesKHR(m_context->device, m_swapChain, &imageCount, nullptr);
