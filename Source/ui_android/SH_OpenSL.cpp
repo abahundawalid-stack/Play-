@@ -559,7 +559,6 @@ void CSH_OpenSL::Write(
 	if(result != SL_RESULT_SUCCESS)
 	{
 		m_bufferAvailable.notify_one();
-		assert(result == SL_RESULT_SUCCESS);
 		return;
 	}
 }
