@@ -35,6 +35,13 @@ if(TARGET_PLATFORM_UNIX AND NOT TARGET_PLATFORM_UNIX_ARM AND NOT TARGET_PLATFORM
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse -msse2 -mssse3")
 endif()
 
+# Android x86_64 follows the Android x86-64-v2 ABI baseline.
+# This enables the SIMD instructions required by the OpenGL texture
+# conversion routines, including SSSE3.
+if(ANDROID AND ANDROID_ABI STREQUAL "x86_64")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=x86-64-v2")
+endif()
+
 # targets, packages and dependencies
 if(NOT TARGET Framework)
 	add_subdirectory(
