@@ -132,7 +132,7 @@ jobs:
           chmod 600 "$RUNNER_TEMP/$KEYSTORE_NAME"
           test -s "$RUNNER_TEMP/$KEYSTORE_NAME"
 
-      - name: Build ARM64 Release from current source
+      - name: Build Android Multi-ABI Release from current source
         working-directory: build_android
         shell: bash
         env:
