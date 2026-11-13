@@ -31,6 +31,9 @@ public:
 	uint64_t GetBackpressureWaitCount() const;
 	uint64_t GetBackpressureWaitNanoseconds() const;
 
+    unsigned int GetQueuedBufferCount() const;
+    unsigned int GetBufferCapacity() const;
+
 private:
 	enum
 	{
