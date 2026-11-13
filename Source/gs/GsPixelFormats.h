@@ -391,7 +391,13 @@ public:
 
             // Never allow a zero page stride.
             return std::max<uint32>(1, pageStride);
-        }
+		}
+
+            static const uint32* GetPageOffsets()
+        {
+                BuildPageOffsetTable();
+                return &m_pageOffsets[0][0];
+		}
 
 	private:
 		static void BuildPageOffsetTable()
