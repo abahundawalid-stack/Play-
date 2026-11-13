@@ -2,6 +2,7 @@
 
 #include <android/log.h>
 #include <mutex>
+#include <cstdarg>
 
 #define LOG_NAME "Play!"
 
