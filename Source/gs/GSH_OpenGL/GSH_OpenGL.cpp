@@ -2140,6 +2140,9 @@ void CGSH_OpenGL::ProcessHostToLocalTransfer()
 		auto [transferAddress, transferSize] = GsTransfer::GetDstRange(bltBuf, trxReg, trxPos);
 
 		m_textureCache.InvalidateRange(transferAddress, transferSize);
+		
+		// VRAM writes may modify indexed texture CLUT data.
+        PalCache_Flush();
 
 		bool isUpperByteTransfer = (bltBuf.nDstPsm == PSMT8H) || (bltBuf.nDstPsm == PSMT4HL) || (bltBuf.nDstPsm == PSMT4HH);
 		for(const auto& framebuffer : m_framebuffers)
