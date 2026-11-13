@@ -162,7 +162,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          ABI_LIST=("arm64-v8a" "armeabi-v7a")
+          ABI_LIST=("arm64-v8a" "armeabi-v7a" "x86_64")
           : > CMAKE_LIB_SHA256.txt
 
           for ABI in "${ABI_LIST[@]}"; do
