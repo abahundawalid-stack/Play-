@@ -1,6 +1,7 @@
 
 package com.virtualapplications.play;
 
+import java.util.Locale;
 import android.app.*;
 import android.content.Intent;
 import android.os.*;
