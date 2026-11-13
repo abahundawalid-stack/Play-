@@ -16,9 +16,27 @@ buildscript {
 
 project.ext {
     signingEnabled = project.hasProperty("PLAY_RELEASE_STORE_FILE")
-    git = Grgit.open(currentDir: project.rootDir)
-    gitVersionCode = git.tag.list().size()
-    gitVersionName = "${git.describe()}"
+
+    // Git metadata is optional.
+    // Supports both Git repositories and source archives.
+    gitVersionCode = 0
+    gitVersionName = "1.0.0"
+
+    try {
+        def gitRepo = Grgit.open(currentDir: project.rootDir)
+
+        gitVersionCode = gitRepo.tag.list().size()
+
+        def description = gitRepo.describe()
+
+        if (description != null && !description.trim().isEmpty()) {
+            gitVersionName = description
+        }
+    } catch (Exception e) {
+        logger.lifecycle(
+            "Git metadata unavailable; using version ${gitVersionName}"
+        )
+    }
 }
 
 android {
