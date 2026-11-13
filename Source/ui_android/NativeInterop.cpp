@@ -414,22 +414,114 @@ Java_com_virtualapplications_play_NativeInterop_setupGsHandler(
     }
 }
 
-extern "C" JNIEXPORT void JNICALL
-Java_com_virtualapplications_play_NativeInterop_notifyPreferencesChanged(
+extern "C" JNIEXPORT jobjectArray JNICALL
+Java_com_virtualapplications_play_NativeInterop_getGraphicsDiagnostics(
     JNIEnv* env,
     jobject obj)
 {
-    if(g_virtualMachine == nullptr) return;
+    const GraphicsDiagnostics diagnostics =
+        GetGraphicsDiagnostics();
 
-    SetupSoundHandler();
+    jclass stringClass =
+        env->FindClass("java/lang/String");
 
-    g_virtualMachine->ReloadSpuBlockCount();
-    g_virtualMachine->ReloadFrameRateLimit();
-
-    auto gsHandler = g_virtualMachine->GetGSHandler();
-
-    if(gsHandler != nullptr)
+    if(stringClass == nullptr)
     {
-        gsHandler->NotifyPreferencesChanged();
+        return nullptr;
     }
+
+    jobjectArray result =
+        env->NewObjectArray(4, stringClass, nullptr);
+
+    env->DeleteLocalRef(stringClass);
+
+    if(result == nullptr)
+    {
+        return nullptr;
+    }
+
+    const std::string values[4] = {
+        diagnostics.vendor,
+        diagnostics.renderer,
+        diagnostics.version,
+        diagnostics.shadingLanguageVersion
+    };
+
+    for(jsize i = 0; i < 4; i++)
+    {
+        jstring value =
+            env->NewStringUTF(values[i].c_str());
+
+        if(value == nullptr)
+        {
+            return result;
+        }
+
+        env->SetObjectArrayElement(result, i, value);
+        env->DeleteLocalRef(value);
+    }
+
+    return result;
+}
+
+extern "C" JNIEXPORT jlongArray JNICALL
+Java_com_virtualapplications_play_NativeInterop_getAudioDiagnostics(
+    JNIEnv* env,
+    jobject obj)
+{
+    // [0] OpenSL handler active: 1=yes, 0=no, -1=unknown
+    // [1] Queued buffers
+    // [2] Buffer capacity
+    // [3] Queue-empty events
+    // [4] Backpressure wait count
+    // [5] Total backpressure wait nanoseconds
+
+    jlong values[6] = {
+        -1, -1, -1, -1, -1, -1
+    };
+
+    if(g_virtualMachine != nullptr)
+    {
+        std::lock_guard<std::mutex> lock(
+            g_soundHandlerDiagnosticsMutex);
+
+        CSoundHandler* baseHandler =
+            g_virtualMachine->GetSoundHandler();
+
+        auto* soundHandler =
+            dynamic_cast<CSH_OpenSL*>(baseHandler);
+
+        values[0] = soundHandler != nullptr ? 1 : 0;
+
+        if(soundHandler != nullptr)
+        {
+            values[1] = static_cast<jlong>(
+                soundHandler->GetQueuedBufferCount());
+
+            values[2] = static_cast<jlong>(
+                soundHandler->GetBufferCapacity());
+
+            values[3] = static_cast<jlong>(
+                soundHandler->GetUnderrunCount());
+
+            values[4] = static_cast<jlong>(
+                soundHandler->GetBackpressureWaitCount());
+
+            values[5] = static_cast<jlong>(
+                soundHandler->GetBackpressureWaitNanoseconds());
+        }
+    }
+
+    jlongArray result = env->NewLongArray(6);
+
+    if(result != nullptr)
+    {
+        env->SetLongArrayRegion(
+            result,
+            0,
+            6,
+            values);
+    }
+
+    return result;
 }
