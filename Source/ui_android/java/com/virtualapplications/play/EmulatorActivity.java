@@ -190,11 +190,12 @@ public class EmulatorActivity extends Activity
 	}
 
 	@Override
-	public void onDestroy()
-	{
-		stopStatsTimer();
-		super.onDestroy();
-	}
+    public void onDestroy()
+    {
+        stopStatsTimer();
+    DiagnosticsManager.finishSession(this);
+        super.onDestroy();
+    }
 
 	@Override
 	public boolean dispatchKeyEvent(KeyEvent event)
