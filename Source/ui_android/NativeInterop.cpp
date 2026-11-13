@@ -52,6 +52,9 @@ int g_currentGsHandlerId = -1;
 
 static void SetupSoundHandler()
 {
+    std::lock_guard<std::mutex> lock(
+g_soundHandlerDiagnosticsMutex);
+    
     assert(g_virtualMachine != nullptr);
     if(g_virtualMachine == nullptr) return;
 
