@@ -1,4 +1,4 @@
-name: Play Android ARM64 Release
+name: Play Android Multi-ABI Release
 
 on:
   workflow_dispatch:
