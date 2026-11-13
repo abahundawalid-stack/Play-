@@ -51,7 +51,8 @@ public class VirtualMachineManager
 					NativeInterop.bootDiskImage(_bootablePath);
 				}
 				Intent intent = new Intent(_ctx, EmulatorActivity.class);
-				_ctx.startActivity(intent);
+                intent.putExtra("diagnostic_game_path", _bootablePath);
+                _ctx.startActivity(intent);
 			}
 			catch(Exception e)
 			{
