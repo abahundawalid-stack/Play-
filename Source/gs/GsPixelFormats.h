@@ -321,41 +321,29 @@ public:
 		}
 
 		typename Storage::Unit* GetPixelAddress(unsigned int nX, unsigned int nY)
-		{
-			uint32 pageNum = (nX / Storage::PAGEWIDTH) + (nY / Storage::PAGEHEIGHT) * (m_nWidth * 64) / Storage::PAGEWIDTH;
+        {
+            const uint32 pageStride = GetPageStride();
 
-			nX %= Storage::PAGEWIDTH;
-			nY %= Storage::PAGEHEIGHT;
+            const uint64 pageNum =
+                (nX / Storage::PAGEWIDTH) +
+                (static_cast<uint64>(nY / Storage::PAGEHEIGHT) * pageStride);
 
-			uint32 pageOffset = m_pageOffsets[nY][nX];
-			auto pixelAddr = m_pMemory + ((m_nPointer + (pageNum * PAGESIZE) + pageOffset) & (CGSHandler::RAMSIZE - 1));
-			return reinterpret_cast<typename Storage::Unit*>(pixelAddr);
-		}
+            nX %= Storage::PAGEWIDTH;
+            nY %= Storage::PAGEHEIGHT;
 
-		static uint32* GetPageOffsets()
-		{
-			BuildPageOffsetTable();
-			return reinterpret_cast<uint32*>(m_pageOffsets);
-		}
+            const uint32 pageOffset = m_pageOffsets[nY][nX];
 
-		uint32 GetColumnAddress(unsigned int& nX, unsigned int& nY)
-		{
-			uint32 nPageNum = (nX / Storage::PAGEWIDTH) + (nY / Storage::PAGEHEIGHT) * (m_nWidth * 64) / Storage::PAGEWIDTH;
+            const uint64 address =
+        static_cast<uint64>(m_nPointer) +
+                (pageNum * PAGESIZE) +
+                pageOffset;
 
-			nX %= Storage::PAGEWIDTH;
-			nY %= Storage::PAGEHEIGHT;
+            const uint32 wrappedAddress =
+                static_cast<uint32>(address & (CGSHandler::RAMSIZE - 1));
 
-			uint32 nBlockNum = Storage::m_nBlockSwizzleTable[nY / Storage::BLOCKHEIGHT][nX / Storage::BLOCKWIDTH];
-
-			nX %= Storage::BLOCKWIDTH;
-			nY %= Storage::BLOCKHEIGHT;
-
-			uint32 nColumnNum = (nY / Storage::COLUMNHEIGHT);
-
-			nY %= Storage::COLUMNHEIGHT;
-
-			return (m_nPointer + (nPageNum * PAGESIZE) + (nBlockNum * BLOCKSIZE) + (nColumnNum * COLUMNSIZE)) & (CGSHandler::RAMSIZE - 1);
-		}
+            return reinterpret_cast<typename Storage::Unit*>(
+                m_pMemory + wrappedAddress);
+        }
 
 	private:
 		static void BuildPageOffsetTable()
