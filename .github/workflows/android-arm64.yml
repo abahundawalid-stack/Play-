@@ -107,6 +107,7 @@ jobs:
           grep -q 'arm64-v8a' build_android/build.gradle
           grep -q 'armeabi-v7a' build_android/build.gradle
           grep -q 'x86_64' build_android/build.gradle
+          grep -q "'x86'" build_android/build.gradle
           grep -q 'ANDROID_ARM_NEON=TRUE' build_android/build.gradle
       
           if grep -q "jniLibs.srcDir 'src/main/libs'" \
@@ -162,7 +163,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          ABI_LIST=("arm64-v8a" "armeabi-v7a" "x86_64")
+          ABI_LIST=("arm64-v8a" "armeabi-v7a" "x86_64" "x86")
           : > CMAKE_LIB_SHA256.txt
 
           for ABI in "${ABI_LIST[@]}"; do
