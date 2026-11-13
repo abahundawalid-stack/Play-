@@ -201,7 +201,7 @@ jobs:
           APKSIGNER="$BUILD_TOOLS/apksigner"
           ZIPALIGN="$BUILD_TOOLS/zipalign"
 
-          ABI_LIST=("arm64-v8a" "armeabi-v7a")
+          ABI_LIST=("arm64-v8a" "armeabi-v7a" "x86_64")
 
           mapfile -t APKS < <(
             find build_android -type f \
