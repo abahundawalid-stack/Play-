@@ -14,7 +14,7 @@ void CStatsManager::OnNewFrame(CPS2VM* virtualMachine)
         m_cpuUtilisation.iopTotalTicks += cpuUtilisation.iopTotalTicks;
         m_cpuUtilisation.iopIdleTicks += cpuUtilisation.iopIdleTicks;
     }
-
+    
 #ifdef PROFILE
     {
         std::lock_guard<std::mutex> profileLock(m_profilerZonesMutex);
