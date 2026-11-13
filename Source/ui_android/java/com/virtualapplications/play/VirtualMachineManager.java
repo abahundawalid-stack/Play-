@@ -56,6 +56,7 @@ public class VirtualMachineManager
 			}
 			catch(Exception e)
 			{
+				DiagnosticsManager.finishSession(_ctx);
 				_exception = e;
 			}
 			return null;
