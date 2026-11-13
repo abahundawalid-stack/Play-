@@ -293,6 +293,23 @@ public class EmulatorActivity extends Activity
     @Override
     public boolean dispatchKeyEvent(KeyEvent event)
     {
+
+        private void startStatsTimer()
+        {
+            if(_statsTimerRunnable == null)
+            {
+                return;
+            }
+
+        _statsTimerHandler.removeCallbacks(_statsTimerRunnable);
+        _statsTimerHandler.post(_statsTimerRunnable);
+        }
+
+        private void stopStatsTimer()
+        {
+        _statsTimerHandler.removeCallbacks(_statsTimerRunnable);
+        }
+        
         if(_drawerFragment.isDrawerOpened())
         {
             return super.dispatchKeyEvent(event);
