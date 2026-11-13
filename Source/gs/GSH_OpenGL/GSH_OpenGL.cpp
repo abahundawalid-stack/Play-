@@ -2605,12 +2605,6 @@ void CGSH_OpenGL::CommitFramebufferDirtyPages(const FramebufferPtr& framebuffer,
 		uint32 texWidth = dirtyRect.width * texturePageSize.first;
 		uint32 texHeight = dirtyRect.height * texturePageSize.second;
 
-		if(texY >= maxY)
-		{
-			//Don't bother
-			continue;
-		}
-
 		assert(texX < framebuffer->m_width);
 		assert(texY < framebuffer->m_height);
 		//assert(texY >= minY);
@@ -2638,10 +2632,6 @@ void CGSH_OpenGL::CommitFramebufferDirtyPages(const FramebufferPtr& framebuffer,
 
 		CHECKGLERROR();
 	}
-
-	//Mark all pages as clean, but might be wrong due to range not
-	//covering an area that might be used later on
-	cachedArea.ClearDirtyPages();
 }
 
 void CGSH_OpenGL::ResolveFramebufferMultisample(const FramebufferPtr& framebuffer, uint32 scale)
