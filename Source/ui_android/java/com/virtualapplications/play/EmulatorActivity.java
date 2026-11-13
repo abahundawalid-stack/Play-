@@ -110,6 +110,11 @@ public class EmulatorActivity extends Activity
 					int frames = StatsManager.getFrames();
 					int drawCalls = StatsManager.getDrawCalls();
 					int dcpf = frames != 0 ? drawCalls / frames : 0;
+					DiagnosticsManager.recordSample(
+                       EmulatorActivity.this,
+                       frames,
+                       drawCalls
+                    );
 					_fpsTextView.setText(String.format("%d f/s, %d dc/f", frames, dcpf));
 					if(StatsManager.isProfiling())
 					{
