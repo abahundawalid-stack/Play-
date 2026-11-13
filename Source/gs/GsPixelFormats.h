@@ -320,6 +320,40 @@ public:
 			*GetPixelAddress(nX, nY) = nPixel;
 		}
 
+        uint32 GetColumnAddress(unsigned int& nX, unsigned int& nY)
+        {
+            const uint32 pageStride = GetPageStride();
+
+            const uint64 pageNum =
+                (nX / Storage::PAGEWIDTH) +
+                (static_cast<uint64>(nY / Storage::PAGEHEIGHT) * pageStride);
+
+            nX %= Storage::PAGEWIDTH;
+            nY %= Storage::PAGEHEIGHT;
+
+            const uint32 blockNum =
+                Storage::m_nBlockSwizzleTable
+                [nY / Storage::BLOCKHEIGHT]
+                [nX / Storage::BLOCKWIDTH];
+
+            nX %= Storage::BLOCKWIDTH;
+            nY %= Storage::BLOCKHEIGHT;
+
+            const uint32 columnNum =
+                nY / Storage::COLUMNHEIGHT;
+
+            nY %= Storage::COLUMNHEIGHT;
+
+            const uint64 address =
+        static_cast<uint64>(m_nPointer) +
+                (pageNum * PAGESIZE) +
+                (blockNum * BLOCKSIZE) +
+                (columnNum * COLUMNSIZE);
+
+            return static_cast<uint32>(
+                address & (CGSHandler::RAMSIZE - 1));
+        }
+
 		typename Storage::Unit* GetPixelAddress(unsigned int nX, unsigned int nY)
         {
             const uint32 pageStride = GetPageStride();
