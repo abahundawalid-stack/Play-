@@ -345,6 +345,20 @@ public:
                 m_pMemory + wrappedAddress);
         }
 
+        uint32 GetPageStride() const
+        {
+            // GS buffer width is stored in units of 64 pixels.
+            const uint32 bufferWidth = m_nWidth * 64;
+
+            // Round up: PSMT8 and PSMT4 pages are 128 pixels wide.
+            const uint32 pageStride =
+                (bufferWidth + Storage::PAGEWIDTH - 1) /
+                Storage::PAGEWIDTH;
+
+            // Never allow a zero page stride.
+            return std::max<uint32>(1, pageStride);
+        }
+
 	private:
 		static void BuildPageOffsetTable()
 		{
