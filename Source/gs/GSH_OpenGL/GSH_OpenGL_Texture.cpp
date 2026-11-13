@@ -244,7 +244,23 @@ CGSH_OpenGL::TEXTURE_INFO CGSH_OpenGL::PrepareTexture(const TEX0& tex0)
 		{
 			texHeight = tex0.GetHeight() - texY;
 		}
-		((this)->*(m_textureUpdater[tex0.nPsm]))(tex0.GetBufPtr(), tex0.nBufWidth, texX, texY, texWidth, texHeight);
+		uint32 textureBufferWidth = tex0.nBufWidth;
+
+        // Some games use an invalid zero TBW.
+        // Reconstruct the minimum legal 64-pixel unit stride.
+        if(textureBufferWidth == 0)
+        {
+            textureBufferWidth =
+                (tex0.GetWidth() + 63) / 64;
+        }
+
+        ((this)->*(m_textureUpdater[tex0.nPsm]))(
+            tex0.GetBufPtr(),
+            textureBufferWidth,
+            texX,
+            texY,
+            texWidth,
+            texHeight);
 	}
 
 	cachedArea.ClearDirtyPages();
