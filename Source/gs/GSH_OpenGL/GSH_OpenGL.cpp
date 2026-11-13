@@ -1171,10 +1171,17 @@ void CGSH_OpenGL::FillShaderCapsFromTexture(SHADERCAPS& shaderCaps, const uint64
 		shaderCaps.texHasAlpha = 1;
 	}
 
-	if((tex0.nPsm == PSMCT16) || (tex0.nPsm == PSMCT16S) || (tex0.nPsm == PSMCT24))
-	{
-		shaderCaps.texUseAlphaExpansion = 1;
-	}
+	if((tex0.nPsm == PSMCT16) ||
+       (tex0.nPsm == PSMCT16S) ||
+       (tex0.nPsm == PSMCT24))
+    {
+        shaderCaps.texUseAlphaExpansion = 1;
+    }
+
+    if(tex0.nPsm == PSMCT24)
+    {
+        shaderCaps.texAlphaIs24Bit = 1;
+    }
 
 	if(CGsPixelFormats::IsPsmIDTEX(tex0.nPsm))
 	{
