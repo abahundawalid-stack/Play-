@@ -366,6 +366,11 @@ public class MainActivity extends AppCompatActivity implements NavigationDrawerF
 		case 2:
 			displayAboutDialog();
 			break;
+        case 3:
+            Intent diagnosticsIntent =
+                new Intent(this, DiagnosticsActivity.class);
+            startActivity(diagnosticsIntent);
+            break;	
 		}
 	}
 
