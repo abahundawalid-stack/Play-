@@ -178,6 +178,28 @@ bool CGSH_OpenGLAndroid::SetupContext()
 
     m_surface = newSurface;
 
+	    // Query the active OpenGL ES context on the GS thread.
+        // This function is called only after eglMakeCurrent succeeds.
+
+        auto readGlString = [](GLenum name) -> std::string
+        {
+            const GLubyte* value = glGetString(name);
+
+            if(value == nullptr)
+            {
+                return {};
+            }
+
+            return reinterpret_cast<const char*>(value);
+        };
+
+        SetGraphicsDiagnostics(
+            readGlString(GL_VENDOR),
+            readGlString(GL_RENDERER),
+            readGlString(GL_VERSION),
+			
+    readGlString(GL_SHADING_LANGUAGE_VERSION));
+
     PRESENTATION_PARAMS presentationParams;
     presentationParams.mode =
         static_cast<CGSHandler::PRESENTATION_MODE>(
