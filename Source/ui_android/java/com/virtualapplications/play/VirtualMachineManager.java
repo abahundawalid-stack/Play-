@@ -39,8 +39,10 @@ public class VirtualMachineManager
 		protected Void doInBackground(Void... params)
 		{
 			try
-			{
-				if(BootablesInterop.IsBootableExecutablePath(_bootablePath))
+            {
+                DiagnosticsManager.beginSession(_ctx, _bootablePath);
+
+                if(BootablesInterop.IsBootableExecutablePath(_bootablePath))
 				{
 					NativeInterop.loadElf(_bootablePath);
 				}
