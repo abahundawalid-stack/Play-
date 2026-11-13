@@ -190,7 +190,7 @@ jobs:
 
           echo "PASS: both ABI CMake outputs verified"
 
-      - name: Verify APK package, ABI, CMake library and signature
+      - name: Verify APK package, ABI, CMake libraries and signature
         shell: bash
         run: |
           set -euo pipefail
@@ -199,6 +199,8 @@ jobs:
           AAPT="$BUILD_TOOLS/aapt"
           APKSIGNER="$BUILD_TOOLS/apksigner"
           ZIPALIGN="$BUILD_TOOLS/zipalign"
+
+          ABI_LIST=("arm64-v8a" "armeabi-v7a")
 
           mapfile -t APKS < <(
             find build_android -type f \
@@ -223,77 +225,85 @@ jobs:
 
           echo "PASS: package ID"
 
-          echo "===== VERIFY ARM64 ABI ====="
+          echo "===== VERIFY APK ABIs ====="
           unzip -Z1 "$APK" > APK_ENTRIES.txt
 
-          grep -Fxq 'lib/arm64-v8a/libPlay.so' APK_ENTRIES.txt
+          for ABI in "${ABI_LIST[@]}"; do
+            grep -Fxq "lib/$ABI/libPlay.so" APK_ENTRIES.txt
+          done
 
-          if grep '^lib/' APK_ENTRIES.txt \
-            | grep -v '^lib/arm64-v8a/'; then
-            echo "ERROR: Unexpected ABI found in APK."
+          mapfile -t APK_LIBS < <(
+            grep '^lib/' APK_ENTRIES.txt | sort
+          )
+
+          if [ "${#APK_LIBS[@]}" -ne 2 ]; then
+            echo "ERROR: APK must contain exactly two native libraries."
+            printf '%s\n' "${APK_LIBS[@]}"
             exit 1
           fi
 
-          PLAY_COUNT="$(
-            grep -Ec '^lib/arm64-v8a/libPlay\.so$' \
-              APK_ENTRIES.txt || true
-          )"
+          for ABI in "${ABI_LIST[@]}"; do
+            grep -Fxq "lib/$ABI/libPlay.so" APK_ENTRIES.txt
+          done
 
-          test "$PLAY_COUNT" -eq 1
-          echo "PASS: ARM64 library"
+          echo "PASS: ARM64 and ARMv7 libraries"
 
-          echo "===== VERIFY CURRENT CMAKE OUTPUT ====="
+          for ABI in "${ABI_LIST[@]}"; do
+            echo "===== VERIFY $ABI CMAKE OUTPUT ====="
 
-          mapfile -t CMAKE_LIBS < <(
-            find build_android/build/intermediates \
-              -type f \
-              -name 'libPlay.so' \
-              -path '*/cxx/*/obj/arm64-v8a/libPlay.so' \
-              -print | sort -u
-          )
+            mapfile -t CMAKE_LIBS < <(
+              find build_android/build/intermediates \
+                -type f \
+                -name 'libPlay.so' \
+                -path "*/cxx/*/obj/$ABI/libPlay.so" \
+                -print | sort -u
+            )
 
-          test "${#CMAKE_LIBS[@]}" -eq 1
+            test "${#CMAKE_LIBS[@]}" -eq 1
 
-          CMAKE_LIB="${CMAKE_LIBS[0]}"
-          test -s "$CMAKE_LIB"
+            CMAKE_LIB="${CMAKE_LIBS[0]}"
+            test -s "$CMAKE_LIB"
 
-          echo "CMake source: $CMAKE_LIB"
+            echo "CMake: $CMAKE_LIB"
 
-          echo "===== VERIFY STRIPPED LIBRARY ====="
+            echo "===== VERIFY $ABI STRIPPED LIBRARY ====="
 
-          mapfile -t STRIPPED_LIBS < <(
-            find build_android/build/intermediates \
-              -type f \
-              -name 'libPlay.so' \
-              -path '*/stripped_native_libs/release/stripReleaseDebugSymbols/out/lib/arm64-v8a/libPlay.so' \
-              -print | sort -u
-          )
+            mapfile -t STRIPPED_LIBS < <(
+              find build_android/build/intermediates \
+                -type f \
+                -name 'libPlay.so' \
+                -path "*/stripped_native_libs/release/stripReleaseDebugSymbols/out/lib/$ABI/libPlay.so" \
+                -print | sort -u
+            )
 
-          if [ "${#STRIPPED_LIBS[@]}" -ne 1 ]; then
-            echo "ERROR: Expected exactly one stripped ARM64 library."
-            printf '%s\n' "${STRIPPED_LIBS[@]:-No stripped library found}"
-            exit 1
-          fi
+            if [ "${#STRIPPED_LIBS[@]}" -ne 1 ]; then
+              echo "ERROR: Expected one stripped library for $ABI."
+              printf '%s\n' "${STRIPPED_LIBS[@]:-Not found}"
+              exit 1
+            fi
 
-          STRIPPED_LIB="${STRIPPED_LIBS[0]}"
-          test -s "$STRIPPED_LIB"
+            STRIPPED_LIB="${STRIPPED_LIBS[0]}"
+            test -s "$STRIPPED_LIB"
 
-          echo "Stripped library: $STRIPPED_LIB"
+            unzip -p "$APK" "lib/$ABI/libPlay.so" \
+              > "$RUNNER_TEMP/apk-libPlay-$ABI.so"
 
-          echo "===== COMPARE APK WITH STRIPPED OUTPUT ====="
+            STRIPPED_HASH="$(
+              sha256sum "$STRIPPED_LIB" | awk '{print $1}'
+            )"
 
-          unzip -p "$APK" lib/arm64-v8a/libPlay.so \
-            > "$RUNNER_TEMP/apk-libPlay.so"
+            APK_HASH="$(
+              sha256sum "$RUNNER_TEMP/apk-libPlay-$ABI.so" \
+                | awk '{print $1}'
+            )"
 
-          STRIPPED_HASH="$(sha256sum "$STRIPPED_LIB" | awk '{print $1}')"
-          APK_HASH="$(sha256sum "$RUNNER_TEMP/apk-libPlay.so" | awk '{print $1}')"
+            echo "$ABI stripped SHA256: $STRIPPED_HASH"
+            echo "$ABI APK SHA256:      $APK_HASH"
 
-          echo "Stripped SHA256: $STRIPPED_HASH"
-          echo "APK SHA256:      $APK_HASH"
+            test "$STRIPPED_HASH" = "$APK_HASH"
 
-          test "$STRIPPED_HASH" = "$APK_HASH"
-
-          echo "PASS: APK contains the current build's stripped ARM64 library"
+            echo "PASS: $ABI APK library matches current build"
+          done
 
           echo "===== ZIP ALIGNMENT ====="
           "$ZIPALIGN" -c -v 4 "$APK"
