@@ -1,5 +1,6 @@
 #include <jni.h>
 #include <cassert>
+#include <mutex>
 #include <android/native_window.h>
 #include <android/native_window_jni.h>
 
