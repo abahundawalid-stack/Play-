@@ -579,11 +579,20 @@ void CGSH_OpenGL::SetRenderingContext(uint64 primReg)
 	//--------------------------------------------------------
 	//Get shader caps
 	//--------------------------------------------------------
+	
+    auto shaderCaps = make_convertible<SHADERCAPS>(0);
+    FillShaderCapsFromTexture(shaderCaps, tex0Reg, tex1Reg, texAReg, clampReg);
+    FillShaderCapsFromTest(shaderCaps, testReg);
 
-	auto shaderCaps = make_convertible<SHADERCAPS>(0);
-	FillShaderCapsFromTexture(shaderCaps, tex0Reg, tex1Reg, texAReg, clampReg);
-	FillShaderCapsFromTest(shaderCaps, testReg);
-	FillShaderCapsFromAlpha(shaderCaps, prim.nAlpha != 0, alphaReg);
+    // PSMCT24 has no destination alpha channel.
+    // Destination alpha testing must therefore always pass.
+    auto framebufferFormat = make_convertible<FRAME>(frameReg);
+    if(framebufferFormat.nPsm == PSMCT24)
+    {
+        shaderCaps.hasDestAlphaTest = 0;
+    }
+
+    FillShaderCapsFromAlpha(shaderCaps, prim.nAlpha != 0, alphaReg);
 
 	if(prim.nFog)
 	{
