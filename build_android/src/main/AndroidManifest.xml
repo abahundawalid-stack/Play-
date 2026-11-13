@@ -91,5 +91,10 @@
             android:name=".SettingsActivity"
             android:configChanges="orientation|locale|keyboard|keyboardHidden|navigation" />
 
+        <activity
+            android:name=".DiagnosticsActivity"
+            android:label="Analisa"
+            android:exported="false" />
+
     </application>
 </manifest>
