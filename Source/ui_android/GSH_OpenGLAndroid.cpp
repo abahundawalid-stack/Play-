@@ -217,6 +217,8 @@ bool CGSH_OpenGLAndroid::SetupContext()
 
 void CGSH_OpenGLAndroid::ReleaseImpl()
 {
+	    ClearGraphicsDiagnostics();
+	
     if(m_rendererInitialized)
     {
         CGSH_OpenGL::ReleaseImpl();
