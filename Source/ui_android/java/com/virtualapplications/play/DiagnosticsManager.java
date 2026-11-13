@@ -387,19 +387,43 @@ public final class DiagnosticsManager
         report.append("GPU load: UNAVAILABLE\n");
         report.append("VRAM usage: UNAVAILABLE\n\n");
 
-        report.append("AUDIO\n");
+        report.append("NATIVE CPU PROFILING\n");
         report.append("------------------------------------\n");
 
-        report.append("Backend: OpenSL ES\n");
+        try
+        {
+           if(StatsManager.isProfiling())
+           {
+               String profilingInfo = StatsManager.getProfilingInfo();
 
-        report.append("Audio output preference: ")
-            .append(getAudioEnabled())
-            .append('\n');
+               report.append("Profiler status: ACTIVE\n");
 
-        report.append("OpenSL handler active: ")
-            .append(openSlActive ? "YES" :
-                audio[0] == 0 ? "NO" : "UNKNOWN")
-            .append('\n');
+               if(profilingInfo != null && !profilingInfo.trim().isEmpty())
+               {
+        report.append(profilingInfo);
+               }
+               else
+               {
+                   report.append("Profiler data: NOT AVAILABLE YET\n");
+               }
+           }
+           else
+           {
+               report.append("Profiler status: DISABLED\n");
+           }
+        }
+        catch(Exception e)
+        {
+            report.append("Profiler status: ERROR\n");
+            report.append("Profiler data: UNAVAILABLE\n");
+        }
+        catch(LinkageError e)
+        {
+            report.append("Profiler status: NATIVE LINK ERROR\n");
+            report.append("Profiler data: UNAVAILABLE\n");
+        }
+
+        report.append("\n");
 
         if(openSlActive)
         {
