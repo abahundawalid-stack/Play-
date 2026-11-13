@@ -317,7 +317,7 @@ jobs:
       - name: Upload verified Release artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: Play-Android-ARM64-Release
+          name: Play-Android-Multi-ABI-Release
           path: |
             build_android/**/outputs/apk/release/*.apk
             APK_SHA256SUMS.txt
