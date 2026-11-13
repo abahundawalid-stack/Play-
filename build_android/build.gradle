@@ -66,10 +66,12 @@ android {
                 arguments "-DBUILD_PLAY=ON",
                           "-DBUILD_TESTS=OFF",
                           "-DBUILD_PSFPLAYER=OFF",
-                          "-DBUILD_LIBRETRO_CORE=OFF",
-                          "-DBUILD_AOT_CACHE=OFF",
-                          "-DUSE_AOT_CACHE=OFF",
-                          "-DANDROID_STL=c++_static"
+                    
+                "-DBUILD_LIBRETRO_CORE=OFF",
+                "-DBUILD_AOT_CACHE=OFF",
+                "-DUSE_AOT_CACHE=OFF",
+                "-DANDROID_STL=c++_static",
+                "-DANDROID_ARM_NEON=TRUE"
 
                 cppFlags "-frtti", "-fexceptions"
 
