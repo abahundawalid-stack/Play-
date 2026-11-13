@@ -161,29 +161,34 @@ jobs:
         run: |
           set -euo pipefail
 
-          echo "===== VERIFY ORIGINAL CMAKE OUTPUT ====="
+          ABI_LIST=("arm64-v8a" "armeabi-v7a")
+          : > CMAKE_LIB_SHA256.txt
 
-          mapfile -t CMAKE_LIBS < <(
-            find build_android/build/intermediates \
-              -type f \
-              -name 'libPlay.so' \
-              -path '*/cxx/*/obj/arm64-v8a/libPlay.so' \
-              -print | sort -u
-          )
+          for ABI in "${ABI_LIST[@]}"; do
+            echo "===== VERIFY $ABI CMAKE OUTPUT ====="
 
-          if [ "${#CMAKE_LIBS[@]}" -ne 1 ]; then
-            echo "ERROR: Expected exactly one original ARM64 CMake output."
-            printf '%s\n' "${CMAKE_LIBS[@]:-No CMake output found}"
-            exit 1
-          fi
+            mapfile -t CMAKE_LIBS < <(
+              find build_android/build/intermediates \
+                -type f \
+                -name 'libPlay.so' \
+                -path "*/cxx/*/obj/$ABI/libPlay.so" \
+                -print | sort -u
+            )
 
-          CMAKE_LIB="${CMAKE_LIBS[0]}"
-          test -s "$CMAKE_LIB"
+            if [ "${#CMAKE_LIBS[@]}" -ne 1 ]; then
+              echo "ERROR: Expected exactly one CMake output for $ABI."
+              printf '%s\n' "${CMAKE_LIBS[@]:-No output found}"
+              exit 1
+            fi
 
-          echo "CMake output: $CMAKE_LIB"
-          sha256sum "$CMAKE_LIB" | tee CMAKE_LIB_SHA256.txt
+            CMAKE_LIB="${CMAKE_LIBS[0]}"
+            test -s "$CMAKE_LIB"
 
-          echo "PASS: original ARM64 CMake output verified"
+            echo "$ABI: $CMAKE_LIB"
+            sha256sum "$CMAKE_LIB" | tee -a CMAKE_LIB_SHA256.txt
+          done
+
+          echo "PASS: both ABI CMake outputs verified"
 
       - name: Verify APK package, ABI, CMake library and signature
         shell: bash
