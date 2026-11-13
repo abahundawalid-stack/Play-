@@ -17,8 +17,6 @@ buildscript {
 project.ext {
     signingEnabled = project.hasProperty("PLAY_RELEASE_STORE_FILE")
 
-    // Git metadata is optional.
-    // Supports both Git repositories and source archives.
     gitVersionCode = 0
     gitVersionName = "1.0.0"
 
@@ -47,7 +45,7 @@ android {
     buildFeatures {
         buildConfig true
     }
-       
+
     defaultConfig {
         applicationId 'com.virtualapplications.play.jpog'
 
@@ -56,30 +54,31 @@ android {
 
         minSdkVersion 21
         targetSdkVersion 35
-        
-    ndk {
-        abiFilters 'arm64-v8a', 'armeabi-v7a', 'x86_64', 'x86'
-    }
-        
+
+        ndk {
+            abiFilters 'arm64-v8a', 'armeabi-v7a', 'x86_64', 'x86'
+        }
+
         externalNativeBuild {
             cmake {
-                arguments "-DBUILD_PLAY=ON",
-                          "-DBUILD_TESTS=OFF",
-                          "-DBUILD_PSFPLAYER=OFF",
-                    
-                "-DBUILD_LIBRETRO_CORE=OFF",
-                "-DBUILD_AOT_CACHE=OFF",
-                "-DUSE_AOT_CACHE=OFF",
-                "-DANDROID_STL=c++_static",
-                "-DANDROID_ARM_NEON=TRUE"
+                arguments(*[
+                    "-DBUILD_PLAY=ON",
+                    "-DBUILD_TESTS=OFF",
+                    "-DBUILD_PSFPLAYER=OFF",
+                    "-DBUILD_LIBRETRO_CORE=OFF",
+                    "-DBUILD_AOT_CACHE=OFF",
+                    "-DUSE_AOT_CACHE=OFF",
+                    "-DANDROID_STL=c++_static",
+                    "-DANDROID_ARM_NEON=TRUE"
+                ])
 
                 cppFlags "-frtti", "-fexceptions"
 
                 targets "Play"
-           }
+            }
         }
     }
-    
+
     externalNativeBuild {
         cmake {
             path file("../CMakeLists.txt")
@@ -88,7 +87,7 @@ android {
     }
 
     signingConfigs {
-        if(project.ext.signingEnabled) {
+        if (project.ext.signingEnabled) {
             release {
                 storeFile file(PLAY_RELEASE_STORE_FILE)
                 storePassword PLAY_RELEASE_STORE_PASSWORD
@@ -116,7 +115,7 @@ android {
         release {
             proguardFile getDefaultProguardFile('proguard-android.txt')
 
-            if(project.ext.signingEnabled) {
+            if (project.ext.signingEnabled) {
                 signingConfig signingConfigs.release
             }
 
