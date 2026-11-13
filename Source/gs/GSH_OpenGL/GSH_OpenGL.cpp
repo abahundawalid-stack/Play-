@@ -2569,7 +2569,7 @@ void CGSH_OpenGL::PopulateFramebuffer(const FramebufferPtr& framebuffer)
 	CHECKGLERROR();
 }
 
-void CGSH_OpenGL::CommitFramebufferDirtyPages(const FramebufferPtr& framebuffer, unsigned int minY, unsigned int maxY)
+void CGSH_OpenGL::CommitFramebufferDirtyPages(const FramebufferPtr& framebuffer, unsigned int, unsigned int)
 {
 	class CCopyToFbEnabler
 	{
