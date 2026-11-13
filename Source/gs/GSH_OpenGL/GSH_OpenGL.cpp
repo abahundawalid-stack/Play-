@@ -2257,6 +2257,9 @@ void CGSH_OpenGL::ProcessLocalToLocalTransfer()
 		auto [transferAddress, transferSize] = GsTransfer::GetDstRange(bltBuf, trxReg, trxPos);
 		m_textureCache.InvalidateRange(transferAddress, transferSize);
 
+		// Local-to-local transfer may also overwrite palette memory.
+        PalCache_Flush();
+
 		//Write back to RAM
 		{
 			CGsPixelFormats::CPixelIndexorPSMCT32 indexor(m_pRAM, bltBuf.GetDstPtr(), bltBuf.nDstWidth);
