@@ -203,40 +203,43 @@ Framework::OpenGl::CShader CGSH_OpenGL::GenerateFragmentShader(const SHADERCAPS&
 	shaderBuilder << "	uint result = min((aInt * bInt) >> 7, 255u);" << std::endl;
 	shaderBuilder << "	return float(result) / 255.0;" << std::endl;
 	shaderBuilder << "}" << std::endl;
+	
+    shaderBuilder << "vec4 expandAlpha(vec4 inputColor)" << std::endl;
+    shaderBuilder << "{" << std::endl;
 
-	shaderBuilder << "vec4 expandAlpha(vec4 inputColor)" << std::endl;
-	shaderBuilder << "{" << std::endl;
-	if(caps.texUseAlphaExpansion)
-	{
-    if(caps.texAlphaIs24Bit)
+    if(caps.texUseAlphaExpansion)
     {
-        shaderBuilder << "\tfloat alpha = g_texA0;" << std::endl;
-
-        if(caps.texBlackIsTransparent)
+        if(caps.texAlphaIs24Bit)
         {
-            shaderBuilder << "\tfloat black = inputColor.r + inputColor.g + inputColor.b;" << std::endl;
-            shaderBuilder << "\tif(black == 0.0) alpha = 0.0;" << std::endl;
-        }
+            shaderBuilder << "\tfloat alpha = g_texA0;" << std::endl;
 
-        shaderBuilder << "\treturn vec4(inputColor.rgb, alpha);" << std::endl;
+    if(caps.texBlackIsTransparent)
+            {
+                shaderBuilder << "\tfloat black = inputColor.r + inputColor.g + inputColor.b;" << std::endl;
+                shaderBuilder << "\tif(black == 0.0) alpha = 0.0;" << std::endl;
+            }
+
+            shaderBuilder << "\treturn vec4(inputColor.rgb, alpha);" << std::endl;
+        }
+        else
+        {
+            shaderBuilder << "\tfloat alpha = mix(g_texA0, g_texA1, inputColor.a);" << std::endl;
+
+    if(caps.texBlackIsTransparent)
+            {
+                shaderBuilder << "\tfloat black = inputColor.r + inputColor.g + inputColor.b;" << std::endl;
+                shaderBuilder << "\tif(inputColor.a == 0.0 && black == 0.0) alpha = 0.0;" << std::endl;
+            }
+
+            shaderBuilder << "\treturn vec4(inputColor.rgb, alpha);" << std::endl;
+        }
     }
     else
     {
-        shaderBuilder << "\tfloat alpha = mix(g_texA0, g_texA1, inputColor.a);" << std::endl;
-
-        if(caps.texBlackIsTransparent)
-        {
-            shaderBuilder << "\tfloat black = inputColor.r + inputColor.g + inputColor.b;" << std::endl;
-            shaderBuilder << "\tif(inputColor.a == 0.0 && black == 0.0) alpha = 0.0;" << std::endl;
-        }
-
-        shaderBuilder << "\treturn vec4(inputColor.rgb, alpha);" << std::endl;
+        shaderBuilder << "\treturn inputColor;" << std::endl;
     }
-	else
-	{
-		shaderBuilder << "	return inputColor;" << std::endl;
-	}
-	shaderBuilder << "}" << std::endl;
+
+    shaderBuilder << "}" << std::endl;
 
 	shaderBuilder << "void main()" << std::endl;
 	shaderBuilder << "{" << std::endl;
