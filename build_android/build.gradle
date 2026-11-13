@@ -68,7 +68,8 @@ android {
                     "-DBUILD_LIBRETRO_CORE=OFF",
                     "-DBUILD_AOT_CACHE=OFF",
                     "-DUSE_AOT_CACHE=OFF",
-                    "-DANDROID_STL=c++_static",
+                    "-DPROFILE=ON",
+                    "-DANDROID_STL=c++_static",                 
                     "-DANDROID_ARM_NEON=TRUE"
                 ])
 
