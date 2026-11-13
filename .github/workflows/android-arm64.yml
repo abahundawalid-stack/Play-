@@ -190,7 +190,7 @@ jobs:
             sha256sum "$CMAKE_LIB" | tee -a CMAKE_LIB_SHA256.txt
           done
 
-          echo "PASS: both ABI CMake outputs verified"
+          echo "PASS: all four ABI CMake outputs verified"
 
       - name: Verify APK package, ABI, CMake libraries and signature
         shell: bash
@@ -248,7 +248,7 @@ jobs:
             grep -Fxq "lib/$ABI/libPlay.so" APK_ENTRIES.txt
           done
 
-          echo "PASS: ARM64 and ARMv7 libraries"
+          echo "PASS: all four Android ABI libraries verified"
 
           for ABI in "${ABI_LIST[@]}"; do
             echo "===== VERIFY $ABI CMAKE OUTPUT ====="
