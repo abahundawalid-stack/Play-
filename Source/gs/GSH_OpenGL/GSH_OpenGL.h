@@ -80,6 +80,7 @@ private:
 		unsigned int texBilinearFilter : 1;
 		unsigned int texUseAlphaExpansion : 1;
 		unsigned int texBlackIsTransparent : 1;
+        unsigned int texAlphaIs24Bit : 1;
 		unsigned int hasFog : 1;
 
 		//Alpha blending caps
