@@ -6,36 +6,45 @@ import android.view.Surface;
 
 public class NativeInterop
 {
-	static
-	{
-		System.loadLibrary("Play");
-	}
+    static
+    {
+        System.loadLibrary("Play");
+    }
 
-	public static native void setFilesDirPath(String dirPath);
+    public static native void setFilesDirPath(String dirPath);
 
-	public static native void setCacheDirPath(String dirPath);
+    public static native void setCacheDirPath(String dirPath);
 
-	public static native void setContentResolver(ContentResolver contentResolver);
+    public static native void setContentResolver(
+        ContentResolver contentResolver);
 
-	public static native void setAssetManager(AssetManager assetManager);
+    public static native void setAssetManager(
+        AssetManager assetManager);
 
-	public static native void createVirtualMachine();
+    public static native void createVirtualMachine();
 
-	public static native boolean isVirtualMachineCreated();
+    public static native boolean isVirtualMachineCreated();
 
-	public static native void resumeVirtualMachine();
+    public static native void resumeVirtualMachine();
 
-	public static native void pauseVirtualMachine();
+    public static native void pauseVirtualMachine();
 
-	public static native void loadState(int slot);
+    public static native void loadState(int slot);
 
-	public static native void saveState(int slot);
+    public static native void saveState(int slot);
 
-	public static native void loadElf(String selectedFilePath);
+    public static native void loadElf(String selectedFilePath);
 
-	public static native void bootDiskImage(String selectedFilePath);
+    public static native void bootDiskImage(String selectedFilePath);
 
-	public static native void setupGsHandler(Surface surface);
+    public static native void setupGsHandler(Surface surface);
 
-	public static native void notifyPreferencesChanged();
+    public static native void notifyPreferencesChanged();
+
+    // [vendor, renderer, OpenGL ES version, GLSL version]
+    public static native String[] getGraphicsDiagnostics();
+
+    // [active, queued, capacity, queue-empty events,
+    //  backpressure waits, total wait nanoseconds]
+    public static native long[] getAudioDiagnostics();
 }
