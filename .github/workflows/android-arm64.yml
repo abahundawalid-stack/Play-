@@ -237,8 +237,8 @@ jobs:
             grep '^lib/' APK_ENTRIES.txt | sort
           )
 
-          if [ "${#APK_LIBS[@]}" -ne 2 ]; then
-            echo "ERROR: APK must contain exactly two native libraries."
+          if [ "${#APK_LIBS[@]}" -ne 3 ]; then
+            echo "ERROR: APK must contain exactly three native libraries."
             printf '%s\n' "${APK_LIBS[@]}"
             exit 1
           fi
