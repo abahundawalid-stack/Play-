@@ -595,3 +595,16 @@ uint64_t CSH_OpenSL::GetBackpressureWaitNanoseconds() const
 {
 	return m_backpressureWaitNanoseconds.load(std::memory_order_relaxed);
 }
+
+unsigned int CSH_OpenSL::GetQueuedBufferCount() const
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+
+    return static_cast<unsigned int>(
+        m_queuedSlots.size());
+}
+
+unsigned int CSH_OpenSL::GetBufferCapacity() const
+{
+    return BUFFER_COUNT;
+}
