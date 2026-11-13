@@ -38,6 +38,7 @@
 #include "http/java_net_URL.h"
 
 CPS2VM* g_virtualMachine = nullptr;
+static std::mutex g_soundHandlerDiagnosticsMutex;
 CPS2VM::NewFrameEvent::Connection g_OnNewFrameConnection;
 CGSHandler::NewFrameEvent::Connection g_OnGsNewFrameConnection;
 
