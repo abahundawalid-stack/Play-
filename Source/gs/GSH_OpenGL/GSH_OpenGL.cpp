@@ -1185,10 +1185,17 @@ void CGSH_OpenGL::FillShaderCapsFromTexture(SHADERCAPS& shaderCaps, const uint64
 
 	if(CGsPixelFormats::IsPsmIDTEX(tex0.nPsm))
 	{
-		if((tex0.nCPSM == PSMCT16) || (tex0.nCPSM == PSMCT16S))
-		{
-			shaderCaps.texUseAlphaExpansion = 1;
-		}
+		if((tex0.nCPSM == PSMCT16) ||
+           (tex0.nCPSM == PSMCT16S) ||
+           (tex0.nCPSM == PSMCT24))
+        {
+           shaderCaps.texUseAlphaExpansion = 1;
+        }
+
+        if(tex0.nCPSM == PSMCT24)
+        {
+            shaderCaps.texAlphaIs24Bit = 1;
+        }
 
 		shaderCaps.texSourceMode = CGsPixelFormats::IsPsmIDTEX4(tex0.nPsm) ? TEXTURE_SOURCE_MODE_IDX4 : TEXTURE_SOURCE_MODE_IDX8;
 	}
