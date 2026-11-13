@@ -335,9 +335,9 @@ public class EmulatorActivity extends Activity
 		_profileTextView.setVisibility(fpsVisible ? View.VISIBLE : View.GONE);
 
 		stopStatsTimer();
-		if(fpsVisible)
-		{
-			startStatsTimer();
+
+        // Statistik tetap direkam walaupun tampilan FPS dimatikan.
+        startStatsTimer();
 		}
 	}
 
