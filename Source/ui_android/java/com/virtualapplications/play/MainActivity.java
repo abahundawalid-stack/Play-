@@ -70,6 +70,8 @@ public class MainActivity extends AppCompatActivity implements NavigationDrawerF
     {
         super.onCreate(savedInstanceState);
 
+        AppExitDiagnostics.capturePreviousExit(this);
+
         currentOrientation = getResources().getConfiguration().orientation;
 
         ThemeManager.applyTheme(this, toolbar);
