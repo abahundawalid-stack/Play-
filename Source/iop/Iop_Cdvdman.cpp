@@ -1,4 +1,5 @@
 #include <cstring>
+#include <exception>
 #include "Log.h"
 #include "../states/RegisterStateFile.h"
 #include "../Ps2Const.h"
