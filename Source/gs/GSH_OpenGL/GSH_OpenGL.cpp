@@ -737,7 +737,10 @@ void CGSH_OpenGL::SetupBlendingFunction(uint64 alphaReg)
 
 	if(m_hasFramebufferFetchExtension)
 	{
-		m_fragmentParams.alphaFix = (static_cast<float>(alpha.nFix) / 255.f);
+		m_fragmentParams.alphaFix =
+            (alpha.nFix >= 0x80)
+                ? 1.0f
+                : (static_cast<float>(alpha.nFix) / 128.0f);
 		m_validGlState &= ~GLSTATE_FRAGMENT_PARAMS;
 		return;
 	}
