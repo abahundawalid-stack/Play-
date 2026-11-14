@@ -317,6 +317,8 @@ public class EmulatorActivity extends Activity
 
         updateVirtualMachineState();
 
+        _statsTimerHandler.removeCallbacks(_autosaveRunnable);
+        
         super.onPause();
     }
 
