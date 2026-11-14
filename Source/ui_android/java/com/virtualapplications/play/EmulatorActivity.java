@@ -694,6 +694,8 @@ public class EmulatorActivity extends Activity
             _surfaceCreated = true;
 
             updateVirtualMachineState();
+
+            promptAutosaveRecovery();
         }
 
         @Override
