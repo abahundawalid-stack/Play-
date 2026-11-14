@@ -318,12 +318,6 @@ void CSubSystem::CountTicks(int ticks)
     m_dmac.ResumeDMA2();
     m_dmac.ResumeDMA8();
     m_dmac.ResumeDMA9();
-
-    // Advance VU1 using elapsed EE cycles.
-    // Keep execution on the emulation thread so GIF/GS
-    // and XGKICK are not accessed concurrently.
-    m_vpu1->Execute(ticks);
-
     m_gif.CountTicks(ticks);
 	m_ipu.CountTicks(ticks);
 	m_vpu0->GetVif().CountTicks(ticks);
