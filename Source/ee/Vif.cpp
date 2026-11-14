@@ -212,12 +212,21 @@ void CVif::SetRegister(uint32 address, uint32 value)
 		case VIF0_FBRST:
 		case VIF1_FBRST:
 			if(value & FBRST_RST)
-			{
-				//TODO: Reset FIFO
-				m_CODE <<= 0;
-				m_STAT <<= 0;
-				m_NUM = 0;
-			}
+            {
+                // Preserve ROW/COL registers across a VIF reset.
+                uint32 savedRow[4];
+                uint32 savedCol[4];
+
+                memcpy(savedRow, m_R, sizeof(savedRow));
+                memcpy(savedCol, m_C, sizeof(savedCol));
+
+                // Virtual dispatch also resets CVif1-specific state:
+                // BASE, TOP, TOPS, OFST and DIRECT partial-qword buffer.
+                Reset();
+
+                memcpy(m_R, savedRow, sizeof(savedRow));
+                memcpy(m_C, savedCol, sizeof(savedCol));
+            }
 			if(value & FBRST_FBK || value & FBRST_STP)
 			{
 				// TODO: We need to properly handle this!
