@@ -106,20 +106,24 @@ public class EmulatorActivity extends Activity
 
                         runOnUiThread(() ->
                         {
-                            if(!isFinishing())
-                            {
+                          if(!_activityRunning ||
+                             !_surfaceCreated ||
+                             isFinishing() ||
+                             isDestroyed())
+                          {
+                              return;
+                          }
+
     NativeInterop.resumeVirtualMachine();
 
-                                new AlertDialog.Builder(this)
-                                    .setTitle("Gagal memuat autosave")
-                                    .setMessage(
-    "Penyimpanan otomatis tidak dapat dimuat. " +
-    "Permainan akan dilanjutkan dari awal.")
-                                    .setPositiveButton("OK", null)
-                                    .show();
-                            }
-                        
-                        });
+        new AlertDialog.Builder(this)
+            .setTitle("Gagal memuat autosave")
+            .setMessage(
+                  "Penyimpanan otomatis tidak dapat dimuat. " +
+                  "Permainan akan dilanjutkan dari awal.")
+            .setPositiveButton("OK", null)
+            .show();
+    });
                     }
                 }).start();
             })
