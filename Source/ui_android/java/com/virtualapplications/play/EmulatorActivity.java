@@ -330,6 +330,9 @@ public class EmulatorActivity extends Activity
         updateVirtualMachineState();
 
         startStatsTimer();
+        _statsTimerHandler.removeCallbacks(_autosaveRunnable);
+        _statsTimerHandler.postDelayed(
+        _autosaveRunnable, AUTOSAVE_INTERVAL_MS);
     }
 
     @Override
