@@ -191,28 +191,47 @@ void CVpu::SetFbrst(uint32 fbrst)
 
 void CVpu::ExecuteMicroProgram(uint32 nAddress)
 {
-	CLog::GetInstance().Print(LOG_NAME, "Starting microprogram execution at 0x%08X.\r\n", nAddress);
+    CLog::GetInstance().Print(
+        LOG_NAME,
+        "Starting microprogram execution at 0x%08X.\r\n",
+        nAddress);
 
-	m_ctx->m_State.nPC = nAddress;
-	m_ctx->m_State.pipeTime = 0;
-	m_ctx->m_State.pipeFmacWrite[0] = {};
-	m_ctx->m_State.pipeFmacWrite[1] = {};
-	m_ctx->m_State.pipeFmacWrite[2] = {};
-	m_ctx->m_State.savedNextBlockIntRegIdx = 0;
-	m_ctx->m_State.nHasException = 0;
+    m_ctx->m_State.nPC = nAddress;
+    m_ctx->m_State.pipeTime = 0;
+    m_ctx->m_State.pipeFmacWrite[0] = {};
+    m_ctx->m_State.pipeFmacWrite[1] = {};
+    m_ctx->m_State.pipeFmacWrite[2] = {};
+    m_ctx->m_State.savedNextBlockIntRegIdx = 0;
+    m_ctx->m_State.nHasException = 0;
 
 #ifdef DEBUGGER_INCLUDED
-	SaveMiniState();
+    SaveMiniState();
 #endif
 
-	assert(m_vuState != VU_STATE_RUNNING);
-	m_vuState = VU_STATE_RUNNING;
-	VuStateChanged(m_vuState);
-	for(unsigned int i = 0; i < 100; i++)
-	{
-		Execute(5000);
-		if(m_vuState != VU_STATE_RUNNING) break;
-	}
+    assert(m_vuState != VU_STATE_RUNNING);
+
+    m_vuState = VU_STATE_RUNNING;
+    VuStateChanged(m_vuState);
+
+    // VU0 remains synchronously executed.
+    // VU1 advances alongside the EE through CSubSystem::CountTicks().
+    if(m_number == 0)
+    {
+        for(unsigned int i = 0; i < 100; i++)
+        {
+            Execute(5000);
+
+            if(m_vuState != VU_STATE_RUNNING)
+            {
+                break;
+            }
+        }
+    }
+    else
+    {
+        // Initial VU1 execution slice.
+        Execute(16);
+    }
 }
 
 void CVpu::InvalidateMicroProgram()
