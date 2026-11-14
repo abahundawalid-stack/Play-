@@ -58,6 +58,8 @@ public class MainActivity extends AppCompatActivity implements NavigationDrawerF
     private String navSubtitle;
     private Toolbar toolbar;
 
+    private static final int MENU_TEST_GET_BOOTABLES = 0x4A504F47;
+
     static final int g_settingsRequestCode = 0xDEAD;
     static final int g_folderPickerRequestCode = 0xBEEF;
     static final int g_dataFilesExportFolderPickerRequestCode = 0xBEF0;
@@ -135,8 +137,8 @@ public class MainActivity extends AppCompatActivity implements NavigationDrawerF
     {
         gameInfo = new GameInfo(MainActivity.this);
 
-        // JPOG DIAGNOSTIC: test native library loading only.
-        // Do not call any native game scanning function.
+        // Test native library loading only.
+        // Do not call native game scanning here.
         try
         {
             Class.forName(
@@ -223,6 +225,52 @@ public class MainActivity extends AppCompatActivity implements NavigationDrawerF
                         this::finish
                 );
             }
+        }
+    }
+
+    /*
+     * JPOG DIAGNOSTIC:
+     * This method is called only after the user selects
+     * "Uji getBootables()" from the toolbar overflow menu.
+     *
+     * It does not scan folders and does not register games.
+     */
+    private void runGetBootablesDiagnostic()
+    {
+        Log.i(
+                Constants.TAG,
+                "JPOG_GETBOOTABLES_TEST: starting"
+        );
+
+        try
+        {
+            Bootable[] result = BootablesInterop.getBootables(sortMethod);
+
+            int count = (result == null) ? 0 : result.length;
+
+            Log.i(
+                    Constants.TAG,
+                    "JPOG_GETBOOTABLES_TEST: success, count=" + count
+            );
+
+            Toast.makeText(
+                    this,
+                    "getBootables berhasil. Jumlah data: " + count,
+                    Toast.LENGTH_LONG
+            ).show();
+        }
+        catch(Throwable ex)
+        {
+            Log.e(
+                    Constants.TAG,
+                    "JPOG_GETBOOTABLES_TEST: failed",
+                    ex
+            );
+
+            displaySimpleMessage(
+                    "getBootables Error",
+                    ex.toString()
+            );
         }
     }
 
@@ -381,7 +429,7 @@ public class MainActivity extends AppCompatActivity implements NavigationDrawerF
             prepareFileListView(false);
         }
 
-        // JPOG DIAGNOSTIC: accept folder permission only.
+        // Accept folder permission only.
         // Do not start native game scanning at this stage.
         if(requestCode == g_folderPickerRequestCode &&
            resultCode == RESULT_OK)
@@ -595,10 +643,33 @@ public class MainActivity extends AppCompatActivity implements NavigationDrawerF
         if(!mNavigationDrawerFragment.isDrawerOpen())
         {
             restoreActionBar();
+
+            // Add a dedicated native getBootables diagnostic item.
+            menu.clear();
+
+            menu.add(
+                    Menu.NONE,
+                    MENU_TEST_GET_BOOTABLES,
+                    Menu.NONE,
+                    "Uji getBootables()"
+            ).setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER);
+
             return true;
         }
 
         return super.onCreateOptionsMenu(menu);
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item)
+    {
+        if(item.getItemId() == MENU_TEST_GET_BOOTABLES)
+        {
+            runGetBootablesDiagnostic();
+            return true;
+        }
+
+        return super.onOptionsItemSelected(item);
     }
 
     @Override
