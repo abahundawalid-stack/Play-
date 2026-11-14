@@ -66,6 +66,9 @@ CVif::CVif(unsigned int number, CVpu& vpu, CINTC& intc, uint8* ram, uint8* spr)
 void CVif::Reset()
 {
 	memset(&m_STAT, 0, sizeof(STAT));
+	memset(&m_STAT, 0, sizeof(STAT));
+    m_ERR <<= 0;
+    memset(&m_CODE, 0, sizeof(CODE));
 	memset(&m_CODE, 0, sizeof(CODE));
 	memset(&m_CYCLE, 0, sizeof(CYCLE));
 	memset(&m_R, 0, sizeof(m_R));
