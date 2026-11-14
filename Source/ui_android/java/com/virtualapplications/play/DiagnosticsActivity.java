@@ -33,7 +33,9 @@ public class DiagnosticsActivity extends Activity
         super.onCreate(savedInstanceState);
 
         currentReport =
-            DiagnosticsManager.buildReport(this);
+            DiagnosticsManager.buildReport(this)
+            + "\n\nAPPLICATION PROCESS EXIT HISTORY\n"
+            + AppExitDiagnostics.getLastReport(this);
 
         buildScreen();
     }
@@ -48,7 +50,9 @@ public class DiagnosticsActivity extends Activity
     private void refreshReport()
     {
         currentReport =
-            DiagnosticsManager.buildReport(this);
+            DiagnosticsManager.buildReport(this)
+            + "\n\nAPPLICATION PROCESS EXIT HISTORY\n"
+            + AppExitDiagnostics.getLastReport(this);
 
         if(reportView != null)
         {
