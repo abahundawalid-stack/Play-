@@ -601,20 +601,61 @@ bool CPS2VM::SaveVMState(const fs::path& statePath)
 		return false;
 	}
 
+	// Write to a temporary file first. Keep the previous state intact
+	// until the new archive has been completely written and closed.
+	fs::path temporaryPath = statePath;
+	temporaryPath += ".tmp";
+
 	try
 	{
-		auto stateStream = Framework::CreateOutputStdStream(statePath.native());
-		Framework::CZipArchiveWriter archive;
+		{
+			auto stateStream =
+			    Framework::CreateOutputStdStream(temporaryPath.native());
 
-		m_ee->SaveState(archive);
-		m_iop->SaveState(archive);
-		m_ee->m_gs->SaveState(archive);
-		SaveVmTimingState(archive);
+			Framework::CZipArchiveWriter archive;
 
-		archive.Write(stateStream);
+			m_ee->SaveState(archive);
+			m_iop->SaveState(archive);
+			m_ee->m_gs->SaveState(archive);
+			SaveVmTimingState(archive);
+
+			archive.Write(stateStream);
+
+			// Close the file before replacing the previous state.
+			stateStream.Close();
+		}
+
+#ifdef _WIN32
+		if(!MoveFileExW(
+		       temporaryPath.c_str(),
+		       statePath.c_str(),
+		       MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH))
+		{
+			throw std::runtime_error("Failed to replace save state file.");
+		}
+#else
+		if(std::rename(
+		       temporaryPath.native().c_str(),
+		       statePath.native().c_str()) != 0)
+		{
+			throw std::runtime_error("Failed to atomically replace save state file.");
+		}
+#endif
+	}
+	catch(const std::exception& e)
+	{
+		printf("PS2VM: Save state failed: %s\r\n", e.what());
+
+		std::error_code errorCode;
+		fs::remove(temporaryPath, errorCode);
+		return false;
 	}
 	catch(...)
 	{
+		printf("PS2VM: Save state failed with an unknown error.\r\n");
+
+		std::error_code errorCode;
+		fs::remove(temporaryPath, errorCode);
 		return false;
 	}
 
