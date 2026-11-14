@@ -749,15 +749,18 @@ int32 CIopBios::LoadModule(CELF32& elf, const char* path, uint32 loadAddress, bo
 		}
 		memset(m_ram + moduleRange.first + bssSectPos, 0, bssSectSize);
 	}
+	
+    // Fill in module info.
+    strncpy(loadedModule->name, moduleName.c_str(),
+    LOADEDMODULE::MAX_NAME_SIZE - 1);
+    loadedModule->name[LOADEDMODULE::MAX_NAME_SIZE - 1] = '\0';
 
-	//Fill in module info
-	strncpy(loadedModule->name, moduleName.c_str(), LOADEDMODULE::MAX_NAME_SIZE);
-	loadedModule->version = iopMod->moduleVersion;
-	loadedModule->start = moduleRange.first;
-	loadedModule->end = moduleRange.second;
-	loadedModule->entryPoint = entryPoint;
-	loadedModule->gp = iopMod ? (iopMod->gp + moduleRange.first) : 0;
-	loadedModule->state = MODULE_STATE::STOPPED;
+    loadedModule->version = iopMod->moduleVersion;
+    loadedModule->start = moduleRange.first;
+    loadedModule->end = moduleRange.second;
+    loadedModule->entryPoint = entryPoint;
+    loadedModule->gp = iopMod->gp + moduleRange.first;
+    loadedModule->state = MODULE_STATE::STOPPED;
 
 #ifdef DEBUGGER_INCLUDED
 	PrepareModuleDebugInfo(elf, moduleRange, moduleName, path);
