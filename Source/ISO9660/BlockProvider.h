@@ -22,22 +22,34 @@ namespace ISO9660
 		virtual uint32 GetBlockCount() = 0;
 		virtual uint32 GetMediaBlockSize() const = 0;
 	};
-
-	class CBlockProvider2048 : public CBlockProvider
-	{
-	public:
-		typedef std::shared_ptr<Framework::CStream> StreamPtr;
-
-		CBlockProvider2048(const StreamPtr& stream, uint32 offset = 0)
-		    : m_stream(stream)
-		    , m_offset(offset)
-		{
-		}
 	
+    class CBlockProvider2048 : public CBlockProvider
+    {
+    public:
+        typedef std::shared_ptr<Framework::CStream> StreamPtr;
+
+        // blockCount = 0 means all remaining sectors.
+        // A non-zero value creates a bounded ISO region.
+        CBlockProvider2048(
+            const StreamPtr& stream,
+            uint32 offset = 0,
+            uint32 blockCount = 0)
+            : m_stream(stream)
+            , m_offset(offset)
+            , m_blockCount(blockCount)
+        {
+        }
+
         void ReadBlock(uint32 address, void* block) override
         {
+            if(address >= GetBlockCount())
+            {
+                throw std::runtime_error(
+                    "ISO9660: sector read outside provider bounds.");
+            }
+
             const uint64 blockIndex =
-                static_cast<uint64>(address) + m_offset;
+    static_cast<uint64>(address) + m_offset;
 
             const uint64 byteOffset =
                 blockIndex * BLOCKSIZE;
@@ -45,7 +57,6 @@ namespace ISO9660
             const uint64 imageSize =
                 m_stream->GetLength();
 
-            // Prevent reads outside the ISO image.
             if(byteOffset > imageSize ||
                BLOCKSIZE > (imageSize - byteOffset))
             {
@@ -55,24 +66,23 @@ namespace ISO9660
 
             m_stream->Seek(
                 byteOffset,
-                Framework::STREAM_SEEK_SET);
+    Framework::STREAM_SEEK_SET);
 
             const uint64 bytesRead =
                 m_stream->Read(block, BLOCKSIZE);
 
-            // Reject incomplete sector reads.
             if(bytesRead != BLOCKSIZE)
             {
                 throw std::runtime_error(
                     "ISO9660: incomplete sector read.");
-	        }
+            }
         }
 
-		void ReadMediaBlock(uint32 address, void* block) override
-		{
-			ReadBlock(address, block);
-		}
-	
+        void ReadMediaBlock(uint32 address, void* block) override
+        {
+            ReadBlock(address, block);
+        }
+
         uint32 GetBlockCount() override
         {
             const uint64 imageSize = m_stream->GetLength();
@@ -80,25 +90,37 @@ namespace ISO9660
             assert((imageSize % BLOCKSIZE) == 0);
 
             const uint64 totalBlocks = imageSize / BLOCKSIZE;
-   
-            // Offset points to the first readable block.
+
             if(m_offset >= totalBlocks)
             {
                 return 0;
             }
 
-            return static_cast<uint32>(totalBlocks - m_offset);
-		}
+            const uint64 availableBlocks =
+                totalBlocks - m_offset;
+
+            const uint64 allowedBlocks =
+                (m_blockCount == 0 ||
+                 m_blockCount > availableBlocks)
+                    ? availableBlocks
+                    : m_blockCount;
+
+            return static_cast<uint32>(
+                allowedBlocks > 0xFFFFFFFFULL
+                    ? 0xFFFFFFFFULL
+                    : allowedBlocks);
+        }
 
         uint32 GetMediaBlockSize() const override
         {
             return BLOCKSIZE;
         }
- 
-	private:
-		StreamPtr m_stream;
-		uint32 m_offset = 0;
-	};
+
+    private:
+        StreamPtr m_stream;
+        uint32 m_offset = 0;
+        uint32 m_blockCount = 0;
+    };
 
 	template <uint64 INTERNAL_BLOCKSIZE, uint64 MEDIA_BLOCKSIZE, uint64 BLOCKHEADER_SIZE>
 	class CBlockProviderCustom : public CBlockProvider
