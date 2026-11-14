@@ -226,15 +226,27 @@ uint32 CModload::LoadModuleBuffer(uint32 modBufPtr)
 
 uint32 CModload::GetModuleIdList(uint32 readBufPtr, uint32 readBufSize, uint32 moduleCountPtr)
 {
-	CLog::GetInstance().Print(LOG_NAME, FUNCTION_GETMODULEIDLIST "(readBufPtr = 0x%08X, readBufSize = 0x%08X, moduleCountPtr = 0x%08X);\r\n",
-	                          readBufPtr, readBufSize, moduleCountPtr);
-	auto moduleCount = (moduleCountPtr != 0) ? reinterpret_cast<uint32*>(m_ram + moduleCountPtr) : nullptr;
-	if(moduleCount)
-	{
-		(*moduleCount) = 0;
-	}
-	CLog::GetInstance().Warn(LOG_NAME, "Using " FUNCTION_GETMODULEIDLIST ", but it is not implemented.\r\n");
-	return 0;
+    CLog::GetInstance().Print(LOG_NAME,
+        FUNCTION_GETMODULEIDLIST "(readBufPtr = 0x%08X, readBufSize = 0x%08X, moduleCountPtr = 0x%08X);\r\n",
+        readBufPtr, readBufSize, moduleCountPtr);
+
+    auto readBuffer = (readBufPtr != 0)
+        ? reinterpret_cast<uint32*>(m_ram + readBufPtr)
+        : nullptr;
+
+    uint32 totalCount = 0;
+    uint32 copiedCount = m_bios.GetLoadedModuleIds(
+        readBuffer,
+        readBuffer != nullptr ? readBufSize : 0,
+        totalCount);
+
+    if(moduleCountPtr != 0)
+    {
+        auto moduleCount = reinterpret_cast<uint32*>(m_ram + moduleCountPtr);
+        *moduleCount = totalCount;
+    }
+
+    return copiedCount;
 }
 
 int32 CModload::ReferModuleStatus(uint32 moduleId, uint32 moduleStatusPtr)
