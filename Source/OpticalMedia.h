@@ -61,6 +61,7 @@ private:
 
 	void CheckDualLayerDvd(const StreamPtr&);
 	void SetupSecondLayer(const StreamPtr&);
+    bool MountNestedIso(const char* path);
 
 	MEDIA_BLOCK_TYPE m_mediaBlockType = MEDIA_BLOCK_TYPE_2048;
 	BlockProviderPtr m_blockProvider;
