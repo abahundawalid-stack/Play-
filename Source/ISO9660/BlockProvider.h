@@ -88,8 +88,13 @@ namespace ISO9660
             }
 
             return static_cast<uint32>(totalBlocks - m_offset);
-        }
+		}
 
+        uint32 GetMediaBlockSize() const override
+        {
+            return BLOCKSIZE;
+        }
+ 
 	private:
 		StreamPtr m_stream;
 		uint32 m_offset = 0;
