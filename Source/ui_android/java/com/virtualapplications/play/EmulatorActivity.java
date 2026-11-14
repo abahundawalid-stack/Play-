@@ -342,6 +342,9 @@ public class EmulatorActivity extends Activity
     {
         stopStatsTimer();
 
+        _statsTimerHandler.removeCallbacks(_autosaveRunnable);
+        requestAutosave();
+
         _activityRunning = false;
 
         DiagnosticsManager.finishSession(this);
