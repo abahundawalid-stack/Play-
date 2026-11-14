@@ -16,8 +16,8 @@ public:
 
 	enum MEDIA_BLOCK_TYPE
 	{
-		MEDIA_BLOCK_TYPE_2352, //CD
-		MEDIA_BLOCK_TYPE_2048, //DVD, UMD, BD
+		MEDIA_BLOCK_TYPE_2352,
+		MEDIA_BLOCK_TYPE_2048,
 	};
 
 	enum CREATE_FLAGS
@@ -29,7 +29,7 @@ public:
 	struct TRACK
 	{
 		uint32 start = 0;
-		uint32 pregap = 0; //Track Index 1
+		uint32 pregap = 0;
 		uint32 size = 0;
 	};
 
@@ -50,8 +50,10 @@ public:
 	const TRACK& GetTrack(uint32) const;
 
 	CISO9660* GetFileSystem();
-    CISO9660* GetNestedFileSystem();
+	CISO9660* GetNestedFileSystem();
 	CISO9660* GetFileSystemL1();
+
+	uint32 GetNestedIsoStartSector() const;
 
 	bool GetDvdIsDualLayer() const;
 	uint32 GetDvdSecondLayerStart() const;
@@ -61,14 +63,16 @@ private:
 
 	void CheckDualLayerDvd(const StreamPtr&);
 	void SetupSecondLayer(const StreamPtr&);
-    bool MountNestedIso(const char* path);
+	bool MountNestedIso(const char* path);
 
 	MEDIA_BLOCK_TYPE m_mediaBlockType = MEDIA_BLOCK_TYPE_2048;
 	BlockProviderPtr m_blockProvider;
 	std::vector<TRACK> m_tracks;
 	bool m_dvdIsDualLayer = false;
 	uint32 m_dvdSecondLayerStart = 0;
+	uint32 m_nestedIsoStartSector = 0;
+
 	Iso9660Ptr m_fileSystem;
 	Iso9660Ptr m_fileSystemL1;
-    Iso9660Ptr m_nestedFileSystem;
+	Iso9660Ptr m_nestedFileSystem;
 };
