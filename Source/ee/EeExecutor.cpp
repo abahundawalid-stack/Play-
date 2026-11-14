@@ -260,11 +260,27 @@ void CEeExecutor::SetMemoryProtected(void* addr, size_t size, bool protect)
 #elif defined(__EMSCRIPTEN__)
 	//Not supported on JavaScript/WebAssembly env
 #elif defined(__unix__) || defined(__ANDROID__) || defined(__APPLE__)
-	uintptr_t addrValue = reinterpret_cast<uintptr_t>(addr) & ~(m_pageSize - 1);
-	addr = reinterpret_cast<void*>(addrValue);
-	size = size + (m_pageSize - 1) & ~(m_pageSize - 1);
-	int result = mprotect(addr, size, protect ? PROT_READ : PROT_READ | PROT_WRITE);
-	assert(result >= 0);
+    const uintptr_t pageMask = static_cast<uintptr_t>(m_pageSize - 1);
+
+    const uintptr_t originalAddress =
+        reinterpret_cast<uintptr_t>(addr);
+
+    const uintptr_t alignedAddress =
+        originalAddress & ~pageMask;
+
+    const size_t addressOffset =
+        static_cast<size_t>(originalAddress - alignedAddress);
+
+    size = (size + addressOffset + pageMask) & ~pageMask;
+    addr = reinterpret_cast<void*>(alignedAddress);
+
+    int result = mprotect(
+        addr,
+        size,
+        protect ? PROT_READ : (PROT_READ | PROT_WRITE)
+    );
+
+    assert(result >= 0);
 #else
 	assert(false);
 #endif
