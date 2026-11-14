@@ -2,7 +2,13 @@
 #include <exception>
 #include <memory>
 #include <climits>
+#include <system_error>
 #include <fenv.h>
+
+#ifdef _WIN32
+#include <Windows.h>
+#endif
+
 #include "FpUtils.h"
 #include "make_unique.h"
 #include "string_format.h"
@@ -33,10 +39,6 @@
 #include "GameConfig.h"
 #ifdef __ANDROID__
 #include "android/JavaVM.h"
-#include <system_error>
-
-#ifdef _WIN32
-#include <Windows.h>
 #endif
 
 #define LOG_NAME ("ps2vm")
