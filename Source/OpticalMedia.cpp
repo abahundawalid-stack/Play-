@@ -108,6 +108,11 @@ CISO9660* COpticalMedia::GetFileSystem()
 	return m_fileSystem.get();
 }
 
+CISO9660* COpticalMedia::GetNestedFileSystem()
+{
+	return m_nestedFileSystem.get();
+}
+
 CISO9660* COpticalMedia::GetFileSystemL1()
 {
 	return m_fileSystemL1.get();
