@@ -880,6 +880,28 @@ int32 CIopBios::SearchModuleByName(const char* moduleName) const
 	return KERNEL_RESULT_ERROR_UNKNOWN_MODULE;
 }
 
+uint32 CIopBios::GetLoadedModuleIds(uint32* ids, uint32 capacity, uint32& totalCount) const
+{
+    totalCount = 0;
+    uint32 copiedCount = 0;
+
+    for(unsigned int i = 0; i < MAX_LOADEDMODULE; i++)
+    {
+        auto loadedModule = m_loadedModules[i];
+        if(loadedModule == nullptr) continue;
+
+        if(ids != nullptr && copiedCount < capacity)
+        {
+            ids[copiedCount] = i;
+            copiedCount++;
+        }
+
+        totalCount++;
+    }
+
+    return copiedCount;
+}
+
 int32 CIopBios::ReferModuleStatus(uint32 moduleId, uint32 statusPtr)
 {
 	auto loadedModule = m_loadedModules[moduleId];
