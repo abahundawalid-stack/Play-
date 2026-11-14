@@ -556,6 +556,7 @@ public class EmulatorActivity extends Activity
 
             _surfaceCreated = false;
             stopStatsTimer();
+       
         }
     }
 }
