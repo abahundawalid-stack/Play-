@@ -6,32 +6,33 @@
 class CElfFileContainer
 {
 public:
-	CElfFileContainer(Framework::CStream&);
-	virtual ~CElfFileContainer();
+    CElfFileContainer(Framework::CStream&);
+    virtual ~CElfFileContainer();
 
-	uint8* GetFileContent() const;
-	uint64 GetFileSize() const;
-    uint64 GetFileSize() const
-    {
-        return CElfFileContainer::GetFileSize();
-    }
+    uint8* GetFileContent() const;
+    uint64 GetFileSize() const;
 
 private:
-	uint8* m_content = nullptr;
-	uint64 m_size = 0;
+    uint8* m_content = nullptr;
+    uint64 m_size = 0;
 };
 
 template <typename ElfType>
 class CElfFile : protected CElfFileContainer, public ElfType
 {
 public:
-	CElfFile(Framework::CStream& stream)
-	    : CElfFileContainer(stream)
-	    , ElfType(GetFileContent(), GetFileSize())
-	{
-	}
+    CElfFile(Framework::CStream& stream)
+        : CElfFileContainer(stream)
+        , ElfType(GetFileContent(), CElfFileContainer::GetFileSize())
+    {
+    }
 
-	virtual ~CElfFile() = default;
+    uint64 GetFileSize() const
+    {
+        return CElfFileContainer::GetFileSize();
+    }
+
+    virtual ~CElfFile() = default;
 };
 
 typedef CElfFile<CELF32> CElf32File;
