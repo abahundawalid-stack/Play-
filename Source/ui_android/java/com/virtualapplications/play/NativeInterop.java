@@ -25,6 +25,8 @@ public class NativeInterop
 
     public static native boolean isVirtualMachineCreated();
 
+    public static native boolean hasState(int slot);
+
     public static native void resumeVirtualMachine();
 
     public static native void pauseVirtualMachine();
