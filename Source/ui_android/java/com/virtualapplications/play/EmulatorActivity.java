@@ -26,7 +26,8 @@ public class EmulatorActivity extends Activity
     private final ExecutorService _autosaveExecutor =
     Executors.newSingleThreadExecutor();
 
-    private boolean _autosavePending = false;
+    private final AtomicBoolean _autosavePending =
+    new AtomicBoolean(false);
 
     private final Runnable _autosaveRunnable = new Runnable()
     {
