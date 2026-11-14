@@ -4,6 +4,7 @@
 #include <cassert>
 #include "Types.h"
 #include "Stream.h"
+#include <stdexcept>
 
 namespace ISO9660
 {
@@ -32,12 +33,40 @@ namespace ISO9660
 		    , m_offset(offset)
 		{
 		}
+	
+        void ReadBlock(uint32 address, void* block) override
+        {
+            const uint64 blockIndex =
+                static_cast<uint64>(address) + m_offset;
 
-		void ReadBlock(uint32 address, void* block) override
-		{
-			m_stream->Seek(static_cast<uint64>(address + m_offset) * BLOCKSIZE, Framework::STREAM_SEEK_SET);
-			m_stream->Read(block, BLOCKSIZE);
-		}
+            const uint64 byteOffset =
+                blockIndex * BLOCKSIZE;
+
+            const uint64 imageSize =
+                m_stream->GetLength();
+
+            // Prevent reads outside the ISO image.
+            if(byteOffset > imageSize ||
+               BLOCKSIZE > (imageSize - byteOffset))
+            {
+                throw std::runtime_error(
+                    "ISO9660: sector read outside image bounds.");
+            }
+
+            m_stream->Seek(
+                byteOffset,
+                Framework::STREAM_SEEK_SET);
+
+            const uint64 bytesRead =
+                m_stream->Read(block, BLOCKSIZE);
+
+            // Reject incomplete sector reads.
+            if(bytesRead != BLOCKSIZE)
+            {
+                throw std::runtime_error(
+                    "ISO9660: incomplete sector read.");
+	        }
+        }
 
 		void ReadMediaBlock(uint32 address, void* block) override
 		{
