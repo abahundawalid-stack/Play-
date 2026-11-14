@@ -283,6 +283,7 @@ private:
 
 	HEADER m_header;
 	uint8* m_content = nullptr;
+    uint64 m_contentSize = 0;
 
 	std::vector<SECTIONHEADER> m_sections;
 	std::vector<PROGRAMHEADER> m_programs;
