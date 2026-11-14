@@ -95,6 +95,7 @@ public class EmulatorActivity extends Activity
 
     private boolean _surfaceCreated = false;
     private boolean _activityRunning = false;
+    private boolean _resumePromptShown = false;
 
     protected EmulatorDrawerFragment _drawerFragment;
 
