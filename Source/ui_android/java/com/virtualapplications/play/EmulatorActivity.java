@@ -412,6 +412,9 @@ public class EmulatorActivity extends Activity
 
         updateVirtualMachineState();
 
+        // Simpan setelah VM dijeda agar kondisi terakhir ikut tersimpan.
+        requestAutosave();
+
         _statsTimerHandler.removeCallbacks(_autosaveRunnable);
         
         super.onPause();
