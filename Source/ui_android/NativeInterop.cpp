@@ -201,11 +201,38 @@ Java_com_virtualapplications_play_NativeInterop_createVirtualMachine(
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
-Java_com_virtualapplications_play_NativeInterop_isVirtualMachineCreated(
+Java_com_virtualapplications_play_NativeInterop_hasState(
     JNIEnv* env,
-    jobject obj)
+    jobject obj,
+    jint slot)
 {
-    return (g_virtualMachine != nullptr);
+    if(g_virtualMachine == nullptr)
+    {
+        return JNI_FALSE;
+    }
+
+    try
+    {
+        auto statePath =
+            g_virtualMachine->GenerateStatePath(slot);
+
+        auto temporaryPath = statePath;
+        temporaryPath += ".tmp";
+
+        // Jangan tawarkan file state yang belum selesai ditulis.
+        if(fs::exists(temporaryPath))
+        {
+            return JNI_FALSE;
+        }
+
+        return fs::exists(statePath)
+            ? JNI_TRUE
+            : JNI_FALSE;
+    }
+    catch(...)
+    {
+        return JNI_FALSE;
+    }
 }
 
 extern "C" JNIEXPORT void JNICALL
