@@ -44,7 +44,8 @@ public:
 	typedef typename ElfTraits::ELFSYMBOL SYMBOL;
 
 	CELF(uint8* content, uint64 contentSize = ~0ULL)
-	    : m_content(content)
+        : m_content(content)
+        , m_contentSize(contentSize)
 	{
 		Framework::CPtrStream stream(m_content, contentSize);
 
