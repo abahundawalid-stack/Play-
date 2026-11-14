@@ -121,43 +121,54 @@ public class MainActivity extends AppCompatActivity implements NavigationDrawerF
 		prefs.unregisterOnSharedPreferenceChangeListener(this);
 		super.onDestroy();
 	}
+	
+    private void Startup()
+    {
+    EmulatorActivity.RegisterPreferences();
 
-	private void Startup()
-	{
-		NativeInterop.setFilesDirPath(getApplicationContext().getFilesDir().getAbsolutePath());
-		NativeInterop.setCacheDirPath(getApplicationContext().getCacheDir().getAbsolutePath());
-		NativeInterop.setAssetManager(getAssets());
-		NativeInterop.setContentResolver(getApplicationContext().getContentResolver());
+        gameInfo = new GameInfo(MainActivity.this);
 
-		EmulatorActivity.RegisterPreferences();
+        SharedPreferences sp =
+    PreferenceManager.getDefaultSharedPreferences(this);
 
-		if(!NativeInterop.isVirtualMachineCreated())
-		{
-			NativeInterop.createVirtualMachine();
-		}
+        sortMethod = sp.getInt("sortMethod.v2", SORT_NONE);
 
-		gameInfo = new GameInfo(MainActivity.this);
+    onNavigationDrawerItemSelected(sortMethod);
 
-		SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(this);
-		sortMethod = sp.getInt("sortMethod.v2", SORT_NONE);
-		onNavigationDrawerItemSelected(sortMethod);
-		sp.registerOnSharedPreferenceChangeListener(this);
+    sp.registerOnSharedPreferenceChangeListener(this);
 
-		Intent intent = getIntent();
-		if(intent.getAction() != null && intent.getAction().equals(Intent.ACTION_VIEW))
-		{
-			try
-			{
-				Uri uri = intent.getData();
-				VirtualMachineManager.launchGame(this, uri.toString(), this::finish);
-			}
-			catch(Exception e)
-			{
-				displaySimpleMessage("Error", e.getMessage());
-				finish();
-			}
-		}
-	}
+        Intent intent = getIntent();
+
+        if(intent.getAction() != null &&
+       intent.getAction().equals(Intent.ACTION_VIEW))
+        {
+               try
+               {
+                  Uri uri = intent.getData();
+
+                  if(uri == null)
+                  {
+                      throw new IllegalArgumentException(
+                          "Game URI is empty.");
+                  }
+
+      VirtualMachineManager.launchGame(
+                      this,
+                      uri.toString(),
+                      this::finish);
+               }
+               catch(Exception e)
+               {
+                   displaySimpleMessage(
+                       "Error",
+                       e.getMessage() != null
+                           ? e.getMessage()
+                           : "Unable to launch game.");
+
+                  finish();
+            }
+        }
+    }
 
 	@Override
 	public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults)
