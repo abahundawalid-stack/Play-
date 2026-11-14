@@ -466,35 +466,91 @@ uint32 CCdvdman::CdStandby()
 
 uint32 CCdvdman::CdRead(uint32 startSector, uint32 sectorCount, uint32 bufferPtr, uint32 modePtr)
 {
-	CLog::GetInstance().Print(LOG_NAME, FUNCTION_CDREAD "(startSector = 0x%X, sectorCount = 0x%X, bufferPtr = 0x%08X, modePtr = 0x%08X);\r\n",
-	                          startSector, sectorCount, bufferPtr, modePtr);
-	if(m_pendingCommand != COMMAND_NONE)
-	{
-		//Command already pending (Atelier Marie+Elie does that)
-		CLog::GetInstance().Warn(LOG_NAME, "Trying to start a read while another command is pending.\r\n");
-		return 0;
-	}
-	if(modePtr != 0)
-	{
-		FRAMEWORK_MAYBE_UNUSED uint8* mode = &m_ram[modePtr];
-		//Does that make sure it's 2048 byte mode?
-		assert(mode[2] == 0);
-	}
-	if(m_opticalMedia && (bufferPtr != 0))
-	{
-		uint8* buffer = &m_ram[bufferPtr & (PS2::IOP_RAM_SIZE - 1)];
-		static const uint32 sectorSize = 2048;
-		auto fileSystem = m_opticalMedia->GetFileSystem();
-		for(unsigned int i = 0; i < sectorCount; i++)
-		{
-			fileSystem->ReadBlock(startSector + i, buffer);
-			buffer += sectorSize;
-		}
-	}
-	m_pendingCommand = COMMAND_READ;
-	m_pendingCommandDelay = COMMAND_READ_BASE_DELAY + (sectorCount * COMMAND_READ_SECTOR_DELAY);
-	m_status = CDVD_STATUS_READING;
-	return 1;
+    CLog::GetInstance().Print(LOG_NAME,
+        FUNCTION_CDREAD "(startSector = 0x%X, sectorCount = 0x%X, bufferPtr = 0x%08X, modePtr = 0x%08X);\r\n",
+        startSector, sectorCount, bufferPtr, modePtr);
+
+    if(m_pendingCommand != COMMAND_NONE)
+    {
+        CLog::GetInstance().Warn(LOG_NAME,
+            "Trying to start a read while another command is pending.\r\n");
+        return 0;
+    }
+
+    if(!m_opticalMedia || !m_opticalMedia->GetBlockProvider())
+    {
+        CLog::GetInstance().Warn(LOG_NAME, "CDVD read failed: no optical media.\r\n");
+        return 0;
+    }
+
+    constexpr uint64 SECTOR_SIZE = 2048;
+    const uint64 blockCount = m_opticalMedia->GetBlockProvider()->GetBlockCount();
+
+    // Validate requested sector range without integer overflow.
+    if(startSector > blockCount || sectorCount > blockCount - startSector)
+    {
+        CLog::GetInstance().Warn(LOG_NAME,
+            "CDVD read outside media bounds: LBA=%u count=%u blocks=%llu.\r\n",
+            startSector, sectorCount, static_cast<unsigned long long>(blockCount));
+        return 0;
+    }
+
+    if(modePtr != 0)
+    {
+        if(modePtr > PS2::IOP_RAM_SIZE - 3)
+        {
+            CLog::GetInstance().Warn(LOG_NAME, "CDVD mode pointer outside IOP RAM.\r\n");
+            return 0;
+        }
+
+        const uint8* mode = &m_ram[modePtr];
+        if(mode[2] != 0)
+        {
+            CLog::GetInstance().Warn(LOG_NAME, "Unsupported CDVD sector mode.\r\n");
+            return 0;
+        }
+    }
+
+    const uint32 bufferOffset = bufferPtr & (PS2::IOP_RAM_SIZE - 1);
+    const uint64 transferSize = static_cast<uint64>(sectorCount) * SECTOR_SIZE;
+
+    if(bufferPtr != 0 &&
+       (transferSize > PS2::IOP_RAM_SIZE ||
+        bufferOffset > PS2::IOP_RAM_SIZE - transferSize))
+    {
+        CLog::GetInstance().Warn(LOG_NAME,
+            "CDVD destination buffer outside IOP RAM: address=%08X bytes=%llu.\r\n",
+            bufferPtr, static_cast<unsigned long long>(transferSize));
+        return 0;
+    }
+
+    try
+    {
+        if(bufferPtr != 0)
+        {
+            uint8* buffer = &m_ram[bufferOffset];
+            auto fileSystem = m_opticalMedia->GetFileSystem();
+
+            for(uint32 i = 0; i < sectorCount; i++)
+            {
+                fileSystem->ReadBlock(startSector + i, buffer);
+                buffer += SECTOR_SIZE;
+            }
+        }
+    }
+    catch(const std::exception& except)
+    {
+        CLog::GetInstance().Warn(LOG_NAME,
+            "CDVD sector read failed: %s\r\n", except.what());
+        return 0;
+    }
+
+    m_pendingCommand = COMMAND_READ;
+    m_pendingCommandDelay = COMMAND_READ_BASE_DELAY +
+        (sectorCount * COMMAND_READ_SECTOR_DELAY);
+    m_status = CDVD_STATUS_READING;
+
+    return 1;
 }
 
 uint32 CCdvdman::CdSeek(uint32 sector)
