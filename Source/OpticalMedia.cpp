@@ -16,6 +16,12 @@ std::unique_ptr<COpticalMedia> COpticalMedia::CreateAuto(const StreamPtr& stream
 		result->m_blockProvider = blockProvider;
 	}
 	catch(...)
+		
+    if(result->m_mediaBlockType == MEDIA_BLOCK_TYPE_2048)
+	{
+     result->MountNestedIso("/DATA.ISO");
+	}
+	
 	{
 		//Failed with block size 2048, try with CD-ROM XA
 		auto blockProvider = std::make_shared<ISO9660::CBlockProviderCDROMXA>(stream);
