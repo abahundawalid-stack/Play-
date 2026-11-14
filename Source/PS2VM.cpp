@@ -33,6 +33,10 @@
 #include "GameConfig.h"
 #ifdef __ANDROID__
 #include "android/JavaVM.h"
+#include <system_error>
+
+#ifdef _WIN32
+#include <Windows.h>
 #endif
 
 #define LOG_NAME ("ps2vm")
