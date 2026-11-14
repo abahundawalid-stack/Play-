@@ -885,14 +885,17 @@ uint32 CIopBios::GetLoadedModuleIds(uint32* ids, uint32 capacity, uint32& totalC
     totalCount = 0;
     uint32 copiedCount = 0;
 
-    for(unsigned int i = 0; i < MAX_LOADEDMODULE; i++)
+    const uint32 firstId = m_loadedModules.GetIdBase();
+    const uint32 endId = firstId + MAX_LOADEDMODULE;
+
+    for(uint32 moduleId = firstId; moduleId < endId; moduleId++)
     {
-        auto loadedModule = m_loadedModules[i];
+        auto loadedModule = m_loadedModules[moduleId];
         if(loadedModule == nullptr) continue;
 
         if(ids != nullptr && copiedCount < capacity)
         {
-            ids[copiedCount] = i;
+            ids[copiedCount] = moduleId;
             copiedCount++;
         }
 
