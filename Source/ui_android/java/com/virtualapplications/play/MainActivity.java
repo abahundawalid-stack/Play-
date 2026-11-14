@@ -127,17 +127,48 @@ public class MainActivity extends AppCompatActivity implements NavigationDrawerF
     /*
      * DIAGNOSTIC STARTUP
      *
-     * Deliberately avoids:
-     * - EmulatorActivity.RegisterPreferences()
-     * - NativeInterop
-     * - BootablesInterop game scanning
-     *
-     * This allows us to test whether the Android main screen
-     * can open without loading libPlay.so.
+     * Native game scanning remains disabled.
+     * This test loads BootablesInterop only to verify
+     * whether libPlay.so can be loaded safely.
      */
     private void Startup()
     {
         gameInfo = new GameInfo(MainActivity.this);
+
+        // JPOG DIAGNOSTIC: test native library loading only.
+        // Do not call any native game scanning function.
+        try
+        {
+            Class.forName(
+                    "com.virtualapplications.play.BootablesInterop",
+                    true,
+                    getClassLoader()
+            );
+
+            Log.i(
+                    Constants.TAG,
+                    "JPOG_NATIVE_TEST: libPlay.so loaded successfully"
+            );
+
+            Toast.makeText(
+                    this,
+                    "Uji libPlay.so berhasil dimuat.",
+                    Toast.LENGTH_LONG
+            ).show();
+        }
+        catch(Throwable ex)
+        {
+            Log.e(
+                    Constants.TAG,
+                    "JPOG_NATIVE_TEST: libPlay.so loading failed",
+                    ex
+            );
+
+            displaySimpleMessage(
+                    "Native Library Error",
+                    ex.toString()
+            );
+        }
 
         SharedPreferences sp =
                 PreferenceManager.getDefaultSharedPreferences(this);
