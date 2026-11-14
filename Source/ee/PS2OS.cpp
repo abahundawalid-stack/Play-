@@ -438,77 +438,81 @@ void CPS2OS::LoadELF(Framework::CStream* stream, const char* executablePath, con
 
 void CPS2OS::LoadExecutableInternal()
 {
-	//Copy program in main RAM
-	const auto& header = m_elf->GetHeader();
-	for(unsigned int i = 0; i < header.nProgHeaderCount; i++)
-	{
-		auto p = m_elf->GetProgram(i);
-		if(p != nullptr)
-		{
-			if(p->nFileSize == 0) continue;
-			if(p->nVAddress >= m_ramSize)
-			{
-				assert(false);
-				continue;
-			}
-			memcpy(m_ram + p->nVAddress, m_elf->GetContent() + p->nOffset, p->nFileSize);
-		}
-	}
+    // Load only valid PT_LOAD segments into EE main RAM.
+    const auto& header = m_elf->GetHeader();
+    const uint64 elfSize = m_elf->GetFileSize();
 
-	m_ee.m_State.nPC = header.nEntryPoint;
-	m_ee.m_State.nGPR[CMIPS::A0].nV[0] = header.nEntryPoint;
+    for(unsigned int i = 0; i < header.nProgHeaderCount; i++)
+    {
+        auto p = m_elf->GetProgram(i);
+        if(p == nullptr) continue;
+
+        if(p->nType != ELF::PT_LOAD) continue;
+
+        if(p->nFileSize == 0 && p->nMemorySize == 0)
+        {
+            continue;
+        }
+
+        // ELF requires filesz <= memsz.
+        if(p->nFileSize > p->nMemorySize)
+        {
+            throw std::runtime_error(
+                "Invalid ELF segment: file size exceeds memory size.");
+        }
+
+        // Validate source data range without overflowing.
+        if(p->nOffset > elfSize ||
+           p->nFileSize > (elfSize - p->nOffset))
+        {
+            throw std::runtime_error(
+                "Invalid ELF segment: source data outside executable.");
+        }
+
+        // Validate EE RAM destination range without overflowing.
+        if(p->nVAddress > m_ramSize ||
+           p->nMemorySize > (m_ramSize - p->nVAddress))
+        {
+            throw std::runtime_error(
+                "Invalid ELF segment: destination outside EE RAM.");
+        }
+
+        uint8* destination = m_ram + p->nVAddress;
+
+        // Copy initialized segment data.
+        if(p->nFileSize != 0)
+        {
+            memcpy(
+                destination,
+                m_elf->GetContent() + p->nOffset,
+                p->nFileSize);
+        }
+
+        // Clear BSS / uninitialized segment memory.
+        if(p->nMemorySize > p->nFileSize)
+        {
+            memset(
+                destination + p->nFileSize,
+                0,
+                p->nMemorySize - p->nFileSize);
+        }
+    }
+
+    // Start execution at the ELF entry point.
+    m_ee.m_State.nPC = header.nEntryPoint;
+    m_ee.m_State.nGPR[CMIPS::A0].nV[0] = header.nEntryPoint;
 
 #ifdef DEBUGGER_INCLUDED
-	std::pair<uint32, uint32> executableRange = GetExecutableRange();
-	uint32 minAddr = executableRange.first;
-	uint32 maxAddr = executableRange.second & ~0x03;
+    std::pair<uint32, uint32> executableRange = GetExecutableRange();
+    uint32 minAddr = executableRange.first;
+    uint32 maxAddr = executableRange.second & ~0x03;
 
-	m_ee.m_analysis->Clear();
-	m_ee.m_analysis->Analyse(minAddr, maxAddr, header.nEntryPoint);
+    m_ee.m_State.nCOP0[CCOP_SCU::STATUS] |= CMIPS::STATUS_CU0;
 
-	//Tag system calls
-	for(uint32 address = minAddr; address < maxAddr; address += 4)
-	{
-		//Check for SYSCALL opcode
-		uint32 opcode = *reinterpret_cast<uint32*>(m_ram + address);
-		if(opcode == 0x0000000C)
-		{
-			//Check the opcode before and after it
-			uint32 addiu = *reinterpret_cast<uint32*>(m_ram + address - 4);
-			uint32 jr = *reinterpret_cast<uint32*>(m_ram + address + 4);
-			if(
-			    (jr == 0x03E00008) &&
-			    (addiu & 0xFFFF0000) == 0x24030000)
-			{
-				//We have it!
-				int16 syscallId = static_cast<int16>(addiu);
-				if(syscallId & 0x8000)
-				{
-					syscallId = 0 - syscallId;
-				}
-				char syscallName[256];
-				int syscallNameIndex = -1;
-				for(int i = 0; g_syscallNames[i].name != NULL; i++)
-				{
-					if(g_syscallNames[i].id == syscallId)
-					{
-						syscallNameIndex = i;
-						break;
-					}
-				}
-				if(syscallNameIndex != -1)
-				{
-					strncpy(syscallName, g_syscallNames[syscallNameIndex].name, 256);
-				}
-				else
-				{
-					snprintf(syscallName, 256, "syscall_%04X", syscallId);
-				}
-				m_ee.m_Functions.InsertTag(address - 4, syscallName);
-			}
-		}
-	}
-
+    if(minAddr < maxAddr)
+    {
+        m_ee.SetProgramRange(minAddr, maxAddr);
+    }
 #endif
 }
 
