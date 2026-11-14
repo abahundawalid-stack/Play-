@@ -11,6 +11,10 @@ public:
 
 	uint8* GetFileContent() const;
 	uint64 GetFileSize() const;
+    uint64 GetFileSize() const
+    {
+        return CElfFileContainer::GetFileSize();
+    }
 
 private:
 	uint8* m_content = nullptr;
