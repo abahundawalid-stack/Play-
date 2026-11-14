@@ -185,3 +185,35 @@ void COpticalMedia::SetupSecondLayer(const StreamPtr& stream)
 	auto blockProvider = std::make_shared<ISO9660::CBlockProvider2048>(stream, GetDvdSecondLayerStart());
 	m_fileSystemL1 = std::make_unique<CISO9660>(blockProvider);
 }
+
+bool COpticalMedia::MountNestedIso(const char* path)
+{
+	if(!m_fileSystem || !path || m_nestedFileSystem) return false;
+
+	try
+	{
+		StreamPtr nestedStream(m_fileSystem->Open(path));
+		if(!nestedStream) return false;
+
+		const uint64 nestedLength = nestedStream->GetLength();
+		const uint64 blockSize = ISO9660::CBlockProvider::BLOCKSIZE;
+
+		if(nestedLength == 0 || (nestedLength % blockSize) != 0)
+		{
+			return false;
+		}
+
+		auto nestedProvider =
+		    std::make_shared<ISO9660::CBlockProvider2048>(nestedStream);
+
+		auto nestedFileSystem =
+		    std::make_unique<CISO9660>(nestedProvider);
+
+		m_nestedFileSystem = std::move(nestedFileSystem);
+		return true;
+	}
+	catch(...)
+	{
+		return false;
+	}
+}
