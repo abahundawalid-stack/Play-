@@ -178,6 +178,7 @@ public:
 	int32 SearchModuleByName(const char*) const;
 	int32 ReferModuleStatus(uint32, uint32);
 	void ProcessModuleReset(const std::string&);
+    uint32 GetLoadedModuleIds(uint32* ids, uint32 capacity, uint32& totalCount) const;
 
 	void SetDefaultImageVersion(uint32);
 	bool TryGetImageVersionFromPath(const std::string&, unsigned int*);
