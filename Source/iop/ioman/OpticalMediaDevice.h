@@ -1,45 +1,50 @@
 #pragma once
 
 #include <memory>
+#include <string>
 #include "../Ioman_Device.h"
 #include "../../OpticalMedia.h"
 
 namespace Iop
 {
-	namespace Ioman
-	{
-		class COpticalMediaDevice : public CDevice
-		{
-		public:
-			typedef std::unique_ptr<COpticalMedia> OpticalMediaPtr;
+    namespace Ioman
+    {
+        class COpticalMediaDevice : public CDevice
+        {
+        public:
+            typedef std::unique_ptr<COpticalMedia> OpticalMediaPtr;
 
-			COpticalMediaDevice(OpticalMediaPtr&);
-			virtual ~COpticalMediaDevice() = default;
+            COpticalMediaDevice(
+                OpticalMediaPtr&,
+                bool useNestedFileSystem = false);
 
-			Framework::CStream* GetFile(uint32, const char*) override;
-			DirectoryIteratorPtr GetDirectory(const char*) override;
+            virtual ~COpticalMediaDevice() = default;
 
-		private:
-			static char FixSlashes(char);
-			static std::string RemoveExtraVersionSpecifiers(const std::string&);
+            Framework::CStream* GetFile(uint32, const char*) override;
+            DirectoryIteratorPtr GetDirectory(const char*) override;
 
-			OpticalMediaPtr& m_opticalMedia;
-		};
+        private:
+            static char FixSlashes(char);
+            static std::string RemoveExtraVersionSpecifiers(const std::string&);
 
-		class COpticalMediaFile : public Framework::CStream
-		{
-		public:
-			COpticalMediaFile(std::unique_ptr<Framework::CStream>);
-			virtual ~COpticalMediaFile() = default;
+            OpticalMediaPtr& m_opticalMedia;
+            bool m_useNestedFileSystem = false;
+        };
 
-			void Seek(int64, Framework::STREAM_SEEK_DIRECTION) override;
-			uint64 Tell() override;
-			uint64 Read(void*, uint64) override;
-			uint64 Write(const void*, uint64) override;
-			bool IsEOF() override;
+        class COpticalMediaFile : public Framework::CStream
+        {
+        public:
+            COpticalMediaFile(std::unique_ptr<Framework::CStream>);
+            virtual ~COpticalMediaFile() = default;
 
-		private:
-			std::unique_ptr<Framework::CStream> m_baseStream;
-		};
-	}
+            void Seek(int64, Framework::STREAM_SEEK_DIRECTION) override;
+            uint64 Tell() override;
+            uint64 Read(void*, uint64) override;
+            uint64 Write(const void*, uint64) override;
+            bool IsEOF() override;
+
+        private:
+            std::unique_ptr<Framework::CStream> m_baseStream;
+        };
+    }
 }
