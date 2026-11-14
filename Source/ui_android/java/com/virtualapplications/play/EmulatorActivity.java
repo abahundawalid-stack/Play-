@@ -549,6 +549,11 @@ public class EmulatorActivity extends Activity
         @Override
         public void surfaceDestroyed(SurfaceHolder holder)
         {
+        if(NativeInterop.isVirtualMachineCreated())
+            {
+        NativeInterop.pauseVirtualMachine();
+            }
+
             _surfaceCreated = false;
             stopStatsTimer();
         }
