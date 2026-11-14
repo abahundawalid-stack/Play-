@@ -72,18 +72,23 @@ namespace ISO9660
 		{
 			ReadBlock(address, block);
 		}
+	
+        uint32 GetBlockCount() override
+        {
+            const uint64 imageSize = m_stream->GetLength();
 
-		uint32 GetBlockCount() override
-		{
-			uint64 imageSize = m_stream->GetLength();
-			assert((imageSize % BLOCKSIZE) == 0);
-			return static_cast<uint32>(imageSize / BLOCKSIZE);
-		}
+            assert((imageSize % BLOCKSIZE) == 0);
 
-		uint32 GetMediaBlockSize() const override
-		{
-			return BLOCKSIZE;
-		}
+            const uint64 totalBlocks = imageSize / BLOCKSIZE;
+   
+            // Offset points to the first readable block.
+            if(m_offset >= totalBlocks)
+            {
+                return 0;
+            }
+
+            return static_cast<uint32>(totalBlocks - m_offset);
+        }
 
 	private:
 		StreamPtr m_stream;
