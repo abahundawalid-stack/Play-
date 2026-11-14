@@ -31,19 +31,22 @@ public class EmulatorActivity extends Activity
 
     private final Runnable _autosaveRunnable = new Runnable()
     {
-       @Override
-       public void run()
-       {
-           if(!_activityRunning ||
-              !_surfaceCreated ||
-              !NativeInterop.isVirtualMachineCreated())
-           {
-              return;
-           }
+        @Override
+        public void run()
+        {
+            if(!_activityRunning || !_surfaceCreated)
+            {
+                return;
+            }
 
-           requestAutosave();
-    _statsTimerHandler.postDelayed(
-                this, AUTOSAVE_INTERVAL_MS);
+            if(NativeInterop.isVirtualMachineCreated())
+            {
+                requestAutosave();
+            }
+
+            // Tetap jadwalkan ulang selama Activity aktif.
+            _statsTimerHandler.postDelayed(
+            this, AUTOSAVE_INTERVAL_MS);
         }
     };
 
