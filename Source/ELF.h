@@ -87,6 +87,11 @@ public:
 
 	CELF& operator=(const CELF&) = delete;
 
+    uint64 GetFileSize() const
+    {
+        return m_contentSize;
+    }
+
 	uint8* GetContent() const
 	{
 		return m_content;
