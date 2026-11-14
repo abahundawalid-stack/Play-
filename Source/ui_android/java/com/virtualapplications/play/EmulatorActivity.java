@@ -47,6 +47,84 @@ public class EmulatorActivity extends Activity
         }
     };
 
+    private void promptAutosaveRecovery()
+    {
+        if(_resumePromptShown)
+        {
+            return;
+        }
+
+        _resumePromptShown = true;
+
+        if(!NativeInterop.hasState(AUTOSAVE_SLOT))
+        {
+            return;
+        }
+
+        new AlertDialog.Builder(this)
+            .setTitle("Autosave ditemukan")
+            .setMessage(
+                "Ditemukan penyimpanan otomatis untuk game ini. " +
+                "Apakah kamu ingin melanjutkan permainan terakhir?")
+            .setPositiveButton("Continue", (dialog, which) ->
+            {
+    NativeInterop.pauseVirtualMachine();
+
+                new Thread(() ->
+                {
+                    try
+                    {
+    NativeInterop.loadState(AUTOSAVE_SLOT);
+
+                        runOnUiThread(() ->
+                        {
+                            if(!_activityRunning ||
+                                isFinishing())
+                            {
+                                return;
+                            }
+
+    NativeInterop.resumeVirtualMachine();
+
+    Toast.makeText(
+                                this,
+                                "Autosave berhasil dimuat.",
+    Toast.LENGTH_SHORT
+                            ).show();
+                        });
+                    }
+                    catch(Exception e)
+                    {
+                        Log.e(
+    Constants.TAG,
+                            "Autosave recovery failed",
+                            e
+                        );
+
+                        runOnUiThread(() ->
+                        {
+                            if(!isFinishing())
+                            {
+    NativeInterop.resumeVirtualMachine();
+
+                                new AlertDialog.Builder(this)
+                                    .setTitle("Gagal memuat autosave")
+                                    .setMessage(
+    "Penyimpanan otomatis tidak dapat dimuat. " +
+    "Permainan akan dilanjutkan dari awal.")
+                                    .setPositiveButton("OK", null)
+                                    .show();
+                            }
+                        
+                        });
+                    }
+                }).start();
+            })
+            .setNegativeButton("Restart", null)
+            .setCancelable(false)
+            .show();
+    }
+    
     private void requestAutosave()
     {
         if(!NativeInterop.isVirtualMachineCreated())
