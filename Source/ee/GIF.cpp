@@ -451,7 +451,7 @@ uint32 CGIF::ProcessMultiplePackets(const uint8* memory, uint32 memorySize, uint
 void CGIF::ProcessFifoWrite(uint32 address, uint32 value)
 {
 	static constexpr uint32 qwSize = 0x10;
-	*reinterpret_cast<uint32*>(m_fifoBuffer + m_fifoIndex) = value;
+	memcpy(m_fifoBuffer + m_fifoIndex, &value, sizeof(value));
 	m_fifoIndex += 4;
 	if(m_fifoIndex == qwSize)
 	{
