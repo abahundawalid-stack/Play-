@@ -209,28 +209,13 @@ void CVpu::ExecuteMicroProgram(uint32 nAddress)
 #endif
 
     assert(m_vuState != VU_STATE_RUNNING);
-
     m_vuState = VU_STATE_RUNNING;
     VuStateChanged(m_vuState);
 
-    // VU0 remains synchronously executed.
-    // VU1 advances alongside the EE through CSubSystem::CountTicks().
-    if(m_number == 0)
+    for(unsigned int i = 0; i < 100; i++)
     {
-        for(unsigned int i = 0; i < 100; i++)
-        {
-            Execute(5000);
-
-            if(m_vuState != VU_STATE_RUNNING)
-            {
-                break;
-            }
-        }
-    }
-    else
-    {
-        // Initial VU1 execution slice.
-        Execute(16);
+        Execute(5000);
+        if(m_vuState != VU_STATE_RUNNING) break;
     }
 }
 
