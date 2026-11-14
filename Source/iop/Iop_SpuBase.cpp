@@ -644,10 +644,30 @@ uint32 CSpuBase::ReceiveDma(uint8* buffer, uint32 blockSize, uint32 blockAmount,
 
 void CSpuBase::WriteWord(uint16 value)
 {
-	assert((m_transferAddr + 1) < m_ramSize);
-	*reinterpret_cast<uint16*>(&m_ram[m_transferAddr]) = value;
-	m_sampleCache->ClearRange(m_transferAddr, 2);
-	m_transferAddr += 2;
+    if(m_ramSize < 2)
+    {
+        return;
+    }
+
+    const uint32 address = m_transferAddr % m_ramSize;
+    const uint32 nextAddress = (address + 1) % m_ramSize;
+
+    // SPU2 RAM is a wrapping address space.
+    m_ram[address] = static_cast<uint8>(value & 0xFF);
+    m_ram[nextAddress] = static_cast<uint8>((value >> 8) & 0xFF);
+
+    // Invalidate both bytes, including the wrap-around case.
+    if(nextAddress == address + 1)
+    {
+        m_sampleCache->ClearRange(address, 2);
+    }
+    else
+    {
+        m_sampleCache->ClearRange(address, 1);
+        m_sampleCache->ClearRange(nextAddress, 1);
+    }
+
+    m_transferAddr = (address + 2) % m_ramSize;
 }
 
 int32 CSpuBase::ComputeChannelVolume(const CHANNEL_VOLUME& volume, int32 currentVolume)
