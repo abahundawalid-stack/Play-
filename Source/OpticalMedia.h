@@ -50,6 +50,7 @@ public:
 	const TRACK& GetTrack(uint32) const;
 
 	CISO9660* GetFileSystem();
+    CISO9660* GetNestedFileSystem();
 	CISO9660* GetFileSystemL1();
 
 	bool GetDvdIsDualLayer() const;
