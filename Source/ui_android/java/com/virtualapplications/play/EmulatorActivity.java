@@ -19,6 +19,59 @@ import static com.virtualapplications.play.Constants.PREF_EMU_GENERAL_SHOWVIRTUA
 
 public class EmulatorActivity extends Activity
 {
+    private static final int AUTOSAVE_SLOT = 99;
+    private static final long AUTOSAVE_INTERVAL_MS = 60000;
+
+    private final ExecutorService _autosaveExecutor =
+    Executors.newSingleThreadExecutor();
+
+    private boolean _autosavePending = false;
+
+    private final Runnable _autosaveRunnable = new Runnable()
+    {
+       @Override
+       public void run()
+       {
+           if(!_activityRunning ||
+              !_surfaceCreated ||
+              !NativeInterop.isVirtualMachineCreated())
+           {
+              return;
+           }
+
+           requestAutosave();
+    _statsTimerHandler.postDelayed(
+                this, AUTOSAVE_INTERVAL_MS);
+        }
+    };
+
+    private void requestAutosave()
+    {
+        if(_autosavePending ||
+           !NativeInterop.isVirtualMachineCreated())
+        {
+            return;
+        }
+
+        _autosavePending = true;
+
+        _autosaveExecutor.execute(() ->
+        {
+            try
+            {
+    NativeInterop.saveState(AUTOSAVE_SLOT);
+            }
+            catch(Exception e)
+            {
+                Log.e(Constants.TAG, "Autosave failed", e);
+            }
+            finally
+            {       
+                _autosavePending = false;
+            }
+       });
+    }
+    
     private static final int _settingsIntentRequestCode = 0xBEEF;
 
     private final Handler _statsTimerHandler = new Handler();
