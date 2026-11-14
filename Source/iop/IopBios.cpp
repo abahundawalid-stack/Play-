@@ -695,6 +695,14 @@ int32 CIopBios::LoadModule(CELF32& elf, const char* path, uint32 loadAddress, bo
 	}
 
 	std::string moduleName = iopMod ? iopMod->moduleName : "";
+    if(iopMod == nullptr)
+    {
+        CLog::GetInstance().Warn(LOGNAME,
+            "Cannot load IOP module '%s': missing IOPMOD section.\r\n",
+            path);
+        return -1;
+    }
+
 	if(moduleName.empty())
 	{
 		moduleName = path;
