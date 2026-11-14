@@ -49,29 +49,40 @@ public class EmulatorActivity extends Activity
 
     private void requestAutosave()
     {
-        if(_autosavePending ||
-           !NativeInterop.isVirtualMachineCreated())
+        if(!NativeInterop.isVirtualMachineCreated())
         {
             return;
         }
 
-        _autosavePending = true;
-
-        _autosaveExecutor.execute(() ->
+        if(!_autosavePending.compareAndSet(false, true))
         {
-            try
-            {
+            return;
+        }
+
+        try
+        {
+           _autosaveExecutor.execute(() ->
+           {
+               try
+               {
     NativeInterop.saveState(AUTOSAVE_SLOT);
-            }
-            catch(Exception e)
-            {
-                Log.e(Constants.TAG, "Autosave failed", e);
-            }
-            finally
-            {       
-                _autosavePending = false;
-            }
-       });
+                  Log.i(Constants.TAG, "Autosave completed.");
+               }
+               catch(Exception e)
+               {
+                  Log.e(Constants.TAG, "Autosave failed", e);
+               }
+               finally
+               {
+    _autosavePending.set(false);
+               }
+           });
+        }
+        catch(Exception e)
+        {
+            _autosavePending.set(false);
+            Log.e(Constants.TAG, "Autosave queue failed", e);
+        }
     }
     
     private static final int _settingsIntentRequestCode = 0xBEEF;
