@@ -70,4 +70,5 @@ private:
 	uint32 m_dvdSecondLayerStart = 0;
 	Iso9660Ptr m_fileSystem;
 	Iso9660Ptr m_fileSystemL1;
+    Iso9660Ptr m_nestedFileSystem;
 };
