@@ -97,10 +97,32 @@ public class VirtualMachineManager
                 setLaunchStage(
                     _ctx,
                     "VIRTUAL_MACHINE_READY");
+                
+                setLaunchStage(
+                    _ctx,
+                    "CHECKING_BOOTABLE_TYPE");
+
+                if(BootablesInterop.IsBootableExecutablePath(
+                    _bootablePath))
+                {
+                    setLaunchStage(
+                        _ctx,
+                        "LOADING_ELF");
+
+                NativeInterop.loadElf(_bootablePath);
+                }
+                else
+                {
+                    setLaunchStage(
+                        _ctx,
+                        "BOOTING_DISK_IMAGE");
+
+                NativeInterop.bootDiskImage(_bootablePath);
+                }
 
                 setLaunchStage(
                     _ctx,
-                    "BOOTING_GAME");
+                    "GAME_BOOT_RETURNED");
 
                 if(BootablesInterop.IsBootableExecutablePath(
                    _bootablePath))
