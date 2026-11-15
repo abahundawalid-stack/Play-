@@ -552,6 +552,16 @@ void CPS2OS::LoadExecutableInternal()
             throw std::runtime_error(
                 "Invalid ELF segment: destination outside EE RAM.");
         }
+		
+        CLog::GetInstance().Print(
+            LOG_NAME,
+            "[JPOG_BOOT] ELF SEGMENT %u: VA=0x%08X FILE=0x%llX SIZE=%llu MEM=%llu FLAGS=0x%X\r\n",
+            i,
+            p->nVAddress,
+            static_cast<unsigned long long>(p->nOffset),
+            static_cast<unsigned long long>(p->nFileSize),
+            static_cast<unsigned long long>(p->nMemorySize),
+            p->nFlags);
 
         uint8* destination = m_ram + p->nVAddress;
 
