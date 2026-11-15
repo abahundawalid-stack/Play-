@@ -54,6 +54,7 @@ public:
 	CISO9660* GetFileSystemL1();
 
 	uint32 GetNestedIsoStartSector() const;
+    uint32 GetNestedIsoBlockCount() const;
 
 	bool GetDvdIsDualLayer() const;
 	uint32 GetDvdSecondLayerStart() const;
