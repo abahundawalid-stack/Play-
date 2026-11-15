@@ -288,6 +288,11 @@ void CCdvdfsv::FinishPendingCommand()
     m_sifMan.SendCallReply(MODULE_ID_4, nullptr);
 }
 
+void CCdvdfsv::SetOpticalMedia(COpticalMedia* opticalMedia)
+{
+    m_opticalMedia = opticalMedia;
+}
+
 void CCdvdfsv::LoadState(Framework::CZipArchiveReader& archive)
 {
 	auto registerFile = CRegisterStateFile(*archive.BeginReadFile(STATE_FILENAME));
