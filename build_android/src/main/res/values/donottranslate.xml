@@ -2,7 +2,7 @@
 <resources>
     
     <string name="app_name">orbit2sx</string>
-    
+
     <!-- Applciation Preferences -->
     
     <string-array name="pref_theme_selection_values">
