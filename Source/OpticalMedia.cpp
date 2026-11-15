@@ -128,6 +128,16 @@ CISO9660* COpticalMedia::GetNestedFileSystem()
     return m_nestedFileSystem.get();
 }
 
+uint32 COpticalMedia::GetNestedIsoStartSector() const
+{
+    return m_nestedIsoStartSector;
+}
+
+uint32 COpticalMedia::GetNestedIsoBlockCount() const
+{
+    return m_nestedIsoBlockCount;
+}
+
 CISO9660* COpticalMedia::GetFileSystemL1()
 {
     return m_fileSystemL1.get();
