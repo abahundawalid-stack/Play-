@@ -49,6 +49,12 @@ public class VirtualMachineManager
         {
             try
             {
+                DiagnosticsManager.beginSession(
+                    _ctx,
+                    _bootablePath);
+
+                setLaunchStage(_ctx, "INITIALIZING_ANDROID_RESOURCES");
+                
                 Context appContext =
                     _ctx.getApplicationContext();
 
@@ -66,16 +72,18 @@ public class VirtualMachineManager
                 NativeInterop.setContentResolver(
                     appContext.getContentResolver());
 
+                setLaunchStage(_ctx, "CREATING_VIRTUAL_MACHINE");
+
+                setLaunchStage(_ctx, "VIRTUAL_MACHINE_CREATED");
+
                 // Create the native PS2 virtual machine lazily.
                 if(!NativeInterop.isVirtualMachineCreated())
                 {
                     NativeInterop.createVirtualMachine();
                 }
 
-                DiagnosticsManager.beginSession(
-                    _ctx,
-                    _bootablePath);
-
+                setLaunchStage(_ctx, "BOOTING_GAME");
+                
                 if(BootablesInterop.IsBootableExecutablePath(
                     _bootablePath))
                 {
@@ -86,6 +94,8 @@ public class VirtualMachineManager
                     NativeInterop.bootDiskImage(_bootablePath);
                 }
 
+                setLaunchStage(_ctx, "OPENING_EMULATOR_ACTIVITY");
+                
                 Intent intent = new Intent(
                     _ctx,
                     EmulatorActivity.class);
@@ -104,6 +114,8 @@ public class VirtualMachineManager
                 DiagnosticsManager.finishSession(_ctx);
                 _exception = e;
             }
+
+                setLaunchStage(_ctx, "EMULATOR_ACTIVITY_STARTED");
 
             return null;
         }
