@@ -329,6 +329,11 @@ uint32 CCdvdman::CdLayerSearchFileDirect(
     return 1;
 }
 
+std::string CCdvdman::GetId() const
+{
+    return "cdvdman";
+}
+
 std::string CCdvdman::GetFunctionName(unsigned int functionId) const
 {
 	switch(functionId)
