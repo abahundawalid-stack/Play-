@@ -34,6 +34,18 @@ public class VirtualMachineManager
             _completeListener = completeListener;
         }
 
+        private void setLaunchStage(Context context, String stage)
+{
+    context.getApplicationContext()
+        .getSharedPreferences(
+            "play_diagnostics",
+            Context.MODE_PRIVATE)
+        .edit()
+        .putString("launch_stage", stage)
+        .putLong("launch_stage_time", System.currentTimeMillis())
+        .commit();
+}
+
         @Override
         protected void onPreExecute()
         {
