@@ -454,6 +454,15 @@ void CPS2OS::LoadELF(Framework::CStream* stream, const char* executablePath, con
 	
 	auto elf = std::make_unique<CElf32File>(*stream);
 	const auto& header = elf->GetHeader();
+	
+    CLog::GetInstance().Print(
+        LOG_NAME,
+        "[JPOG_BOOT] ELF HEADER: size=%llu CPU=%u type=%u entry=0x%08X phnum=%u\r\n",
+        static_cast<unsigned long long>(elf->GetFileSize()),
+        header.nCPU,
+        header.nType,
+        header.nEntryPoint,
+        header.nProgHeaderCount);
 
 	//Check for MIPS CPU
 	if(header.nCPU != ELF::EM_MIPS)
