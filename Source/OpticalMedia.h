@@ -72,6 +72,7 @@ private:
 	bool m_dvdIsDualLayer = false;
 	uint32 m_dvdSecondLayerStart = 0;
 	uint32 m_nestedIsoStartSector = 0;
+    uint32 m_nestedIsoBlockCount = 0;
 
 	Iso9660Ptr m_fileSystem;
 	Iso9660Ptr m_fileSystemL1;
