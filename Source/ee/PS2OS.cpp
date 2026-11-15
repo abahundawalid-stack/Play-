@@ -307,6 +307,11 @@ void CPS2OS::BootFromVirtualPath(const char* executablePath, const ArgumentList&
 {
 	auto ioman = m_iopBios.GetIoman();
 
+    CLog::GetInstance().Print(
+        LOG_NAME,
+        "[JPOG_BOOT] OPEN_EXECUTABLE: %s\r\n",
+        executablePath);
+
 	uint32 handle = ioman->Open(Iop::Ioman::CDevice::OPEN_FLAG_RDONLY, executablePath);
 	if(static_cast<int32>(handle) < 0)
 	{
