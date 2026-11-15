@@ -427,50 +427,68 @@ private void Startup()
 
         // Accept folder permission only.
         // Do not start native game scanning at this stage.
-        if(requestCode == g_folderPickerRequestCode &&
-           resultCode == RESULT_OK)
+      
+if(requestCode == g_folderPickerRequestCode &&
+   resultCode == RESULT_OK)
+{
+    if(data == null || data.getData() == null)
+    {
+        displaySimpleMessage(
+                "Folder Error",
+                "Android tidak mengembalikan URI folder."
+        );
+        return;
+    }
+
+    Uri folderUri = data.getData();
+
+    try
+    {
+        int takeFlags = data.getFlags() &
+                (Intent.FLAG_GRANT_READ_URI_PERMISSION |
+                 Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+
+        if((takeFlags & Intent.FLAG_GRANT_READ_URI_PERMISSION) == 0)
         {
-            if(data == null || data.getData() == null)
-            {
-                displaySimpleMessage(
-                        "Folder Error",
-                        "Android tidak mengembalikan URI folder.");
-                return;
-            }
-
-            Uri folderUri = data.getData();
-
-            try
-            {
-                getContentResolver().takePersistableUriPermission(
-                        folderUri,
-                        Intent.FLAG_GRANT_READ_URI_PERMISSION);
-
-                Log.i(
-                        Constants.TAG,
-                        "JPOG_SCAN: Folder permission granted: " +
-                        folderUri
-                );
-
-                Toast.makeText(
-                        this,
-                        "Folder berhasil dipilih. Pemindaian sementara dinonaktifkan.",
-                        Toast.LENGTH_LONG
-                ).show();
-            }
-            catch(Exception ex)
-            {
-                Log.e(
-                        Constants.TAG,
-                        "JPOG_SCAN: Failed to persist folder permission",
-                        ex
-                );
-
-                displaySimpleMessage(
-                        "Folder Error",
-                        ex.toString());
-            }
+            throw new SecurityException(
+                    "Izin membaca folder tidak diberikan Android."
+            );
         }
+
+        getContentResolver().takePersistableUriPermission(
+                folderUri,
+                takeFlags
+        );
+
+        Log.i(
+                Constants.TAG,
+                "JPOG_SCAN: Folder permission granted: " +
+                folderUri
+        );
+
+        Toast.makeText(
+                this,
+                "Folder berhasil dipilih. Pemindaian dimulai.",
+                Toast.LENGTH_LONG
+        ).show();
+
+        // Jalankan pemindaian di background.
+        prepareFileListView(false);
+    }
+    catch(Exception ex)
+    {
+        Log.e(
+                Constants.TAG,
+                "JPOG_SCAN: Folder scanning initialization failed",
+                ex
+        );
+
+        displaySimpleMessage(
+                "Folder Error",
+                ex.toString()
+        );
+    }
+}
 
         if(requestCode == g_dataFilesExportFolderPickerRequestCode &&
            resultCode == RESULT_OK)
