@@ -78,74 +78,149 @@ void CCdvdfsv::CountTicks(uint32 ticks)
 
 void CCdvdfsv::FinishPendingCommand()
 {
-	assert(m_pendingCommand != COMMAND_NONE);
+    assert(m_pendingCommand != COMMAND_NONE);
 
-	static const uint32 sectorSize = 0x800;
+    uint8* eeRam = nullptr;
 
-	uint8* eeRam = nullptr;
-	if(auto sifManPs2 = dynamic_cast<CSifManPs2*>(&m_sifMan))
-	{
-		eeRam = sifManPs2->GetEeRam();
-	}
+    if(auto sifManPs2 =
+        dynamic_cast<CSifManPs2*>(&m_sifMan))
+    {
+        eeRam = sifManPs2->GetEeRam();
+    }
 
-	if(m_pendingCommand == COMMAND_READ)
-	{
-		if(m_opticalMedia != nullptr)
-		{
-			auto fileSystem = m_opticalMedia->GetFileSystem();
-			for(unsigned int i = 0; i < m_pendingReadCount; i++)
-			{
-				fileSystem->ReadBlock(m_pendingReadSector + i, eeRam + (m_pendingReadAddr + (i * sectorSize)));
-			}
-		}
-	}
-	else if(m_pendingCommand == COMMAND_READIOP)
-	{
-		if(m_opticalMedia != nullptr)
-		{
-			auto fileSystem = m_opticalMedia->GetFileSystem();
-			for(unsigned int i = 0; i < m_pendingReadCount; i++)
-			{
-				fileSystem->ReadBlock(m_pendingReadSector + i, m_iopRam + (m_pendingReadAddr + (i * sectorSize)));
-			}
-		}
-	}
-	else if(m_pendingCommand == COMMAND_STREAM_READ)
-	{
-		if(m_opticalMedia != nullptr)
-		{
-			auto fileSystem = m_opticalMedia->GetFileSystem();
-			for(unsigned int i = 0; i < m_pendingReadCount; i++)
-			{
-				fileSystem->ReadBlock(m_streamPos, eeRam + (m_pendingReadAddr + (i * sectorSize)));
-				m_streamPos++;
-			}
-		}
-	}
-	else if(m_pendingCommand == COMMAND_NDISKREADY)
-	{
-		//Result already set, just return normally
-	}
-	else if(m_pendingCommand == COMMAND_READCHAIN)
-	{
-		//Nothing to do, everything has been read already
-	}
-	else if(m_pendingCommand == COMMAND_PAUSE)
-	{
-		//Nothing to do
-	}
-	else
-	{
-		assert(false);
-	}
+    auto fileSystem =
+        m_opticalMedia
+            ? m_opticalMedia->GetFileSystem()
+            : nullptr;
 
-	m_pendingCommand = COMMAND_NONE;
-	m_sifMan.SendCallReply(MODULE_ID_4, nullptr);
-}
+    try
+    {
+        if(m_pendingCommand == COMMAND_READ)
+        {
+            if(!fileSystem ||
+               !eeRam ||
+               !IsValidSectorRange(
+                   m_opticalMedia,
+                   m_pendingReadSector,
+                   m_pendingReadCount) ||
+               !IsValidRamRange(
+                   m_pendingReadAddr,
+                   m_pendingReadCount,
+                   PS2::EE_RAM_SIZE))
+            {
+                CLog::GetInstance().Warn(
+                    LOG_NAME,
+                    "Pending EE read rejected: invalid sector or RAM range.\r\n");
+            }
+            else
+            {
+                for(uint32 i = 0; i < m_pendingReadCount; i++)
+                {
+                    fileSystem->ReadBlock(
+                        m_pendingReadSector + i,
+                        eeRam +
+                            m_pendingReadAddr +
+                            (static_cast<uint64>(i) *
+                             CDVD_SECTOR_SIZE));
+                }
+            }
+        }
+        else if(m_pendingCommand == COMMAND_READIOP)
+        {
+            if(!fileSystem ||
+               !m_iopRam ||
+               !IsValidSectorRange(
+                   m_opticalMedia,
+                   m_pendingReadSector,
+                   m_pendingReadCount) ||
+               !IsValidRamRange(
+                   m_pendingReadAddr,
+                   m_pendingReadCount,
+                   PS2::IOP_RAM_SIZE))
+            {
+                CLog::GetInstance().Warn(
+                    LOG_NAME,
+                    "Pending IOP read rejected: invalid sector or RAM range.\r\n");
+            }
+            else
+            {
+                for(uint32 i = 0; i < m_pendingReadCount; i++)
+                {
+                    fileSystem->ReadBlock(
+                        m_pendingReadSector + i,
+                        m_iopRam +
+                            m_pendingReadAddr +
+                            (static_cast<uint64>(i) *
+                             CDVD_SECTOR_SIZE));
+                }
+            }
+        }
+        else if(m_pendingCommand == COMMAND_STREAM_READ)
+        {
+            if(!fileSystem ||
+               !eeRam ||
+               !IsValidSectorRange(
+                   m_opticalMedia,
+                   m_streamPos,
+                   m_pendingReadCount) ||
+               !IsValidRamRange(
+                   m_pendingReadAddr,
+                   m_pendingReadCount,
+                   PS2::EE_RAM_SIZE))
+            {
+                CLog::GetInstance().Warn(
+                    LOG_NAME,
+                    "Pending stream read rejected: invalid sector or RAM range.\r\n");
+            }
+            else
+            {
+                for(uint32 i = 0; i < m_pendingReadCount; i++)
+                {
+                    fileSystem->ReadBlock(
+                        m_streamPos,
+                        eeRam +
+                            m_pendingReadAddr +
+                            (static_cast<uint64>(i) *
+                             CDVD_SECTOR_SIZE));
 
-void CCdvdfsv::SetOpticalMedia(COpticalMedia* opticalMedia)
-{
-	m_opticalMedia = opticalMedia;
+                    m_streamPos++;
+                }
+            }
+        }
+        else if(m_pendingCommand == COMMAND_NDISKREADY)
+        {
+            // Result already set.
+        }
+        else if(m_pendingCommand == COMMAND_READCHAIN)
+        {
+            // Data was read before the delayed reply.
+        }
+        else if(m_pendingCommand == COMMAND_PAUSE)
+        {
+            // Nothing to do.
+        }
+        else
+        {
+            assert(false);
+        }
+    }
+    catch(const std::exception& except)
+    {
+        CLog::GetInstance().Warn(
+            LOG_NAME,
+            "Pending CDVDFSV read failed: %s\r\n",
+            except.what());
+    }
+    catch(...)
+    {
+        CLog::GetInstance().Warn(
+            LOG_NAME,
+            "Pending CDVDFSV read failed with unknown exception.\r\n");
+    }
+
+    // Keep the original asynchronous SIF completion behavior.
+    m_pendingCommand = COMMAND_NONE;
+    m_sifMan.SendCallReply(MODULE_ID_4, nullptr);
 }
 
 void CCdvdfsv::LoadState(Framework::CZipArchiveReader& archive)
