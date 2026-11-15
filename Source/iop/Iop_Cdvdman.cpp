@@ -120,80 +120,213 @@ uint32 CCdvdman::CdGetDiskTypeDirect(COpticalMedia* opticalMedia)
 	}
 }
 
-uint32 CCdvdman::CdLayerSearchFileDirect(COpticalMedia* opticalMedia, FILEINFO* fileInfo, const char* path, uint32 layer)
+uint32 CCdvdman::CdLayerSearchFileDirect(
+    COpticalMedia* opticalMedia,
+    FILEINFO* fileInfo,
+    const char* path,
+    uint32 layer)
 {
-	assert(m_opticalMedia == opticalMedia);
-	if(!m_opticalMedia)
-	{
-		assert(false);
-		return 0;
-	}
+    assert(m_opticalMedia == opticalMedia);
 
-	CISO9660* fileSystem = nullptr;
-	uint32 layerBaseSector = 0;
+    if(!m_opticalMedia ||
+       !fileInfo ||
+       !path)
+    {
+        return 0;
+    }
 
-	switch(layer)
-	{
-	case 0:
-		fileSystem = m_opticalMedia->GetFileSystem();
-		break;
-	case 1:
-		fileSystem = m_opticalMedia->GetFileSystemL1();
-		layerBaseSector = m_opticalMedia->GetDvdSecondLayerStart();
-		break;
-	default:
-		assert(false);
-		break;
-	}
+    CISO9660* fileSystem = nullptr;
+    uint32 layerBaseSector = 0;
 
-	if(!fileSystem)
-	{
-		assert(false);
-		return 0;
-	}
+    switch(layer)
+    {
+    case 0:
+        fileSystem =
+            m_opticalMedia->GetFileSystem();
+        break;
 
-	std::string fixedPath(path);
+    case 1:
+        fileSystem =
+            m_opticalMedia->GetFileSystemL1();
 
-	//Fix all slashes
-	{
-		auto slashPos = fixedPath.find('\\');
-		while(slashPos != std::string::npos)
-		{
-			fixedPath[slashPos] = '/';
-			slashPos = fixedPath.find('\\', slashPos + 1);
-		}
-	}
+        layerBaseSector =
+            m_opticalMedia->GetDvdSecondLayerStart();
+        break;
 
-	//Hack to remove any superfluous version extensions (ie.: ;1) that might be present in the path
-	//Don't know if this is valid behavior but shouldn't hurt compatibility. This was done for Sengoku Musou 2.
-	while(1)
-	{
-		auto semColCount = std::count(fixedPath.begin(), fixedPath.end(), ';');
-		if(semColCount <= 1) break;
-		auto semColPos = fixedPath.rfind(';');
-		assert(semColPos != std::string::npos);
-		fixedPath = std::string(fixedPath.begin(), fixedPath.begin() + semColPos);
-	}
+    default:
+        return 0;
+    }
 
-	ISO9660::CDirectoryRecord record;
-	if(fileSystem->GetFileRecord(&record, fixedPath.c_str()))
-	{
-		fileInfo->sector = record.GetPosition() + layerBaseSector;
-		fileInfo->size = record.GetDataLength();
-		strncpy(fileInfo->name, record.GetName(), 16);
-		fileInfo->name[15] = 0;
-		memset(fileInfo->date, 0, 8);
-		return 1;
-	}
-	else
-	{
-		return 0;
-	}
-}
+    if(!fileSystem)
+    {
+        return 0;
+    }
 
-std::string CCdvdman::GetId() const
-{
-	return "cdvdman";
+    std::string fixedPath(path);
+
+    // Normalize path separators.
+    {
+        auto slashPos =
+            fixedPath.find('\\');
+
+        while(slashPos != std::string::npos)
+        {
+            fixedPath[slashPos] = '/';
+
+            slashPos =
+                fixedPath.find('\\', slashPos + 1);
+        }
+    }
+
+    // Remove redundant ISO version suffixes.
+    while(true)
+    {
+        auto semColCount =
+            std::count(
+                fixedPath.begin(),
+                fixedPath.end(),
+                ';');
+
+        if(semColCount <= 1)
+        {
+            break;
+        }
+
+        auto semColPos =
+            fixedPath.rfind(';');
+
+        if(semColPos == std::string::npos)
+        {
+            break;
+        }
+
+        fixedPath =
+            std::string(
+                fixedPath.begin(),
+                fixedPath.begin() + semColPos);
+    }
+
+    ISO9660::CDirectoryRecord record;
+
+    // First, search the original optical filesystem.
+    if(fileSystem->GetFileRecord(
+           &record,
+           fixedPath.c_str()))
+    {
+        fileInfo->sector =
+            record.GetPosition() + layerBaseSector;
+
+        fileInfo->size =
+            record.GetDataLength();
+
+        strncpy(
+            fileInfo->name,
+            record.GetName(),
+            16);
+
+        fileInfo->name[15] = 0;
+
+        memset(
+            fileInfo->date,
+            0,
+            8);
+
+        return 1;
+    }
+
+    // Nested fallback is only valid for the primary layer.
+    if(layer != 0)
+    {
+        return 0;
+    }
+
+    CISO9660* nestedFileSystem =
+        m_opticalMedia->GetNestedFileSystem();
+
+    if(!nestedFileSystem)
+    {
+        return 0;
+    }
+
+    ISO9660::CDirectoryRecord nestedRecord;
+
+    if(!nestedFileSystem->GetFileRecord(
+           &nestedRecord,
+           fixedPath.c_str()))
+    {
+        return 0;
+    }
+
+    constexpr uint64 SECTOR_SIZE =
+        ISO9660::CBlockProvider::BLOCKSIZE;
+
+    const uint64 nestedBaseSector =
+        m_opticalMedia->GetNestedIsoStartSector();
+
+    const uint64 nestedBlockCount =
+        m_opticalMedia->GetNestedIsoBlockCount();
+
+    const uint64 localSector =
+        nestedRecord.GetPosition();
+
+    const uint64 fileSize =
+        nestedRecord.GetDataLength();
+
+    const uint64 fileSectorCount =
+        (fileSize + SECTOR_SIZE - 1) /
+        SECTOR_SIZE;
+
+    auto blockProvider =
+        m_opticalMedia->GetBlockProvider();
+
+    if(!blockProvider)
+    {
+        return 0;
+    }
+
+    // Validate the file's local nested-sector range.
+    if(localSector > nestedBlockCount ||
+       fileSectorCount >
+           (nestedBlockCount - localSector))
+    {
+        return 0;
+    }
+
+    // Convert local nested LBA to physical outer-disc LBA.
+    const uint64 physicalSector =
+        nestedBaseSector + localSector;
+
+    const uint64 discBlockCount =
+        blockProvider->GetBlockCount();
+
+    // Validate the physical outer-disc range.
+    if(physicalSector > discBlockCount ||
+       fileSectorCount >
+           (discBlockCount - physicalSector) ||
+       physicalSector > 0xFFFFFFFFULL)
+    {
+        return 0;
+    }
+
+    fileInfo->sector =
+        static_cast<uint32>(physicalSector);
+
+    fileInfo->size =
+        nestedRecord.GetDataLength();
+
+    strncpy(
+        fileInfo->name,
+        nestedRecord.GetName(),
+        16);
+
+    fileInfo->name[15] = 0;
+
+    memset(
+        fileInfo->date,
+        0,
+        8);
+
+    return 1;
 }
 
 std::string CCdvdman::GetFunctionName(unsigned int functionId) const
