@@ -8,6 +8,71 @@
 
 using namespace Iop;
 
+namespace
+{
+    constexpr uint32 CDVD_SECTOR_SIZE = 0x800;
+
+    bool IsValidSectorRange(
+        COpticalMedia* opticalMedia,
+        uint32 sector,
+        uint32 count)
+    {
+        if(!opticalMedia)
+        {
+            return false;
+        }
+
+        auto provider = opticalMedia->GetBlockProvider();
+
+        if(!provider)
+        {
+            return false;
+        }
+
+        const uint64 blockCount = provider->GetBlockCount();
+        const uint64 firstSector = sector;
+        const uint64 sectorCount = count;
+
+        return
+            firstSector <= blockCount &&
+            sectorCount <= (blockCount - firstSector);
+    }
+
+    bool IsValidRamRange(
+        uint32 offset,
+        uint32 sectorCount,
+        uint32 ramSize)
+    {
+        const uint64 transferSize =
+            static_cast<uint64>(sectorCount) * CDVD_SECTOR_SIZE;
+
+        return
+            offset <= ramSize &&
+            transferSize <=
+                (static_cast<uint64>(ramSize) - offset);
+    }
+
+    bool GetRamOffset(
+        uint32 address,
+        uint32 sectorCount,
+        uint32 ramSize,
+        uint32& offset)
+    {
+        if(ramSize == 0 ||
+           (ramSize & (ramSize - 1)) != 0)
+        {
+            return false;
+        }
+
+        offset = address & (ramSize - 1);
+
+        return IsValidRamRange(
+            offset,
+            sectorCount,
+            ramSize);
+    }
+}
+
 #define LOG_NAME "iop_cdvdfsv"
 
 #define STATE_FILENAME ("iop_cdvdfsv/state.xml")
