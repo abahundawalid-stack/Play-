@@ -498,12 +498,17 @@ void CPS2OS::LoadELF(Framework::CStream* stream, const char* executablePath, con
 	    }();
 
 	LoadExecutableInternal();
-	OnExecutableChange();
-	
-    CLog::GetInstance().Print(
+
+	CLog::GetInstance().Print(
         LOG_NAME,
         "[JPOG_BOOT] STAGE 09: ELF SEGMENTS LOADED\r\n");
+	
+	OnExecutableChange();
 
+    CLog::GetInstance().Print(
+        LOG_NAME,
+        "[JPOG_BOOT] STAGE 10: EXECUTABLE CHANGE NOTIFIED\r\n");
+	
 	CLog::GetInstance().Print(LOG_NAME, "Loaded '%s' executable file.\r\n", executablePath);
 }
 
