@@ -150,30 +150,52 @@ DirectoryIteratorPtr COpticalMediaDevice::GetDirectory(
         fixedString.erase(lastNonDot + 1);
     }
 
-    CISO9660* fileSystem = nullptr;
+    Framework::CStream* directoryStream = nullptr;
 
     if(m_useNestedFileSystem)
     {
-        fileSystem =
+        auto nestedFileSystem =
             m_opticalMedia->GetNestedFileSystem();
+
+        if(nestedFileSystem)
+        {
+            directoryStream =
+                nestedFileSystem->OpenDirectory(
+                    fixedString.c_str());
+        }
     }
     else
     {
-        fileSystem =
+        // Search the outer filesystem first.
+        auto outerFileSystem =
             m_opticalMedia->GetFileSystem();
+
+        if(outerFileSystem)
+        {
+            directoryStream =
+                outerFileSystem->OpenDirectory(
+                    fixedString.c_str());
+        }
+
+        // Fall back to DATA.ISO.
+        if(!directoryStream)
+        {
+            auto nestedFileSystem =
+                m_opticalMedia->GetNestedFileSystem();
+
+            if(nestedFileSystem)
+            {
+                directoryStream =
+                    nestedFileSystem->OpenDirectory(
+                        fixedString.c_str());
+            }
+        }
     }
 
-    if(!fileSystem)
+    if(!directoryStream)
     {
-        return nullptr;
-    }
-
-    auto directoryStream =
-        fileSystem->OpenDirectory(fixedString.c_str());
-
-    if(directoryStream == nullptr)
-    {
-        throw std::runtime_error("Directory not found.");
+        throw std::runtime_error(
+            "Directory not found.");
     }
 
     return std::make_unique<COpticalMediaDirectoryIterator>(
