@@ -214,40 +214,103 @@ void COpticalMedia::SetupSecondLayer(const StreamPtr& stream)
 
 bool COpticalMedia::MountNestedIso(const char* path)
 {
-    if(!m_fileSystem || !path || m_nestedFileSystem)
+    if(!m_fileSystem ||
+       !m_blockProvider ||
+       !path ||
+       m_nestedFileSystem)
     {
         return false;
     }
 
     try
     {
-        StreamPtr nestedStream(m_fileSystem->Open(path));
+        // Find DATA.ISO in the outer filesystem.
+        ISO9660::CDirectoryRecord nestedRecord;
 
-        if(!nestedStream)
+        if(!m_fileSystem->GetFileRecord(
+               &nestedRecord,
+               path))
         {
             return false;
         }
 
-        const uint64 nestedLength = nestedStream->GetLength();
-        const uint64 blockSize = ISO9660::CBlockProvider::BLOCKSIZE;
+        const uint64 blockSize =
+            ISO9660::CBlockProvider::BLOCKSIZE;
 
-        if(nestedLength == 0 || (nestedLength % blockSize) != 0)
+        const uint64 nestedLength =
+            nestedRecord.GetDataLength();
+
+        // Nested ISO must contain complete 2048-byte sectors.
+        if(nestedLength == 0 ||
+           (nestedLength % blockSize) != 0)
         {
             return false;
         }
 
+        const uint64 nestedStartSector =
+            nestedRecord.GetPosition();
+
+        const uint64 nestedBlockCount =
+            nestedLength / blockSize;
+
+        const uint64 outerBlockCount =
+            m_blockProvider->GetBlockCount();
+
+        // Ensure DATA.ISO is completely inside the outer image.
+        if(nestedStartSector >= outerBlockCount ||
+           nestedBlockCount >
+               (outerBlockCount - nestedStartSector))
+        {
+            return false;
+        }
+
+        // These fields use uint32 in the emulator.
+        if(nestedStartSector > 0xFFFFFFFFULL ||
+           nestedBlockCount > 0xFFFFFFFFULL)
+        {
+            return false;
+        }
+
+        // Open DATA.ISO as a bounded stream.
+        StreamPtr nestedStream(
+            m_fileSystem->Open(path));
+
+        if(!nestedStream ||
+           nestedStream->GetLength() != nestedLength)
+        {
+            return false;
+        }
+
+        // The nested provider starts at local sector zero.
+        // Its stream already represents DATA.ISO only.
         auto nestedProvider =
-            std::make_shared<ISO9660::CBlockProvider2048>(nestedStream);
+            std::make_shared<ISO9660::CBlockProvider2048>(
+                nestedStream,
+                0,
+                static_cast<uint32>(nestedBlockCount));
 
         auto nestedFileSystem =
-            std::make_unique<CISO9660>(nestedProvider);
+            std::make_unique<CISO9660>(
+                nestedProvider);
 
-        m_nestedFileSystem = std::move(nestedFileSystem);
+        // Publish metadata only after successful construction.
+        m_nestedIsoStartSector =
+            static_cast<uint32>(nestedStartSector);
+
+        m_nestedIsoBlockCount =
+            static_cast<uint32>(nestedBlockCount);
+
+        m_nestedFileSystem =
+            std::move(nestedFileSystem);
 
         return true;
     }
     catch(...)
     {
+        m_nestedIsoStartSector = 0;
+        m_nestedIsoBlockCount = 0;
+        m_nestedFileSystem.reset();
+
         return false;
     }
 }
