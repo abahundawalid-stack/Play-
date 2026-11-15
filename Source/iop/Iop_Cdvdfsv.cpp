@@ -495,52 +495,120 @@ bool CCdvdfsv::Invoke59C(uint32 method, uint32* args, uint32 argsSize, uint32* r
 	return true;
 }
 
-void CCdvdfsv::Read(uint32* args, uint32 argsSize, uint32* ret, uint32 retSize, uint8* ram)
+bool CCdvdfsv::Read(
+    uint32* args,
+    uint32 argsSize,
+    uint32* ret,
+    uint32 retSize,
+    uint8* ram)
 {
-	uint32 sector = args[0x00];
-	uint32 count = args[0x01];
-	uint32 dstAddr = args[0x02];
-	uint32 mode = args[0x03];
+    if(!args || argsSize < 0x10 ||
+       !ret || retSize < 4)
+    {
+        CLog::GetInstance().Warn(
+            LOG_NAME,
+            "Read rejected: invalid RPC argument size.\r\n");
+        return true;
+    }
 
-	CLog::GetInstance().Print(LOG_NAME, "Read(sector = 0x%08X, count = 0x%08X, addr = 0x%08X, mode = 0x%08X);\r\n",
-	                          sector, count, dstAddr, mode);
+    uint32 sector = args[0];
+    uint32 count = args[1];
+    uint32 dstAddr = args[2];
+    uint32 mode = args[3];
 
-	//We write the result now, but ideally should be only written
-	//when pending read is completed
-	if(retSize >= 4)
-	{
-		ret[0] = 0;
-	}
+    CLog::GetInstance().Print(
+        LOG_NAME,
+        "Read(sector = 0x%08X, count = 0x%08X, addr = 0x%08X, mode = 0x%08X);\r\n",
+        sector, count, dstAddr, mode);
 
-	assert(m_pendingCommand == COMMAND_NONE);
-	m_pendingCommand = COMMAND_READ;
-	m_pendingCommandDelay = CCdvdman::COMMAND_READ_BASE_DELAY + (count * CCdvdman::COMMAND_READ_SECTOR_DELAY);
-	m_pendingReadSector = sector;
-	m_pendingReadCount = count;
-	m_pendingReadAddr = dstAddr & 0x1FFFFFFF;
+    ret[0] = 0;
+
+    assert(m_pendingCommand == COMMAND_NONE);
+
+    uint32 dstOffset = 0;
+
+    if(!m_opticalMedia ||
+       !m_opticalMedia->GetFileSystem() ||
+       !IsValidSectorRange(m_opticalMedia, sector, count) ||
+       !GetRamOffset(
+           dstAddr,
+           count,
+           PS2::EE_RAM_SIZE,
+           dstOffset))
+    {
+        CLog::GetInstance().Warn(
+            LOG_NAME,
+            "Read rejected: sector or EE RAM range invalid.\r\n");
+        return true;
+    }
+
+    m_pendingCommand = COMMAND_READ;
+    m_pendingCommandDelay =
+        CCdvdman::COMMAND_READ_BASE_DELAY +
+        (count * CCdvdman::COMMAND_READ_SECTOR_DELAY);
+
+    m_pendingReadSector = sector;
+    m_pendingReadCount = count;
+    m_pendingReadAddr = dstOffset;
+
+    return false;
 }
 
-void CCdvdfsv::ReadIopMem(uint32* args, uint32 argsSize, uint32* ret, uint32 retSize, uint8* ram)
+bool CCdvdfsv::ReadIopMem(
+    uint32* args,
+    uint32 argsSize,
+    uint32* ret,
+    uint32 retSize,
+    uint8* ram)
 {
-	uint32 sector = args[0x00];
-	uint32 count = args[0x01];
-	uint32 dstAddr = args[0x02];
-	uint32 mode = args[0x03];
+    if(!args || argsSize < 0x10 ||
+       !ret || retSize < 4)
+    {
+        CLog::GetInstance().Warn(
+            LOG_NAME,
+            "ReadIopMem rejected: invalid RPC argument size.\r\n");
+        return true;
+    }
 
-	CLog::GetInstance().Print(LOG_NAME, "ReadIopMem(sector = 0x%08X, count = 0x%08X, addr = 0x%08X, mode = 0x%08X);\r\n",
-	                          sector, count, dstAddr, mode);
+    uint32 sector = args[0];
+    uint32 count = args[1];
+    uint32 dstAddr = args[2];
+    uint32 mode = args[3];
 
-	if(retSize >= 4)
-	{
-		ret[0] = 0;
-	}
+    CLog::GetInstance().Print(
+        LOG_NAME,
+        "ReadIopMem(sector = 0x%08X, count = 0x%08X, addr = 0x%08X, mode = 0x%08X);\r\n",
+        sector, count, dstAddr, mode);
 
-	assert(m_pendingCommand == COMMAND_NONE);
-	m_pendingCommand = COMMAND_READIOP;
-	m_pendingCommandDelay = COMMAND_DEFAULT_DELAY;
-	m_pendingReadSector = sector;
-	m_pendingReadCount = count;
-	m_pendingReadAddr = dstAddr & 0x1FFFFFFF;
+    ret[0] = 0;
+
+    assert(m_pendingCommand == COMMAND_NONE);
+
+    uint32 dstOffset = 0;
+
+    if(!m_opticalMedia ||
+       !m_opticalMedia->GetFileSystem() ||
+       !IsValidSectorRange(m_opticalMedia, sector, count) ||
+       !GetRamOffset(
+           dstAddr,
+           count,
+           PS2::IOP_RAM_SIZE,
+           dstOffset))
+    {
+        CLog::GetInstance().Warn(
+            LOG_NAME,
+            "ReadIopMem rejected: sector or IOP RAM range invalid.\r\n");
+        return true;
+    }
+
+    m_pendingCommand = COMMAND_READIOP;
+    m_pendingCommandDelay = COMMAND_DEFAULT_DELAY;
+
+    m_pendingReadSector = sector;
+    m_pendingReadCount = count;
+    m_pendingReadAddr = dstOffset;
+
+    return false;
 }
 
 bool CCdvdfsv::StreamCmd(uint32* args, uint32 argsSize, uint32* ret, uint32 retSize, uint8* ram)
