@@ -700,37 +700,108 @@ bool CCdvdfsv::NDiskReady(uint32* args, uint32 argsSize, uint32* ret, uint32 ret
 	}
 }
 
-void CCdvdfsv::ReadChain(uint32* args, uint32 argsSize, uint32* ret, uint32 retSize, uint8* ram)
+bool CCdvdfsv::ReadChain(
+    uint32* args,
+    uint32 argsSize,
+    uint32* ret,
+    uint32 retSize,
+    uint8* ram)
 {
-	assert(argsSize >= 788);
-	assert(retSize == 0);
+    if(!args ||
+       argsSize < 788 ||
+       retSize != 0 ||
+       !ram)
+    {
+        CLog::GetInstance().Warn(
+            LOG_NAME,
+            "ReadChain rejected: invalid RPC buffer.\r\n");
+        return true;
+    }
 
-	CLog::GetInstance().Print(LOG_NAME, "ReadChain(...);\r\n");
+    assert(m_pendingCommand == COMMAND_NONE);
 
-	auto fileSystem = m_opticalMedia->GetFileSystem();
-	static const uint32 sectorSize = 0x800;
+    CLog::GetInstance().Print(
+        LOG_NAME,
+        "ReadChain(...);\r\n");
 
-	static const uint32 maxTupleCount = 64;
-	for(uint32 tuple = 0; tuple < maxTupleCount; tuple++)
-	{
-		uint32 tupleBase = (tuple * 3);
-		uint32 sectorPos = args[tupleBase + 0];
-		uint32 sectorCount = args[tupleBase + 1];
-		uint32 dstAddress = args[tupleBase + 2];
-		if((sectorPos == ~0U) || (sectorCount == ~0U) || (dstAddress == ~0U))
-		{
-			break;
-		}
-		assert((dstAddress & 1) == 0);
-		for(unsigned int sector = 0; sector < sectorCount; sector++)
-		{
-			fileSystem->ReadBlock(sectorPos + sector, ram + (dstAddress + (sector * sectorSize)));
-		}
-	}
+    auto fileSystem =
+        m_opticalMedia
+            ? m_opticalMedia->GetFileSystem()
+            : nullptr;
 
-	//DBZ: Budokai Tenkaichi hangs in its loading screen if this command's result is not delayed.
-	m_pendingCommand = COMMAND_READCHAIN;
-	m_pendingCommandDelay = COMMAND_DEFAULT_DELAY;
+    if(!fileSystem)
+    {
+        CLog::GetInstance().Warn(
+            LOG_NAME,
+            "ReadChain rejected: no filesystem.\r\n");
+        return true;
+    }
+
+    static const uint32 maxTupleCount = 64;
+
+    for(uint32 tuple = 0; tuple < maxTupleCount; tuple++)
+    {
+        uint32 tupleBase = tuple * 3;
+
+        uint32 sectorPos = args[tupleBase + 0];
+        uint32 sectorCount = args[tupleBase + 1];
+        uint32 dstAddress = args[tupleBase + 2];
+
+        if((sectorPos == ~0U) ||
+           (sectorCount == ~0U) ||
+           (dstAddress == ~0U))
+        {
+            break;
+        }
+
+        uint32 dstOffset = 0;
+
+        if(!IsValidSectorRange(
+               m_opticalMedia,
+               sectorPos,
+               sectorCount) ||
+           !GetRamOffset(
+               dstAddress,
+               sectorCount,
+               PS2::EE_RAM_SIZE,
+               dstOffset) ||
+           ((dstOffset & 1) != 0))
+        {
+            CLog::GetInstance().Warn(
+                LOG_NAME,
+                "ReadChain rejected: invalid tuple %u.\r\n",
+                tuple);
+            return true;
+        }
+
+        try
+        {
+            for(uint32 sector = 0; sector < sectorCount; sector++)
+            {
+                fileSystem->ReadBlock(
+                    sectorPos + sector,
+                    ram +
+                        dstOffset +
+                        (static_cast<uint64>(sector) *
+                         CDVD_SECTOR_SIZE));
+            }
+        }
+        catch(const std::exception& except)
+        {
+            CLog::GetInstance().Warn(
+                LOG_NAME,
+                "ReadChain tuple %u failed: %s\r\n",
+                tuple,
+                except.what());
+            return true;
+        }
+    }
+
+    // Preserve the original delayed SIF reply.
+    m_pendingCommand = COMMAND_READCHAIN;
+    m_pendingCommandDelay = COMMAND_DEFAULT_DELAY;
+
+    return false;
 }
 
 void CCdvdfsv::SearchFile(uint32* args, uint32 argsSize, uint32* ret, uint32 retSize, uint8* ram)
