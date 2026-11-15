@@ -167,6 +167,10 @@ Java_com_virtualapplications_play_NativeInterop_createVirtualMachine(
     JNIEnv* env,
     jobject obj)
 {
+    return g_virtualMachine != nullptr
+        ? JNI_TRUE
+        : JNI_FALSE;
+}
     assert(g_virtualMachine == nullptr);
 
     if(g_virtualMachine != nullptr) return;
