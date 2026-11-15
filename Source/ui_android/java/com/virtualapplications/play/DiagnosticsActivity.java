@@ -35,9 +35,9 @@ public class DiagnosticsActivity extends Activity
         currentReport =
             DiagnosticsManager.buildReport(this)
             + "\n\nAPPLICATION PROCESS EXIT HISTORY\n"
+            + AppExitDiagnostics.getLastReport(this)
             + "\n\nJAVA EXCEPTION DETAILS\n"
             + AppExitDiagnostics.getLastJavaException(this);
-            + AppExitDiagnostics.getLastReport(this);
 
         buildScreen();
     }
@@ -54,9 +54,9 @@ public class DiagnosticsActivity extends Activity
         currentReport =
             DiagnosticsManager.buildReport(this)
             + "\n\nAPPLICATION PROCESS EXIT HISTORY\n"
+            + AppExitDiagnostics.getLastReport(this)
             + "\n\nJAVA EXCEPTION DETAILS\n"
             + AppExitDiagnostics.getLastJavaException(this);
-            + AppExitDiagnostics.getLastReport(this);
 
         if(reportView != null)
         {
