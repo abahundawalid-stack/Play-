@@ -587,6 +587,11 @@ void CPS2OS::LoadExecutableInternal()
     // Start execution at the ELF entry point.
     m_ee.m_State.nPC = header.nEntryPoint;
     m_ee.m_State.nGPR[CMIPS::A0].nV[0] = header.nEntryPoint;
+	
+    CLog::GetInstance().Print(
+        LOG_NAME,
+        "[JPOG_BOOT] STAGE 11: EE ENTRY POINT READY PC=0x%08X\r\n",
+        m_ee.m_State.nPC);
 
 #ifdef DEBUGGER_INCLUDED
     std::pair<uint32, uint32> executableRange = GetExecutableRange();
