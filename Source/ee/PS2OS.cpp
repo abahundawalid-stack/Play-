@@ -315,9 +315,19 @@ void CPS2OS::BootFromVirtualPath(const char* executablePath, const ArgumentList&
 	uint32 handle = ioman->Open(Iop::Ioman::CDevice::OPEN_FLAG_RDONLY, executablePath);
 	if(static_cast<int32>(handle) < 0)
 	{
+        CLog::GetInstance().Warn(
+            LOG_NAME,
+            "[JPOG_BOOT] FAILED: EXECUTABLE NOT FOUND: %s\r\n",
+            executablePath);
+		
 		throw std::runtime_error("Couldn't open executable specified by virtual path.");
 	}
 
+    CLog::GetInstance().Print(
+        LOG_NAME,
+        "[JPOG_BOOT] EXECUTABLE_OPENED: handle=%u\r\n",
+        handle);
+	
 	try
 	{
 		Framework::CStream* file(ioman->GetFileStream(handle));
