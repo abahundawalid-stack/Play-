@@ -135,108 +135,102 @@ public class MainActivity extends AppCompatActivity implements NavigationDrawerF
      * This test loads BootablesInterop only to verify
      * whether libPlay.so can be loaded safely.
      */
-    private void Startup()
+    
+private void Startup()
+{
+    gameInfo = new GameInfo(MainActivity.this);
+
+    try
     {
-        gameInfo = new GameInfo(MainActivity.this);
+        Context appContext = getApplicationContext();
 
-        // Test native library loading only.
-        // Do not call native game scanning here.
-        try
-        {
-            Class.forName(
-                    "com.virtualapplications.play.BootablesInterop",
-                    true,
-                    getClassLoader()
-            );
+        NativeInterop.setFilesDirPath(
+                appContext.getFilesDir().getAbsolutePath());
 
-            Log.i(
-                    Constants.TAG,
-                    "JPOG_NATIVE_TEST: libPlay.so loaded successfully"
-            );
+        NativeInterop.setCacheDirPath(
+                appContext.getCacheDir().getAbsolutePath());
 
-            Toast.makeText(
-                    this,
-                    "Uji libPlay.so berhasil dimuat.",
-                    Toast.LENGTH_LONG
-            ).show();
-        }
-        catch(Throwable ex)
-        {
-            Log.e(
-                    Constants.TAG,
-                    "JPOG_NATIVE_TEST: libPlay.so loading failed",
-                    ex
-            );
+        NativeInterop.setAssetManager(
+                appContext.getAssets());
 
-            displaySimpleMessage(
-                    "Native Library Error",
-                    ex.toString()
-            );
-        }
+        NativeInterop.setContentResolver(
+                appContext.getContentResolver());
 
-        SharedPreferences sp =
-                PreferenceManager.getDefaultSharedPreferences(this);
+        Log.i(
+                Constants.TAG,
+                "JPOG_SCAN: Native Android resources initialized"
+        );
+    }
+    catch(Throwable ex)
+    {
+        Log.e(
+                Constants.TAG,
+                "JPOG_SCAN: Native initialization failed",
+                ex
+        );
 
-        sortMethod = sp.getInt("sortMethod.v2", SORT_NONE);
+        displaySimpleMessage(
+                "Native Initialization Error",
+                ex.toString()
+        );
 
-        switch(sortMethod)
-        {
-            case SORT_RECENT:
-                navSubtitle = getString(R.string.file_list_recent);
-                break;
-
-            case SORT_HOMEBREW:
-                navSubtitle = getString(R.string.file_list_homebrew);
-                break;
-
-            case SORT_NONE:
-            default:
-                navSubtitle = getString(R.string.file_list_default);
-                break;
-        }
-
-        ActionBar actionbar = getSupportActionBar();
-
-        if(actionbar != null)
-        {
-            actionbar.setSubtitle(
-                    getString(R.string.menu_title_shut) +
-                    " - " + navSubtitle
-            );
-        }
-
-        // Display an empty list without native game scanning.
-        currentGames = new ArrayList<>();
-        populateImages(currentGames);
-
-        sp.registerOnSharedPreferenceChangeListener(this);
-
-        // Keep external game-intent handling.
-        Intent intent = getIntent();
-
-        if(intent.getAction() != null &&
-           intent.getAction().equals(Intent.ACTION_VIEW))
-        {
-            Uri uri = intent.getData();
-
-            if(uri != null)
-            {
-                VirtualMachineManager.launchGame(
-                        this,
-                        uri.toString(),
-                        this::finish
-                );
-            }
-        }
+        return;
     }
 
-    /*
-     * JPOG DIAGNOSTIC:
-     * This method is called only after the user selects
-     * "Uji getBootables()" from the toolbar overflow menu.
-     *
-     * It does not scan folders and does not register games.
-     */
+    SharedPreferences sp =
+            PreferenceManager.getDefaultSharedPreferences(this);
+
+    sortMethod = sp.getInt("sortMethod.v2", SORT_NONE);
+
+    switch(sortMethod)
+    {
+        case SORT_RECENT:
+            navSubtitle = getString(R.string.file_list_recent);
+            break;
+
+        case SORT_HOMEBREW:
+            navSubtitle = getString(R.string.file_list_homebrew);
+            break;
+
+        case SORT_NONE:
+        default:
+            navSubtitle = getString(R.string.file_list_default);
+            break;
+    }
+
+    ActionBar actionbar = getSupportActionBar();
+
+    if(actionbar != null)
+    {
+        actionbar.setSubtitle(
+                getString(R.string.menu_title_shut) +
+                " - " + navSubtitle
+        );
+    }
+
+    sp.registerOnSharedPreferenceChangeListener(this);
+
+    // Aktifkan kembali pemindaian game.
+    prepareFileListView(false);
+
+    Intent intent = getIntent();
+
+    if(intent.getAction() != null &&
+       intent.getAction().equals(Intent.ACTION_VIEW))
+    {
+        Uri uri = intent.getData();
+
+        if(uri != null)
+        {
+            VirtualMachineManager.launchGame(
+                    this,
+                    uri.toString(),
+                    this::finish
+            );
+        }
+    }
+}
+
     private void runGetBootablesDiagnostic()
     {
         Log.i(
