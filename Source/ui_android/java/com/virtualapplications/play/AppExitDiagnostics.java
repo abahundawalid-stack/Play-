@@ -12,6 +12,8 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 
 public final class AppExitDiagnostics
 {
@@ -23,6 +25,53 @@ public final class AppExitDiagnostics
     private AppExitDiagnostics()
     {
     }
+
+    public static void installUncaughtExceptionLogger(Context context)
+{
+    final Context app = context.getApplicationContext();
+
+    final Thread.UncaughtExceptionHandler previous =
+        Thread.getDefaultUncaughtExceptionHandler();
+
+    Thread.setDefaultUncaughtExceptionHandler((thread, error) ->
+    {
+        try
+        {
+            StringWriter writer = new StringWriter();
+            PrintWriter printer = new PrintWriter(writer);
+
+            printer.println("JAVA UNCAUGHT EXCEPTION");
+            printer.println("Thread: " + thread.getName());
+            printer.println("Exception: " + error);
+            error.printStackTrace(printer);
+            printer.flush();
+
+            app.getSharedPreferences(
+                PREFS,
+                Context.MODE_PRIVATE)
+                .edit()
+                .putString("uncaught_java_exception", writer.toString())
+                .commit();
+        }
+        catch(Throwable ignored)
+        {
+        }
+
+        if(previous != null)
+        {
+            previous.uncaughtException(thread, error);
+        }
+    });
+}
+
+public static String getLastJavaException(Context context)
+{
+    return context.getApplicationContext()
+        .getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        .getString(
+            "uncaught_java_exception",
+            "Belum ada Java exception yang direkam.");
+}
 
     public static void capturePreviousExit(Context context)
     {
