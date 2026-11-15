@@ -55,82 +55,101 @@ public class VirtualMachineManager
                 _ctx.getString(R.string.launch_game_msg),
                 true);
         }
+      
+@Override
+protected Void doInBackground(Void... params)
+{
+    try
+    {
+        DiagnosticsManager.beginSession(
+            _ctx,
+            _bootablePath);
 
-        @Override
-        protected Void doInBackground(Void... params)
+        setLaunchStage(
+            _ctx,
+            "INITIALIZING_ANDROID_RESOURCES");
+
+        Context appContext =
+            _ctx.getApplicationContext();
+
+        NativeInterop.setFilesDirPath(
+            appContext.getFilesDir().getAbsolutePath());
+
+        NativeInterop.setCacheDirPath(
+            appContext.getCacheDir().getAbsolutePath());
+
+        NativeInterop.setAssetManager(
+            appContext.getAssets());
+
+        NativeInterop.setContentResolver(
+            appContext.getContentResolver());
+
+        setLaunchStage(
+            _ctx,
+            "CREATING_VIRTUAL_MACHINE");
+
+        if(!NativeInterop.isVirtualMachineCreated())
         {
-            try
-            {
-                DiagnosticsManager.beginSession(
-                    _ctx,
-                    _bootablePath);
-
-                setLaunchStage(_ctx, "INITIALIZING_ANDROID_RESOURCES");
-                
-                Context appContext =
-                    _ctx.getApplicationContext();
-
-                // Initialize Android resources only when
-                // a game is actually being launched.
-                NativeInterop.setFilesDirPath(
-                    appContext.getFilesDir().getAbsolutePath());
-
-                NativeInterop.setCacheDirPath(
-                    appContext.getCacheDir().getAbsolutePath());
-
-                NativeInterop.setAssetManager(
-                    appContext.getAssets());
-
-                NativeInterop.setContentResolver(
-                    appContext.getContentResolver());
-
-                setLaunchStage(_ctx, "CREATING_VIRTUAL_MACHINE");
-
-                setLaunchStage(_ctx, "VIRTUAL_MACHINE_CREATED");
-
-                // Create the native PS2 virtual machine lazily.
-                if(!NativeInterop.isVirtualMachineCreated())
-                {
-                    NativeInterop.createVirtualMachine();
-                }
-
-                setLaunchStage(_ctx, "BOOTING_GAME");
-                
-                if(BootablesInterop.IsBootableExecutablePath(
-                    _bootablePath))
-                {
-                    NativeInterop.loadElf(_bootablePath);
-                }
-                else
-                {
-                    NativeInterop.bootDiskImage(_bootablePath);
-                }
-
-                setLaunchStage(_ctx, "OPENING_EMULATOR_ACTIVITY");
-                
-                Intent intent = new Intent(
-                    _ctx,
-                    EmulatorActivity.class);
-
-                intent.putExtra(
-                    "diagnostic_game_path",
-                    _bootablePath);
-
-                intent.addFlags(
-                    Intent.FLAG_ACTIVITY_NEW_TASK);
-
-                _ctx.startActivity(intent);
-            }
-            catch(Exception e)
-            {
-                DiagnosticsManager.finishSession(_ctx);
-                _exception = e;
-            }
-
-                setLaunchStage(_ctx, "EMULATOR_ACTIVITY_STARTED");
-
-            return null;
+            NativeInterop.createVirtualMachine();
         }
+
+        // Baru ditulis setelah VM benar-benar siap.
+        setLaunchStage(
+            _ctx,
+            "VIRTUAL_MACHINE_READY");
+
+        setLaunchStage(
+            _ctx,
+            "BOOTING_GAME");
+
+        if(BootablesInterop.IsBootableExecutablePath(
+            _bootablePath))
+        {
+            NativeInterop.loadElf(_bootablePath);
+        }
+        else
+        {
+            NativeInterop.bootDiskImage(_bootablePath);
+        }
+
+        setLaunchStage(
+            _ctx,
+            "GAME_BOOT_RETURNED");
+
+        setLaunchStage(
+            _ctx,
+            "OPENING_EMULATOR_ACTIVITY");
+
+        Intent intent = new Intent(
+            _ctx,
+            EmulatorActivity.class);
+
+        intent.putExtra(
+            "diagnostic_game_path",
+            _bootablePath);
+
+        intent.addFlags(
+            Intent.FLAG_ACTIVITY_NEW_TASK);
+
+        _ctx.startActivity(intent);
+
+        setLaunchStage(
+            _ctx,
+            "EMULATOR_ACTIVITY_START_REQUESTED");
+    }
+    catch(Exception e)
+    {
+        setLaunchStage(
+            _ctx,
+            "LAUNCH_FAILED: " + e);
+
+        DiagnosticsManager.finishSession(_ctx);
+
+        _exception = e;
+    }
+
+    return null;
+}
 
         @Override
         protected void onPostExecute(Void result)
