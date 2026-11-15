@@ -335,6 +335,27 @@ public final class DiagnosticsManager
         report.append("Duration: ")
             .append(duration / 1000)
             .append(" seconds\n\n");
+     
+        String launchStage =
+            p.getString(
+                "launch_stage",
+                "NOT RECORDED");
+
+        long launchStageTime =
+            p.getLong(
+                "launch_stage_time",
+                0);
+
+        report.append("LAUNCH STAGE\n");
+        report.append("------------------------------------\n");
+
+        report.append("Last stage: ")
+            .append(launchStage)
+            .append('\n');
+
+        report.append("Stage timestamp: ")
+            .append(formatDate(launchStageTime))
+            .append("\n\n");
 
         report.append("GRAPHICS / PERFORMANCE\n");
         report.append("------------------------------------\n");
