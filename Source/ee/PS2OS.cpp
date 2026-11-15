@@ -338,6 +338,11 @@ void CPS2OS::BootFromCDROM()
         LOG_NAME,
         "[JPOG_BOOT] STAGE 02: Opening cdrom0:SYSTEM.CNF\r\n");
 
+    CLog::GetInstance().Print(
+        LOG_NAME,
+        "[JPOG_BOOT] OPEN_EXECUTABLE: %s\r\n",
+        executablePath);
+	
     uint32 handle = ioman->Open(
         Iop::Ioman::CDevice::OPEN_FLAG_RDONLY,
         "cdrom0:SYSTEM.CNF");
