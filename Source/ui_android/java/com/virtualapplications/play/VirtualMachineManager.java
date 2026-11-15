@@ -35,16 +35,16 @@ public class VirtualMachineManager
         }
 
         private void setLaunchStage(Context context, String stage)
-{
-    context.getApplicationContext()
-        .getSharedPreferences(
-            "play_diagnostics",
-            Context.MODE_PRIVATE)
-        .edit()
-        .putString("launch_stage", stage)
-        .putLong("launch_stage_time", System.currentTimeMillis())
-        .commit();
-}
+        {
+            context.getApplicationContext()
+                .getSharedPreferences(
+                    "play_diagnostics",
+                    Context.MODE_PRIVATE)
+                .edit()
+                .putString("launch_stage", stage)
+                .putLong("launch_stage_time", System.currentTimeMillis())
+                .commit();
+        }
 
         @Override
         protected void onPreExecute()
@@ -56,100 +56,100 @@ public class VirtualMachineManager
                 true);
         }
       
-@Override
-protected Void doInBackground(Void... params)
-{
-    try
-    {
-        DiagnosticsManager.beginSession(
-            _ctx,
-            _bootablePath);
-
-        setLaunchStage(
-            _ctx,
-            "INITIALIZING_ANDROID_RESOURCES");
-
-        Context appContext =
-            _ctx.getApplicationContext();
-
-        NativeInterop.setFilesDirPath(
-            appContext.getFilesDir().getAbsolutePath());
-
-        NativeInterop.setCacheDirPath(
-            appContext.getCacheDir().getAbsolutePath());
-
-        NativeInterop.setAssetManager(
-            appContext.getAssets());
-
-        NativeInterop.setContentResolver(
-            appContext.getContentResolver());
-
-        setLaunchStage(
-            _ctx,
-            "CREATING_VIRTUAL_MACHINE");
-
-        if(!NativeInterop.isVirtualMachineCreated())
+        @Override
+        protected Void doInBackground(Void... params)
         {
-            NativeInterop.createVirtualMachine();
+            try
+            {
+               DiagnosticsManager.beginSession(
+                   _ctx,
+                   _bootablePath);
+
+               setLaunchStage(
+                   _ctx,
+                   "INITIALIZING_ANDROID_RESOURCES");
+
+               Context appContext =
+                   _ctx.getApplicationContext();
+
+               NativeInterop.setFilesDirPath(
+                   appContext.getFilesDir().getAbsolutePath());
+
+               NativeInterop.setCacheDirPath(
+                   appContext.getCacheDir().getAbsolutePath());
+
+               NativeInterop.setAssetManager(
+                   appContext.getAssets());
+
+               NativeInterop.setContentResolver(
+                   appContext.getContentResolver());
+
+               setLaunchStage(
+                   _ctx,
+                   "CREATING_VIRTUAL_MACHINE");
+
+                if(!NativeInterop.isVirtualMachineCreated())
+                {
+                    NativeInterop.createVirtualMachine();
+                }
+
+                // Baru ditulis setelah VM benar-benar siap.
+                setLaunchStage(
+                    _ctx,
+                    "VIRTUAL_MACHINE_READY");
+
+                setLaunchStage(
+                    _ctx,
+                    "BOOTING_GAME");
+
+                if(BootablesInterop.IsBootableExecutablePath(
+                   _bootablePath))
+                {
+                    NativeInterop.loadElf(_bootablePath);
+                }
+                else
+                {
+                    NativeInterop.bootDiskImage(_bootablePath);
+                }
+
+                setLaunchStage(
+                    _ctx,
+                    "GAME_BOOT_RETURNED");
+
+                setLaunchStage(
+                    _ctx,
+                    "OPENING_EMULATOR_ACTIVITY");
+
+                Intent intent = new Intent(
+                    _ctx,
+                    EmulatorActivity.class);
+
+                intent.putExtra(
+                    "diagnostic_game_path",
+                    _bootablePath);
+
+                intent.addFlags(
+                    Intent.FLAG_ACTIVITY_NEW_TASK);
+
+                _ctx.startActivity(intent);
+
+                setLaunchStage(
+                    _ctx,
+                    "EMULATOR_ACTIVITY_START_REQUESTED");
+                }
+                catch(Exception e)
+                {
+                    setLaunchStage(
+                        _ctx,
+                        "LAUNCH_FAILED: " + e);
+
+                DiagnosticsManager.finishSession(_ctx);
+
+                        _exception = e;
+                }
+
+            return null;
         }
-
-        // Baru ditulis setelah VM benar-benar siap.
-        setLaunchStage(
-            _ctx,
-            "VIRTUAL_MACHINE_READY");
-
-        setLaunchStage(
-            _ctx,
-            "BOOTING_GAME");
-
-        if(BootablesInterop.IsBootableExecutablePath(
-            _bootablePath))
-        {
-            NativeInterop.loadElf(_bootablePath);
-        }
-        else
-        {
-            NativeInterop.bootDiskImage(_bootablePath);
-        }
-
-        setLaunchStage(
-            _ctx,
-            "GAME_BOOT_RETURNED");
-
-        setLaunchStage(
-            _ctx,
-            "OPENING_EMULATOR_ACTIVITY");
-
-        Intent intent = new Intent(
-            _ctx,
-            EmulatorActivity.class);
-
-        intent.putExtra(
-            "diagnostic_game_path",
-            _bootablePath);
-
-        intent.addFlags(
-            Intent.FLAG_ACTIVITY_NEW_TASK);
-
-        _ctx.startActivity(intent);
-
-        setLaunchStage(
-            _ctx,
-            "EMULATOR_ACTIVITY_START_REQUESTED");
-    }
-    catch(Exception e)
-    {
-        setLaunchStage(
-            _ctx,
-            "LAUNCH_FAILED: " + e);
-
-        DiagnosticsManager.finishSession(_ctx);
-
-        _exception = e;
-    }
-
-    return null;
-}
 
         @Override
         protected void onPostExecute(Void result)
