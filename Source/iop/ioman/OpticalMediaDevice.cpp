@@ -64,35 +64,62 @@ Framework::CStream* COpticalMediaDevice::GetFile(
     fixedString =
         RemoveExtraVersionSpecifiers(fixedString);
 
-    CISO9660* fileSystem = nullptr;
-
+    // Explicit nested-only device mode.
     if(m_useNestedFileSystem)
     {
-        fileSystem =
+        auto nestedFileSystem =
             m_opticalMedia->GetNestedFileSystem();
+
+        if(!nestedFileSystem)
+        {
+            return nullptr;
+        }
+
+        std::unique_ptr<Framework::CStream> fileStream(
+            nestedFileSystem->Open(fixedString.c_str()));
+
+        if(!fileStream)
+        {
+            return nullptr;
+        }
+
+        return new COpticalMediaFile(
+            std::move(fileStream));
     }
-    else
+
+    // Search the outer filesystem first.
+    auto outerFileSystem =
+        m_opticalMedia->GetFileSystem();
+
+    if(outerFileSystem)
     {
-        fileSystem =
-            m_opticalMedia->GetFileSystem();
+        std::unique_ptr<Framework::CStream> fileStream(
+            outerFileSystem->Open(fixedString.c_str()));
+
+        if(fileStream)
+        {
+            return new COpticalMediaFile(
+                std::move(fileStream));
+        }
     }
 
-    if(!fileSystem)
+    // If not found, search DATA.ISO.
+    auto nestedFileSystem =
+        m_opticalMedia->GetNestedFileSystem();
+
+    if(nestedFileSystem)
     {
-        return nullptr;
+        std::unique_ptr<Framework::CStream> fileStream(
+            nestedFileSystem->Open(fixedString.c_str()));
+
+        if(fileStream)
+        {
+            return new COpticalMediaFile(
+                std::move(fileStream));
+        }
     }
 
-    auto fileStream =
-        std::unique_ptr<Framework::CStream>(
-            fileSystem->Open(fixedString.c_str()));
-
-    if(!fileStream)
-    {
-        return nullptr;
-    }
-
-    return new COpticalMediaFile(
-        std::move(fileStream));
+    return nullptr;
 }
 
 DirectoryIteratorPtr COpticalMediaDevice::GetDirectory(
