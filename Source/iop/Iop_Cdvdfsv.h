@@ -62,11 +62,11 @@ namespace Iop
 		bool Invoke59C(uint32, uint32*, uint32, uint32*, uint32, uint8*);
 
 		//Methods
-		void Read(uint32*, uint32, uint32*, uint32, uint8*);
-		void ReadIopMem(uint32*, uint32, uint32*, uint32, uint8*);
+		bool Read(uint32*, uint32, uint32*, uint32, uint8*);
+		bool ReadIopMem(uint32*, uint32, uint32*, uint32, uint8*);
 		bool StreamCmd(uint32*, uint32, uint32*, uint32, uint8*);
 		bool NDiskReady(uint32*, uint32, uint32*, uint32, uint8*);
-		void ReadChain(uint32*, uint32, uint32*, uint32, uint8*);
+		bool ReadChain(uint32*, uint32, uint32*, uint32, uint8*);
 		void SearchFile(uint32*, uint32, uint32*, uint32, uint8*);
 
 		CSifMan& m_sifMan;
