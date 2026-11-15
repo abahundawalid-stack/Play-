@@ -373,8 +373,7 @@ bool CCdvdfsv::Invoke595(uint32 method, uint32* args, uint32 argsSize, uint32* r
 	switch(method)
 	{
 	case 0x01:
-		Read(args, argsSize, ret, retSize, ram);
-		return false;
+        return Read(args, argsSize, ret, retSize, ram);
 		break;
 
 	case 0x04:
@@ -408,8 +407,7 @@ bool CCdvdfsv::Invoke595(uint32 method, uint32* args, uint32 argsSize, uint32* r
 		break;
 
 	case 0x0D:
-		ReadIopMem(args, argsSize, ret, retSize, ram);
-		return false;
+        return ReadIopMem(args, argsSize, ret, retSize, ram);
 		break;
 
 	case 0x0E:
@@ -417,8 +415,7 @@ bool CCdvdfsv::Invoke595(uint32 method, uint32* args, uint32 argsSize, uint32* r
 		break;
 
 	case 0x0F:
-		ReadChain(args, argsSize, ret, retSize, ram);
-		return false;
+        return ReadChain(args, argsSize, ret, retSize, ram);
 		break;
 
 	default:
