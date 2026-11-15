@@ -167,10 +167,6 @@ Java_com_virtualapplications_play_NativeInterop_createVirtualMachine(
     JNIEnv* env,
     jobject obj)
 {
-    return g_virtualMachine != nullptr
-        ? JNI_TRUE
-        : JNI_FALSE;
-}
     assert(g_virtualMachine == nullptr);
 
     if(g_virtualMachine != nullptr) return;
@@ -202,6 +198,16 @@ Java_com_virtualapplications_play_NativeInterop_createVirtualMachine(
     CGSH_OpenGL::RegisterPreferences();
 
     g_currentGsHandlerId = -1;
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_com_virtualapplications_play_NativeInterop_isVirtualMachineCreated(
+    JNIEnv* env,
+    jobject obj)
+{
+    return g_virtualMachine != nullptr
+        ? JNI_TRUE
+        : JNI_FALSE;
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
@@ -442,6 +448,29 @@ Java_com_virtualapplications_play_NativeInterop_setupGsHandler(
             // Tidak ada penerima: lepaskan reference.
             ANativeWindow_release(nativeWindow);
         }
+    }
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_virtualapplications_play_NativeInterop_notifyPreferencesChanged(
+    JNIEnv* env,
+    jobject obj)
+{
+    if(g_virtualMachine == nullptr)
+    {
+        return;
+    }
+
+    SetupSoundHandler();
+
+    g_virtualMachine->ReloadSpuBlockCount();
+    g_virtualMachine->ReloadFrameRateLimit();
+
+    auto gsHandler = g_virtualMachine->GetGSHandler();
+
+    if(gsHandler != nullptr)
+    {
+        gsHandler->NotifyPreferencesChanged();
     }
 }
 
