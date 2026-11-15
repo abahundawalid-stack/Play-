@@ -53,7 +53,9 @@ public final class DiagnosticsManager
             .putInt("last_fps", 0)
             .putInt("last_draw_calls", 0)
             .putInt("last_dcpf", 0)
-            .apply();
+            .putString("launch_stage", "SESSION_STARTED")
+            .putLong("launch_stage_time", now)
+            .commit();
     }
 
     public static synchronized void recordSample(
