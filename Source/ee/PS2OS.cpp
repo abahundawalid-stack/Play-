@@ -447,6 +447,11 @@ std::pair<uint32, uint32> CPS2OS::GetExecutableRange() const
 
 void CPS2OS::LoadELF(Framework::CStream* stream, const char* executablePath, const ArgumentList& arguments)
 {
+    CLog::GetInstance().Print(
+        LOG_NAME,
+        "[JPOG_BOOT] STAGE 08: LOAD_ELF BEGIN path=%s\r\n",
+        executablePath);
+	
 	auto elf = std::make_unique<CElf32File>(*stream);
 	const auto& header = elf->GetHeader();
 
