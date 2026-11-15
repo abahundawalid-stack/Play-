@@ -124,20 +124,6 @@ public class VirtualMachineManager
                     _ctx,
                     "GAME_BOOT_RETURNED");
 
-                if(BootablesInterop.IsBootableExecutablePath(
-                   _bootablePath))
-                {
-                    NativeInterop.loadElf(_bootablePath);
-                }
-                else
-                {
-                    NativeInterop.bootDiskImage(_bootablePath);
-                }
-
-                setLaunchStage(
-                    _ctx,
-                    "GAME_BOOT_RETURNED");
-
                 setLaunchStage(
                     _ctx,
                     "OPENING_EMULATOR_ACTIVITY");
