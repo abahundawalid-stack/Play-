@@ -327,35 +327,83 @@ void CPS2OS::BootFromVirtualPath(const char* executablePath, const ArgumentList&
 
 void CPS2OS::BootFromCDROM()
 {
-	std::string executablePath;
-	auto ioman = m_iopBios.GetIoman();
+    CLog::GetInstance().Print(
+        LOG_NAME,
+        "[JPOG_BOOT] STAGE 01: BootFromCDROM BEGIN\r\n");
 
-	{
-		uint32 handle = ioman->Open(Iop::Ioman::CDevice::OPEN_FLAG_RDONLY, "cdrom0:SYSTEM.CNF");
-		if(static_cast<int32>(handle) < 0)
-		{
-			throw std::runtime_error("No 'SYSTEM.CNF' file found on the cdrom0 device.");
-		}
+    std::string executablePath;
+    auto ioman = m_iopBios.GetIoman();
 
-		{
-			Framework::CStream* file(ioman->GetFileStream(handle));
-			auto systemConfig = DiskUtils::ParseSystemConfigFile(file);
-			auto bootItemIterator = systemConfig.find("BOOT2");
-			if(bootItemIterator != std::end(systemConfig))
-			{
-				executablePath = bootItemIterator->second;
-			}
-		}
+    CLog::GetInstance().Print(
+        LOG_NAME,
+        "[JPOG_BOOT] STAGE 02: Opening cdrom0:SYSTEM.CNF\r\n");
 
-		ioman->Close(handle);
-	}
+    uint32 handle = ioman->Open(
+        Iop::Ioman::CDevice::OPEN_FLAG_RDONLY,
+        "cdrom0:SYSTEM.CNF");
 
-	if(executablePath.empty())
-	{
-		throw std::runtime_error("Error parsing 'SYSTEM.CNF' for a BOOT2 value.");
-	}
+    if(static_cast<int32>(handle) < 0)
+    {
+        CLog::GetInstance().Warn(
+            LOG_NAME,
+            "[JPOG_BOOT] FAILED: SYSTEM.CNF cannot be opened\r\n");
 
-	BootFromVirtualPath(executablePath.c_str(), ArgumentList());
+        throw std::runtime_error(
+            "No 'SYSTEM.CNF' file found on the cdrom0 device.");
+    }
+
+    CLog::GetInstance().Print(
+        LOG_NAME,
+        "[JPOG_BOOT] STAGE 03: SYSTEM.CNF opened, handle=%u\r\n",
+        handle);
+
+    {
+        Framework::CStream* file(ioman->GetFileStream(handle));
+
+        CLog::GetInstance().Print(
+            LOG_NAME,
+            "[JPOG_BOOT] STAGE 04: Parsing SYSTEM.CNF\r\n");
+
+        auto systemConfig =
+            DiskUtils::ParseSystemConfigFile(file);
+
+        auto bootItemIterator =
+            systemConfig.find("BOOT2");
+
+        if(bootItemIterator != std::end(systemConfig))
+        {
+            executablePath = bootItemIterator->second;
+        }
+    }
+
+    ioman->Close(handle);
+
+    if(executablePath.empty())
+    {
+        CLog::GetInstance().Warn(
+            LOG_NAME,
+            "[JPOG_BOOT] FAILED: BOOT2 entry missing\r\n");
+
+        throw std::runtime_error(
+            "Error parsing 'SYSTEM.CNF' for a BOOT2 value.");
+    }
+
+    CLog::GetInstance().Print(
+        LOG_NAME,
+        "[JPOG_BOOT] STAGE 05: BOOT2=%s\r\n",
+        executablePath.c_str());
+
+    CLog::GetInstance().Print(
+        LOG_NAME,
+        "[JPOG_BOOT] STAGE 06: Starting executable load\r\n");
+
+    BootFromVirtualPath(
+        executablePath.c_str(),
+        ArgumentList());
+
+    CLog::GetInstance().Print(
+        LOG_NAME,
+        "[JPOG_BOOT] STAGE 07: BootFromVirtualPath COMPLETE\r\n");
 }
 
 CELF32* CPS2OS::GetELF()
