@@ -27,6 +27,47 @@ public final class Ps2IsoForensicScanner
     {
     }
 
+    private static long checkedRegionEnd(
+        long baseOffset,
+        long regionSize,
+        long channelSize)
+    {
+        if(baseOffset < 0 ||
+           regionSize < 0 ||
+           baseOffset > channelSize ||
+           regionSize > channelSize - baseOffset)
+        {
+            return -1;
+        }
+
+        return baseOffset + regionSize;
+    }
+
+    private static long checkedAbsoluteOffset(
+        long baseOffset,
+        long lba)
+    {
+        if(baseOffset < 0 || lba < 0 ||
+           lba > (Long.MAX_VALUE - baseOffset) / SECTOR_SIZE)
+        {
+            return -1;
+        }
+
+        return baseOffset + lba * SECTOR_SIZE;
+    }
+
+    private static boolean isWithinRegion(
+        long offset,
+        long size,
+        long regionStart,
+        long regionEnd)
+    {
+        return offset >= regionStart &&
+            offset <= regionEnd &&
+            size >= 0 &&
+            size <= regionEnd - offset;
+    }
+    
     public static final class Result
     {
         public String report = "";
@@ -41,14 +82,39 @@ public final class Ps2IsoForensicScanner
         private final Set<String> visitedDirectories = new HashSet<>();
     }
 
+    private static final class IsoExtent
+    {     
+        long lba;         
+        long size;
+
+        IsoExtent(long lba, long size)
+        {
+            this.lba = lba;
+            this.size = size;
+        }
+    }
+    
     private static final class IsoRecord
     {
         String name;
         long lba;
         long size;
         boolean directory;
-
         boolean multiExtent;
+
+        final List<IsoExtent> extents = new ArrayList<>();
+
+        void addExtent(long extentLba, long extentSize)
+        {
+            extents.add(new IsoExtent(extentLba, extentSize));
+
+            if(extents.size() == 1)
+            {
+                lba = extentLba;
+            }
+
+            size += extentSize;
+        }
     }
 
     public static Result analyze(Context context, Uri uri)
