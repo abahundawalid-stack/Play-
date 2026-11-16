@@ -568,6 +568,24 @@ public final class Ps2IsoForensicScanner
                     .append(entry.size)
                     .append('\n');
             }
+
+            long absoluteOffset = checkedAbsoluteOffset(
+                baseOffset,
+                entry.lba);
+
+            if(absoluteOffset < 0 ||
+               !isWithinRegion(
+                   absoluteOffset,
+                   entry.size,
+                   baseOffset,
+                   regionEnd))
+            {
+                result.errors++;
+                report.append("FILE/DIRECTORY OUT OF BOUNDS: ")
+                    .append(entryPath)
+                    .append('\n');
+                continue;
+            }
             
             if(entry.directory)
             {
