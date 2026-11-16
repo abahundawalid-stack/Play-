@@ -966,12 +966,15 @@ public final class Ps2IsoForensicScanner
                 extent.lba);
 
             if(offset < 0 ||
-               extent.size < 0 ||
-               extent.size > channel.size() - offset)
+               !isWithinRegion(
+                   offset,
+                   extent.size,
+                   baseOffset,
+                   regionEnd))
             {
                 throw new Exception(
-                    "Invalid multi-extent boundary.");
-            } 
+                    "Invalid multi-extent region boundary.");
+            }
 
             long remaining = extent.size;
             long position = offset;
