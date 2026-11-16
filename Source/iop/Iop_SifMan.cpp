@@ -46,6 +46,9 @@ void CSifMan::Invoke(CMIPS& context, unsigned int functionId)
 {
 	switch(functionId)
 	{
+    case 5:
+    CLog::GetInstance().Print(LOG_NAME, FUNCTION_SIFINIT "(); SIF interface already initialized by emulator.\r\n");
+        break;
 	case 7:
 		context.m_State.nGPR[CMIPS::V0].nD0 = static_cast<int32>(SifSetDma(
 		    context.m_State.nGPR[CMIPS::A0].nV0,
