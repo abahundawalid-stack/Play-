@@ -661,7 +661,6 @@ if(requestCode == g_folderPickerRequestCode &&
         {
             restoreActionBar();
 
-            // Add a dedicated native getBootables diagnostic item.
             menu.clear();
 
             menu.add(
@@ -669,6 +668,7 @@ if(requestCode == g_folderPickerRequestCode &&
                     MENU_TEST_GET_BOOTABLES,
                     Menu.NONE,
                     "Uji getBootables()"
+            ).setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER);
 
             menu.add(
                     Menu.NONE,
@@ -676,7 +676,7 @@ if(requestCode == g_folderPickerRequestCode &&
                     Menu.NONE,
                     "PS2 ISO Forensic Analyzer"
             ).setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER);
-            
+
             return true;
         }
 
