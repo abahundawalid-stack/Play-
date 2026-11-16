@@ -252,6 +252,104 @@ public final class DiagnosticsManager
         return new long[] {-1, -1, -1, -1, -1, -1};
     }
 
+    private static String readJpogBootTrace(Context context)
+    {
+        StringBuilder result = new StringBuilder();
+
+        File logDirectory = new File(
+            context.getFilesDir(),
+            "logs");
+
+        String[] logFiles =
+        {
+            "ps2vm.log",
+            "iop_bios.log",
+            "iop_cdvdman.log"
+        };
+
+        int totalLines = 0;
+        final int MAX_LINES = 300;
+
+        result.append("Log directory: ")
+            .append(logDirectory.getAbsolutePath())
+            .append('\n');
+
+        if(!logDirectory.exists() || !logDirectory.isDirectory())
+        {
+            result.append("LOG DIRECTORY NOT FOUND\n");
+            return result.toString();
+        }
+
+        for(String fileName : logFiles)
+        {
+            File logFile = new File(logDirectory, fileName);
+
+            result.append("\n--- ")
+                .append(fileName)
+                .append(" ---\n");
+
+            if(!logFile.exists())
+            {
+                result.append("FILE NOT FOUND\n");
+                continue;
+            }
+
+            List<String> matchingLines = new ArrayList<>();
+
+            try(BufferedReader reader = new BufferedReader(
+                new FileReader(logFile)))
+            {
+                String line;
+
+                while((line = reader.readLine()) != null)
+                {
+                   if(line.contains("[JPOG_BOOT_TRACE]"))
+                   {
+                      matchingLines.add(line);
+                   }
+               }
+           }
+           catch(IOException exception)
+           {
+               result.append("READ ERROR: ")
+                   .append(exception.getMessage())
+                   .append('\n');
+
+               continue;
+           }
+
+           int start = Math.max(
+               0,
+               matchingLines.size() - MAX_LINES);
+
+           for(int i = start; i < matchingLines.size(); i++)
+           {
+               result.append(matchingLines.get(i))
+                   .append('\n');
+
+               totalLines++;
+           }
+
+           result.append("Trace lines found: ")
+               .append(matchingLines.size())
+               .append('\n');
+        }
+
+        result.append("\nTOTAL TRACE LINES: ")
+            .append(totalLines)
+            .append('\n');
+
+        if(totalLines == 0)
+        {
+            result.append(
+                "NO JPOG_BOOT_TRACE FOUND. "
+                + "Check whether the game reached instrumented code "
+                + "and whether the native log path matches this directory.\n");
+        }
+
+        return result.toString();
+    }
+    
     public static String buildReport(Context context)
     {
         android.content.SharedPreferences p = prefs(context);
