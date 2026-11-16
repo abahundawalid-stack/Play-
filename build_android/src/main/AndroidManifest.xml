@@ -96,5 +96,10 @@
             android:label="Analisa"
             android:exported="false" />
 
+       <activity
+           android:name=".ForensicAnalyzerActivity"
+           android:label="PS2 ISO Forensic Analyzer"
+           android:exported="false" />
+
     </application>
 </manifest>
