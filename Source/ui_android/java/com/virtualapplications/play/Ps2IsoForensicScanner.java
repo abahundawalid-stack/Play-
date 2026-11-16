@@ -799,7 +799,13 @@ public final class Ps2IsoForensicScanner
         long offset)
         throws Exception
     {
-        byte[] elfHeader = readAt(channel, offset, 64);
+        private static String inspectElf(byte[] elfHeader)
+    throws Exception
+{
+    if(elfHeader == null || elfHeader.length < 52)
+    {
+        return "ELF_HEADER_INCOMPLETE";
+    }
 
         if(elfHeader == null || elfHeader.length < 52)
         {
