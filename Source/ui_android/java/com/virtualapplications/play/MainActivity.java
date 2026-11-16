@@ -669,8 +669,14 @@ if(requestCode == g_folderPickerRequestCode &&
                     MENU_TEST_GET_BOOTABLES,
                     Menu.NONE,
                     "Uji getBootables()"
-            ).setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER);
 
+            menu.add(
+                    Menu.NONE,
+                    MENU_PS2_FORENSIC,
+                    Menu.NONE,
+                    "PS2 ISO Forensic Analyzer"
+            ).setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER);
+            
             return true;
         }
 
