@@ -159,7 +159,8 @@ public final class Ps2IsoForensicScanner
 
         if(baseOffset < 0 ||
            regionSize < 17L * SECTOR_SIZE ||
-           baseOffset + regionSize > channel.size())
+           baseOffset > channel.size() ||
+           regionSize > channel.size() - baseOffset)
         {
             result.errors++;
             report.append("INVALID REGION: ")
@@ -171,7 +172,10 @@ public final class Ps2IsoForensicScanner
         String volumeId = "UNKNOWN";
         long volumeSectors = 0;
 
-        for(int sector = 16; sector < 64; sector++)
+        long availableSectors = regionSize / SECTOR_SIZE;
+        int descriptorLimit = (int)Math.min(64L, availableSectors);
+
+        for(int sector = 16; sector < descriptorLimit; sector++)
         {
             byte[] descriptor = readAt(
                 channel,
@@ -194,7 +198,14 @@ public final class Ps2IsoForensicScanner
             {
                 pvd = descriptor;
                 volumeId = ascii(descriptor, 40, 32).trim();
-                volumeSectors = u32le(descriptor, 80);
+                volumeSectors = u32Both(descriptor, 80, 84);
+
+            if(volumeSectors <= 0)
+            {
+                result.errors++;
+                report.append("INVALID VOLUME SPACE SIZE\n");
+                return;
+            }
                 break;
             }
 
