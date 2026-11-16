@@ -949,6 +949,7 @@ public final class Ps2IsoForensicScanner
     private static String sha256Extents(
         FileChannel channel,
         long baseOffset,
+        long regionEnd,
         List<IsoExtent> extents)
         throws Exception
     {
