@@ -14,7 +14,9 @@
 // clang-format off
 static const std::set<std::string, std::less<>> g_allowedLogs =
 {
-	//"iop_mcserv",
+    "ps2vm",
+    "iop_bios",
+    "iop_cdvdman",
 };
 // clang-format on
 
