@@ -47,6 +47,8 @@ public final class Ps2IsoForensicScanner
         long lba;
         long size;
         boolean directory;
+
+        boolean multiExtent;
     }
 
     public static Result analyze(Context context, Uri uri)
