@@ -467,6 +467,10 @@ public final class Ps2IsoForensicScanner
                 continue;
             }
 
+            String entryPath = path.equals("/")
+                ? "/" + entry.name
+                : path + "/" + entry.name;
+            
             if(entry.directory && entry.multiExtent)
             {
                 result.errors++;
