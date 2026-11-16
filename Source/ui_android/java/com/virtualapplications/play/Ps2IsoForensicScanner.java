@@ -210,6 +210,18 @@ public final class Ps2IsoForensicScanner
         return result;
     }
 
+    long regionEnd = checkedRegionEnd(
+        baseOffset,
+        regionSize,
+        channel.size());
+
+    if(regionEnd < 0)
+    {
+        result.errors++;
+        report.append("REGION END OVERFLOW OR INVALID\n");
+        return;
+    }
+    
     private static void scanRegion(
         FileChannel channel,
         long baseOffset,
