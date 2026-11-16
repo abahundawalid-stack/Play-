@@ -48,6 +48,8 @@ std::string CModload::GetFunctionName(unsigned int functionId) const
 {
 	switch(functionId)
 	{
+	case 13:
+        return FUNCTION_SETCHECKKELFPATHCALLBACK;
 	case 7:
 		return FUNCTION_LOADSTARTMODULE;
 		break;
@@ -163,6 +165,15 @@ void CModload::Invoke(CMIPS& context, unsigned int functionId)
 		    context.m_State.nGPR[CMIPS::A1].nV0,
 		    context.m_State.nGPR[CMIPS::A2].nV0);
 		break;
+	case 13:
+        m_checkKelfPathCallback = context.m_State.nGPR[CMIPS::A0].nV0;
+
+        CLog::GetInstance().Print(
+            LOG_NAME,
+    FUNCTION_SETCHECKKELFPATHCALLBACK
+            "(callback = 0x%08X);\r\n",
+            m_checkKelfPathCallback);
+        break;
 	default:
 		CLog::GetInstance().Warn(LOG_NAME, "(%08X): Unknown function (%d) called.\r\n",
 		                         context.m_State.nPC, functionId);
