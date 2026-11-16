@@ -48,6 +48,7 @@ using namespace Iop;
 #define FUNCTION_FINISHBINDRPC "FinishBindRpc"
 #define FUNCTION_SLEEPTHREAD "SleepThread"
 #define FUNCTION_DELAYTHREAD "DelayThread"
+#define FUNCTION_SIFINITCMD "SifInitCmd"
 
 #define SYSTEM_COMMAND_ID 0x80000000
 
