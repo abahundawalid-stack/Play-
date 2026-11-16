@@ -687,7 +687,8 @@ int32 CIopBios::LoadModuleFromPath(const char* path, uint32 loadAddress, bool ow
             "[JPOG_BOOT_TRACE][IRX] LOAD_RESULT path='%s' moduleId=%d\r\n",
             path, moduleId);
 
-        return moduleId;
+    return moduleId;
+}
 
 int32 CIopBios::LoadModuleFromAddress(uint32 modulePtr, uint32 loadAddress, bool ownsMemory)
 {
