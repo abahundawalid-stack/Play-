@@ -823,6 +823,25 @@ void CPS2VM::UpdateEe()
 		}
 		m_cpuUtilisation.eeTotalTicks += executed;
 
+		static uint64 bootTraceCycles = 0;
+        bootTraceCycles += static_cast<uint32>(executed);
+
+        if(bootTraceCycles >= 294912000ULL)
+        {
+            bootTraceCycles %= 294912000ULL;
+
+            const auto& state = m_ee->m_EE.m_State;
+
+        CLog::GetInstance().Print(LOG_NAME,
+                "[JPOG_BOOT_TRACE][EE] PC=%08X RA=%08X SP=%08X V0=%08X A0=%08X idle=%u\r\n",
+                state.nPC,
+                state.nGPR[CMIPS::RA].nV0,
+                state.nGPR[CMIPS::SP].nV0,
+                state.nGPR[CMIPS::V0].nV0,
+                state.nGPR[CMIPS::A0].nV0,
+                m_ee->IsCpuIdle() ? 1 : 0);
+        }
+
 		m_ee->m_vpu0->Execute(m_singleStepVu0 ? 1 : executed);
 		m_ee->m_vpu1->Execute(m_singleStepVu1 ? 1 : executed);
 
