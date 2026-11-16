@@ -743,16 +743,19 @@ public final class Ps2IsoForensicScanner
         int length)
         throws Exception
     {
+        long channelSize = channel.size();
+
         if(offset < 0 ||
            length < 0 ||
-           offset + length > channel.size())
+           offset > channelSize ||
+           length > channelSize - offset)
         {
             return null;
         }
 
         byte[] data = new byte[length];
         ByteBuffer buffer = ByteBuffer.wrap(data);
-
+ 
         long position = offset;
 
         while(buffer.hasRemaining())
