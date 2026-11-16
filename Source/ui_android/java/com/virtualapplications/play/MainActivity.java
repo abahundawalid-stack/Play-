@@ -692,6 +692,15 @@ if(requestCode == g_folderPickerRequestCode &&
             return true;
         }
 
+        if(item.getItemId() == MENU_PS2_FORENSIC)
+        {
+            Intent forensicIntent =
+                    new Intent(this, ForensicAnalyzerActivity.class);
+
+            startActivity(forensicIntent);
+            return true;
+        }
+
         return super.onOptionsItemSelected(item);
     }
 
