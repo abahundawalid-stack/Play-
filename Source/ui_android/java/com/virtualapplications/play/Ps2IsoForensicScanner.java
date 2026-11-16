@@ -905,6 +905,73 @@ public final class Ps2IsoForensicScanner
             remaining -= count;
         }
 
+        private static String sha256Extents(
+            FileChannel channel,
+            long baseOffset,
+            List<IsoExtent> extents)
+            throws Exception
+        {
+            MessageDigest digest =
+                MessageDigest.getInstance("SHA-256");
+
+            ByteBuffer buffer =
+                ByteBuffer.allocate(64 * 1024);
+
+            for(IsoExtent extent : extents)
+            {
+                long offset = checkedAbsoluteOffset(
+                    baseOffset,
+                    extent.lba);
+
+                if(offset < 0 ||
+                   extent.size < 0 ||
+                   extent.size > channel.size() - offset)
+                {
+                    throw new Exception(
+                        "Invalid multi-extent boundary.");
+                }
+
+                long remaining = extent.size;
+                long position = offset;
+
+                while(remaining > 0)
+                {
+                    buffer.clear();
+
+                    int wanted = (int)Math.min(
+                        buffer.capacity(),
+                        remaining);
+
+                    buffer.limit(wanted);
+
+                    int count = channel.read(buffer, position);
+
+                    if(count <= 0)
+                    {
+                        throw new Exception(
+                            "Multi-extent read failed.");
+                    }
+
+                    digest.update(buffer.array(), 0, count);
+
+                    position += count;
+                    remaining -= count;
+                }
+            }
+
+            StringBuilder output = new StringBuilder();
+
+            for(byte value : digest.digest())
+            {
+                output.append(String.format(
+                    Locale.ROOT,
+                    "%02x",
+                    value & 0xFF));
+            }
+
+            return output.toString();
+        }
+
         StringBuilder result = new StringBuilder();
 
         for(byte value : digest.digest())
