@@ -126,6 +126,9 @@ std::string CSifCmd::GetFunctionName(unsigned int functionId) const
 {
 	switch(functionId)
 	{
+	case 4:
+        return FUNCTION_SIFINITCMD;
+        break;
 	case 6:
 		return FUNCTION_SIFGETSREG;
 		break;
