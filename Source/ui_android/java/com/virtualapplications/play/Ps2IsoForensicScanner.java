@@ -594,10 +594,10 @@ public final class Ps2IsoForensicScanner
 
             result.files++;
 
-            String hash = sha256(
+            String hash = sha256Extents(
                 channel,
-                absoluteOffset,
-                entry.size);
+                baseOffset,
+                entry.extents);
 
             byte[] header = readAt(
                 channel,
