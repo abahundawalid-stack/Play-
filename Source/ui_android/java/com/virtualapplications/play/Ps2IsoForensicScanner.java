@@ -622,10 +622,11 @@ public final class Ps2IsoForensicScanner
                 baseOffset,
                 entry.extents);
 
-            byte[] header = readAt(
+            byte[] header = readPrefixExtents(
                 channel,
-                absoluteOffset,
-                (int)Math.min(entry.size, 64));
+                baseOffset,
+                entry.extents,
+                64);
 
             String signature = detectSignature(header);
             String details = "";
