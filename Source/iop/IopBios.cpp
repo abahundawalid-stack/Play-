@@ -658,17 +658,36 @@ int32 CIopBios::LoadModuleFromPath(const char* path, uint32 loadAddress, bool ow
 		return LoadHleModule(hleModuleIterator->second);
 	}
 #endif
-	uint32 handle = m_ioman->Open(Iop::Ioman::CDevice::OPEN_FLAG_RDONLY, path);
-	if(handle & 0x80000000)
-	{
-		CLog::GetInstance().Warn(LOGNAME, "Tried to load '%s' which couldn't be found.\r\n", path);
-		return -1;
-	}
-	Iop::Ioman::CScopedFile file(handle, *m_ioman);
-	auto stream = m_ioman->GetFileStream(file);
-	CElf32File module(*stream);
-	return LoadModule(module, path, loadAddress, ownsMemory);
-}
+	CLog::GetInstance().Print(LOGNAME,
+        "[JPOG_BOOT_TRACE][IRX] LOAD_REQUEST path='%s' loadAddress=%08X ownsMemory=%u\r\n",
+        path, loadAddress, ownsMemory ? 1 : 0);
+
+    uint32 handle = m_ioman->Open(
+    Iop::Ioman::CDevice::OPEN_FLAG_RDONLY, path);
+
+    if(handle & 0x80000000)
+    {
+        CLog::GetInstance().Warn(LOGNAME,
+            "[JPOG_BOOT_TRACE][IRX] OPEN_FAILED path='%s' handle=%08X\r\n",
+            path, handle);
+        return -1;
+    }
+
+        CLog::GetInstance().Print(LOGNAME,
+            "[JPOG_BOOT_TRACE][IRX] OPEN_OK path='%s' handle=%08X\r\n",
+            path, handle);
+
+        Iop::Ioman::CScopedFile file(handle, *m_ioman);
+        auto stream = m_ioman->GetFileStream(file);
+        CElf32File module(*stream);
+
+        int32 moduleId = LoadModule(module, path, loadAddress, ownsMemory);
+
+        CLog::GetInstance().Print(LOGNAME,
+            "[JPOG_BOOT_TRACE][IRX] LOAD_RESULT path='%s' moduleId=%d\r\n",
+            path, moduleId);
+
+        return moduleId;
 
 int32 CIopBios::LoadModuleFromAddress(uint32 modulePtr, uint32 loadAddress, bool ownsMemory)
 {
