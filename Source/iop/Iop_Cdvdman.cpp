@@ -689,6 +689,13 @@ uint32 CCdvdman::CdRead(uint32 startSector, uint32 sectorCount, uint32 bufferPtr
         (sectorCount * COMMAND_READ_SECTOR_DELAY);
     m_status = CDVD_STATUS_READING;
 
+     	CLog::GetInstance().Print(LOG_NAME,
+            "[JPOG_BOOT_TRACE][CDVD] READ_ACCEPTED lba=%08X sectors=%u bytes=%llu buffer=%08X delay=%llu\r\n",
+            startSector, sectorCount,
+            static_cast<unsigned long long>(transferSize),
+            bufferPtr,
+            static_cast<unsigned long long>(m_pendingCommandDelay));
+
     return 1;
 }
 
