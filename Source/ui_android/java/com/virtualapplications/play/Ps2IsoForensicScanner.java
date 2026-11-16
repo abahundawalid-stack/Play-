@@ -626,10 +626,10 @@ public final class Ps2IsoForensicScanner
 
         IsoRecord record = new IsoRecord();
 
-        record.lba = lba;
-        record.size = size;
         record.directory = (data[25] & 0x02) != 0;
         record.multiExtent = (data[25] & 0x80) != 0;
+
+        record.addExtent(lba, size);
 
         if(nameLength == 1 && data[33] == 0)
         {
