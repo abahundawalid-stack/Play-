@@ -36,6 +36,9 @@ public final class Ps2IsoForensicScanner
         public int nestedImages;
         public int executables;
         public int errors;
+        public long totalBytes;
+
+        private final Set<String> visitedDirectories = new HashSet<>();
     }
 
     private static final class IsoRecord
