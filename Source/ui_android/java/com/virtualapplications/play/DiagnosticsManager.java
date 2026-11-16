@@ -462,6 +462,13 @@ public final class DiagnosticsManager
             .append(formatDate(launchStageTime))
             .append("\n\n");
 
+        report.append("JPOG BOOT TRACE\n");
+        report.append("------------------------------------\n");
+
+        report.append(readJpogBootTrace(context));
+
+        report.append("\n");
+
         report.append("GRAPHICS / PERFORMANCE\n");
         report.append("------------------------------------\n");
 
