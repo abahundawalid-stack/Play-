@@ -18,6 +18,7 @@ using namespace Iop;
 #define FUNCTION_UNLOADMODULE "UnloadModule"
 #define FUNCTION_SEARCHMODULEBYNAME "SearchModuleByName"
 #define FUNCTION_ALLOCLOADMEMORY "AllocLoadMemory"
+#define FUNCTION_SETCHECKKELFPATHCALLBACK "SetCheckKelfPathCallback"
 
 struct LMWO_OPTION
 {
