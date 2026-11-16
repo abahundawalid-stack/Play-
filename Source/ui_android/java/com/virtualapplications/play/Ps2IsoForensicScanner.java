@@ -355,6 +355,20 @@ public final class Ps2IsoForensicScanner
         StringBuilder csv)
         throws Exception
     {
+        long regionEnd = checkedRegionEnd(
+            baseOffset,
+            regionSize,
+            channel.size());
+
+        if(regionEnd < 0)
+        {
+            result.errors++;
+            report.append("REGION END OVERFLOW OR INVALID: ")
+                .append(path)
+                .append('\n');
+            return;
+        }
+        
         String directoryKey =
             filesystem + ":" +
             directory.lba + ":" +   
