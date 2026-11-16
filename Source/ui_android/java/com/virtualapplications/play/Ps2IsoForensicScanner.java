@@ -460,11 +460,11 @@ public final class Ps2IsoForensicScanner
                 continue;
             }
 
-            if(entry.multiExtent)
+            if(entry.directory && entry.multiExtent)
             {
                 result.errors++;
 
-                report.append("UNSUPPORTED MULTI-EXTENT ENTRY: ")
+                report.append("MULTI-EXTENT DIRECTORY NOT SUPPORTED: ")
                     .append(path)
                     .append("/")
                     .append(entry.name)
@@ -473,24 +473,91 @@ public final class Ps2IsoForensicScanner
                 continue;
             }
 
-            String entryPath =
-                path.equals("/")
-                    ? "/" + entry.name
-                    : path + "/" + entry.name;
-
-            long absoluteOffset =
-                baseOffset + entry.lba * SECTOR_SIZE;
-
-            if(absoluteOffset < baseOffset ||
-               absoluteOffset > baseOffset + regionSize ||
-               entry.size > (baseOffset + regionSize) - absoluteOffset)
+            if(entry.multiExtent)
             {
-                result.errors++;
-                report.append("FILE OUT OF BOUNDS: ")
-                    .append(entryPath).append('\n');
-                continue;
-            }
+                boolean complete = false;
+                int extentCount = 1;
 
+                while(position < data.length)
+                {
+                    int nextSectorPosition = position % SECTOR_SIZE;
+                    int nextLength = data[position] & 0xFF;
+
+                    if(nextLength == 0)
+                    {
+                        position += SECTOR_SIZE - nextSectorPosition;
+                        continue;
+                    }
+
+                    if(nextLength < 34 ||
+                       position + nextLength > data.length)
+                    {
+                       break;
+                    }
+
+                    byte[] nextBytes = new byte[nextLength];
+   
+                    System.arraycopy(
+                        data,
+                        position,
+                        nextBytes,
+                        0,
+                        nextLength);
+
+                    IsoRecord next = parseRecord(nextBytes);
+
+                    if(next == null ||
+                       !entry.name.equals(next.name) ||
+                       next.directory ||
+                       next.extents.size() != 1)
+                    {
+                        break;
+                    }
+
+                    position += nextLength;
+
+                    IsoExtent nextExtent = next.extents.get(0);
+
+                    if(entry.size > Long.MAX_VALUE - nextExtent.size)
+                    {
+                        break;
+                    }
+
+                    entry.addExtent(
+                        nextExtent.lba,
+                        nextExtent.size);
+
+                    extentCount++;
+
+                    if(!next.multiExtent)
+                    {
+                        complete = true;
+                        break;
+                    }
+                }
+
+                if(!complete)
+                {
+                    result.errors++;
+
+                    report.append("INCOMPLETE MULTI-EXTENT FILE: ")
+                        .append(path)
+                        .append("/")
+                        .append(entry.name)
+                        .append('\n');
+
+                    continue;
+                }
+
+                report.append("MULTI-EXTENT MERGED: ")
+                    .append(entry.name)
+                    .append(" PARTS=")
+                    .append(extentCount)
+                    .append(" TOTAL_SIZE=")
+                    .append(entry.size)
+                    .append('\n');
+            }
+            
             if(entry.directory)
             {
                 report.append("[DIR] ")
