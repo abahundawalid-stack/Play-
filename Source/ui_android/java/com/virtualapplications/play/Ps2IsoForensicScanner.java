@@ -316,8 +316,8 @@ public final class Ps2IsoForensicScanner
             baseOffset + directory.lba * SECTOR_SIZE;
 
         if(directoryOffset < baseOffset ||
-           directoryOffset + directory.size >
-                baseOffset + regionSize)
+           directoryOffset > baseOffset + regionSize ||
+           directory.size > (baseOffset + regionSize) - directoryOffset)
         {
             result.errors++;
             report.append("DIRECTORY OUT OF BOUNDS: ")
@@ -404,8 +404,8 @@ public final class Ps2IsoForensicScanner
                 baseOffset + entry.lba * SECTOR_SIZE;
 
             if(absoluteOffset < baseOffset ||
-               absoluteOffset + entry.size >
-                    baseOffset + regionSize)
+               absoluteOffset > baseOffset + regionSize ||
+               entry.size > (baseOffset + regionSize) - absoluteOffset)
             {
                 result.errors++;
                 report.append("FILE OUT OF BOUNDS: ")
