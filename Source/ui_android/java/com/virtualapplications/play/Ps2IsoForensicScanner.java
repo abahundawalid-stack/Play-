@@ -663,6 +663,8 @@ public final class Ps2IsoForensicScanner
                 .append(csv(details)).append('\n');
 
             if(depth < MAX_NESTED_DEPTH &&
+               entry.extents.size() == 1 &&
+               
                entry.name.toLowerCase(Locale.ROOT).endsWith(".iso") &&
                entry.size >= 17L * SECTOR_SIZE)
             {
