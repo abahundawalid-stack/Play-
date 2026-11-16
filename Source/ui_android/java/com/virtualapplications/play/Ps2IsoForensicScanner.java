@@ -284,6 +284,20 @@ public final class Ps2IsoForensicScanner
         StringBuilder csv)
         throws Exception
     {
+        String directoryKey =
+            filesystem + ":" +
+            directory.lba + ":" +   
+            directory.size;
+
+        if(!result.visitedDirectories.add(directoryKey))
+        {
+            report.append("DIRECTORY CYCLE/REPEAT SKIPPED: ")
+                .append(path)
+                .append('\n');
+
+            return;
+        }
+        
         if(directory.size <= 0 ||
            directory.size > MAX_DIRECTORY_SIZE)
         {
