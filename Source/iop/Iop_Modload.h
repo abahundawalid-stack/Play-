@@ -32,6 +32,7 @@ namespace Iop
 
 		CIopBios& m_bios;
 		uint8* m_ram = nullptr;
+        uint32 m_checkKelfPathCallback = 0;
 	};
 
 	typedef std::shared_ptr<CModload> ModloadPtr;
