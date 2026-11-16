@@ -1016,6 +1016,96 @@ public final class Ps2IsoForensicScanner
 
         return output.toString();
     }
+
+private static byte[] readPrefixExtents(
+    FileChannel channel,
+    long baseOffset,
+    long regionEnd,
+    List<IsoExtent> extents,
+    int maxBytes)
+    throws Exception
+{
+    if(maxBytes < 0)
+    {
+        throw new IllegalArgumentException(
+            "Invalid prefix length.");
+    }
+
+    long totalSize = 0;
+
+    for(IsoExtent extent : extents)
+    {
+        if(extent.size < 0 ||
+           totalSize > Long.MAX_VALUE - extent.size)
+        {
+            throw new Exception(
+                "Invalid extent size.");
+        }
+
+        totalSize += extent.size;
+    }
+
+    int wanted = (int)Math.min(
+        totalSize,
+        (long)maxBytes);
+
+    byte[] output = new byte[wanted];
+
+    int copied = 0;
+
+    for(IsoExtent extent : extents)
+    {
+        if(copied >= wanted)
+        {
+            break;
+        }
+
+        long offset = checkedAbsoluteOffset(
+            baseOffset,
+            extent.lba);
+
+        if(offset < 0 ||
+           !isWithinRegion(
+               offset,
+               extent.size,
+               baseOffset,
+               regionEnd))
+        {
+            throw new Exception(
+                "Invalid prefix extent boundary.");
+        }
+
+        int amount = (int)Math.min(
+            (long)(wanted - copied),
+            extent.size);
+
+        ByteBuffer buffer = ByteBuffer.wrap(
+            output,
+            copied,
+            amount);
+
+        long position = offset;
+
+        while(buffer.hasRemaining())
+        {
+            int count = channel.read(
+                buffer,
+                position);
+
+            if(count <= 0)
+            {
+                throw new Exception(
+                    "Multi-extent prefix read failed.");
+            }
+
+            position += count;
+        }
+
+        copied += amount;
+    }
+
+    return output;
+}
     
     private static byte[] readAt(
         FileChannel channel,
