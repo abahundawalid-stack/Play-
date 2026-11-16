@@ -377,6 +377,19 @@ public final class Ps2IsoForensicScanner
                 continue;
             }
 
+            if(entry.multiExtent)
+            {
+                result.errors++;
+
+                report.append("UNSUPPORTED MULTI-EXTENT ENTRY: ")
+                    .append(path)
+                    .append("/")
+                    .append(entry.name)
+                    .append('\n');
+
+                continue;
+            }
+
             String entryPath =
                 path.equals("/")
                     ? "/" + entry.name
