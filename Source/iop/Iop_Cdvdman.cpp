@@ -939,5 +939,19 @@ uint32 CCdvdman::CdLayerSearchFile(uint32 fileInfoPtr, uint32 namePtr, uint32 la
 	                          fileInfoPtr, name, layer);
 
 	uint32 result = CdLayerSearchFileDirect(m_opticalMedia, fileInfo, name, layer);
-	return result;
+
+if(result && fileInfo)
+{
+    CLog::GetInstance().Print(LOG_NAME,
+        "[JPOG_BOOT_TRACE][CDVD] SEARCH_FOUND name='%s' layer=%u lba=%08X size=%u\r\n",
+        name ? name : "", layer, fileInfo->sector, fileInfo->size);
+}
+else
+{
+    CLog::GetInstance().Warn(LOG_NAME,
+        "[JPOG_BOOT_TRACE][CDVD] SEARCH_MISS name='%s' layer=%u\r\n",
+        name ? name : "", layer);
+}
+
+return result;
 }
