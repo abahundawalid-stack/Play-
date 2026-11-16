@@ -59,6 +59,7 @@ public class MainActivity extends AppCompatActivity implements NavigationDrawerF
     private Toolbar toolbar;
 
     private static final int MENU_TEST_GET_BOOTABLES = 0x4A504F47;
+    private static final int MENU_PS2_FORENSIC = 0x4A504F48;
 
     static final int g_settingsRequestCode = 0xDEAD;
     static final int g_folderPickerRequestCode = 0xBEEF;
