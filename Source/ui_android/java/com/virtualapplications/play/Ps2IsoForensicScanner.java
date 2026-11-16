@@ -408,6 +408,24 @@ public final class Ps2IsoForensicScanner
             return;
         }
 
+        long absoluteOffset = checkedAbsoluteOffset(
+            baseOffset,
+            entry.lba);
+
+        if(absoluteOffset < 0 ||
+           !isWithinRegion(
+               absoluteOffset,
+               entry.size,
+               baseOffset,
+               regionEnd))
+        {
+            result.errors++;
+            report.append("FILE OUT OF BOUNDS: ")
+                .append(entryPath)
+                .append('\n');
+            continue;
+        }
+        
         byte[] data = readAt(
             channel,
             directoryOffset,
