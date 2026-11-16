@@ -390,16 +390,21 @@ public final class Ps2IsoForensicScanner
             return;
         }
 
-        long directoryOffset =
-            baseOffset + directory.lba * SECTOR_SIZE;
+        long directoryOffset = checkedAbsoluteOffset(
+            baseOffset,
+            directory.lba);
 
-        if(directoryOffset < baseOffset ||
-           directoryOffset > baseOffset + regionSize ||
-           directory.size > (baseOffset + regionSize) - directoryOffset)
+        if(directoryOffset < 0 ||
+           !isWithinRegion(
+               directoryOffset,
+               directory.size,
+               baseOffset,
+               regionEnd))
         {
             result.errors++;
             report.append("DIRECTORY OUT OF BOUNDS: ")
-                .append(path).append('\n');
+                .append(path)
+                .append('\n');
             return;
         }
 
