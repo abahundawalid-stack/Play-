@@ -214,6 +214,9 @@ void CSifCmd::Invoke(CMIPS& context, unsigned int functionId)
 {
 	switch(functionId)
 	{
+	case 4:
+    CLog::GetInstance().Print(LOG_NAME, FUNCTION_SIFINITCMD "(); SIF command channel already initialized by emulator.\r\n");
+        break;
 	case 6:
 		context.m_State.nGPR[CMIPS::V0].nV0 = SifGetSreg(
 		    context.m_State.nGPR[CMIPS::A0].nV0);
