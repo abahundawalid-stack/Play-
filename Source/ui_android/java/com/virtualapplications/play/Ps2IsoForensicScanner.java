@@ -491,7 +491,7 @@ public final class Ps2IsoForensicScanner
     private static IsoRecord parseRecord(byte[] data)
     {
         if(data == null || data.length < 34)
-        {
+        { 
             return null;
         }
 
@@ -499,22 +499,31 @@ public final class Ps2IsoForensicScanner
         int nameLength = data[32] & 0xFF;
 
         if(recordLength < 34 ||
+           recordLength > data.length ||
            nameLength <= 0 ||
-           33 + nameLength > recordLength ||
-           recordLength > data.length)
+           33 + nameLength > recordLength)
+        {
+            return null;
+        }
+
+        long lba = u32Both(data, 2, 6);
+        long size = u32Both(data, 10, 14);
+
+        if(lba < 0 || size < 0)
         {
             return null;
         }
 
         IsoRecord record = new IsoRecord();
 
-        record.lba = u32le(data, 2);
-        record.size = u32le(data, 10);
+        record.lba = lba;
+        record.size = size;
         record.directory = (data[25] & 0x02) != 0;
+        record.multiExtent = (data[25] & 0x80) != 0;
 
         if(nameLength == 1 && data[33] == 0)
         {
-            record.name = ".";
+            record.name = ".";  
         }
         else if(nameLength == 1 && data[33] == 1)
         {
@@ -537,15 +546,44 @@ public final class Ps2IsoForensicScanner
 
             while(record.name.endsWith("."))
             {
-                record.name = record.name.substring(
-                    0,
-                    record.name.length() - 1);
+                        record.name = record.name.substring(
+                            0,
+                            record.name.length() - 1);
             }
         }
 
         return record;
     }
 
+    private static long u32be(byte[] data, int offset)
+    {  
+        return
+            ((data[offset] & 0xFFL) << 24) |
+            ((data[offset + 1] & 0xFFL) << 16) |
+            ((data[offset + 2] & 0xFFL) << 8) |
+            (data[offset + 3] & 0xFFL);
+    }
+
+    private static long u32Both(
+        byte[] data,
+        int littleOffset,
+        int bigOffset)
+    {
+        if(data == null ||
+           littleOffset < 0 ||
+           bigOffset < 0 ||
+           littleOffset + 4 > data.length ||
+           bigOffset + 4 > data.length)
+        {
+            return -1;
+        }
+
+        long little = u32le(data, littleOffset);
+        long big = u32be(data, bigOffset);
+        
+        return little == big ? little : -1;
+    }
+    
     private static String inspectElf(
         byte[] header,
         FileChannel channel,
