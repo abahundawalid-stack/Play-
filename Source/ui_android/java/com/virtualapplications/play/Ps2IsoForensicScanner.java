@@ -976,82 +976,11 @@ public final class Ps2IsoForensicScanner
             out.append(" ENTRY_NOT_IN_FILE_BACKED_PT_LOAD");
         }
 
-        if(machine == 8 && elfClass == 1 && executableLoadCount > 0)
-        {
-            Set<Long> callTargets = new TreeSet<>();
-            int scannedInstructions = 0;
-            int directCalls = 0;
-            long droppedCallTargets = 0;
-            long droppedCallEdges = 0;
-            long scanBudget = 32L * 1024L * 1024L;
-            Set<String> callEdges = new TreeSet<>();
-            for(ElfLoadSegment segment : loads)
-            {
-                if((segment.flags & 1L) == 0 || segment.filesz <= 0)
-                {
-                    continue;
-                }
-                // Bound total work on hostile or unusually large ELF files.
-                if(scanBudget <= 0) break;
-                long scanLength = Math.min(
-                    segment.filesz, Math.min(
-                        scanBudget, 16L * 1024L * 1024L));
-                byte[] text = readExtentsRange(
-                    channel, baseOffset, regionEnd, extents,
-                    segment.offset, (int)scanLength, fileSize);
-                if(text == null) continue;
-                scanBudget -= scanLength;
-
-                ByteBuffer instructions =
-                    ByteBuffer.wrap(text).order(order);
-                int words = text.length / 4;
-                for(int i = 0; i < words; i++)
-                {
-                    long word = u32At(instructions, i * 4);
-                    long pc = segment.vaddr + (long)i * 4L;
-                    int opcode = (int)((word >>> 26) & 0x3F);
-                    if(opcode == 3)
-                    {
-                        long target = ((pc + 4L) & 0xF0000000L) |
-                            ((word & 0x03FFFFFFL) << 2);
-                        if(callTargets.contains(target))
-                        {
-                            // Already retained.
-                        }
-                        else if(callTargets.size() < 4096)
-                        {
-                            callTargets.add(target);
-                        }
-                        else
-                        {
-                            droppedCallTargets++;
-                        }
-
-                        String edge = String.format(
-                            Locale.ROOT, "0x%X->0x%X", pc, target);
-                        if(callEdges.contains(edge))
-                        {
-                            // Already retained.
-                        }
-                        else if(callEdges.size() < 4096)
-                        {
-                            callEdges.add(edge);
-                        }
-                        else
-                        {
-                            droppedCallEdges++;
-                        }
-                        directCalls++;
-                    }
-                }
-                scannedInstructions += words;
-            }
-
         if(machine == 8 && elfClass == 1 && dataEncoding == 1)
         {
-            final long MAX_DEEP_ELF_BYTES = 16L * 1024L * 1024L;
-            
-            if(fileSize <= MAX_DEEP_ELF_BYTES &&
+            final long MAX_ANALYZER_ELF_BYTES = 16L * 1024L * 1024L;
+
+            if(fileSize <= MAX_ANALYZER_ELF_BYTES &&
                fileSize <= Integer.MAX_VALUE)
             {
                 byte[] fullElf = readExtentsRange(
@@ -1063,64 +992,38 @@ public final class Ps2IsoForensicScanner
                     (int)fileSize,
                     fileSize);
 
-                if(fullElf != null)
+                if(fullElf == null)
                 {
+                    out.append(" ANALYZER_ELF_READ_FAILED");
+                }
+                else if(type == 0xFF80)
+                {
+                    // PS2 IOP relocatable module: IRX
+                    out.append(" ")
+                        .append(Ps2IrxModuleParser.analyze(fullElf));
+                }
+                else if((type == 2 || type == 3) &&
+                        executableLoadCount > 0)
+                {
+                    // MIPS R5900 EE executable/shared object
                     Ps2MipsR5900Engine.Result r5900 =
                     Ps2MipsR5900Engine.analyze(fullElf);
 
                     out.append(" ")
                         .append(r5900.report);
-
-                    out.append(" ")
-                        .append(Ps2IrxModuleParser.analyze(fullElf));
                 }
                 else
                 {
-                    out.append(" MIPS_DEEP=FULL_ELF_READ_FAILED");
+                    out.append(" MIPS_ELF_TYPE_NOT_ANALYZED=")
+                        .append(type);
                 }
-            }
-            else
-            {
-                out.append(" MIPS_DEEP=SKIPPED_ELF_SIZE_LIMIT");
-            }
-        }
-            
-            out.append(" MIPS_STATIC{LOAD_SEGMENTS=")
-                .append(loadCount)
-                .append(",EXEC_SEGMENTS=").append(executableLoadCount)
-                .append(",SCANNED_WORDS=").append(scannedInstructions)
-                .append(",JAL_COUNT=").append(directCalls)
-                .append(",RETAINED_JAL_TARGETS=").append(callTargets.size())
-                .append(",DROPPED_JAL_TARGETS=").append(droppedCallTargets)
-                .append(",DROPPED_CALL_EDGES=").append(droppedCallEdges)
-                .append(",CALL_EDGES=");
-
-            int edgeShown = 0;
-            for(String edge : callEdges)
-            {
-                if(edgeShown >= 32) break;
-                out.append(edgeShown == 0 ? "" : ";")
-                    .append(edge);
-                edgeShown++;
-            }
-            if(callEdges.size() > edgeShown) out.append(";...");
-            out.append(",TARGETS=");
-
-            int shown = 0;
-            for(Long target : callTargets)
-            {
-                if(shown >= 32) break;
-                out.append(String.format(
-                    Locale.ROOT, "%s0x%X",
-                    shown == 0 ? ",TARGETS=" : ";", target));
-                shown++;
-            }
-            if(callTargets.size() > shown)
-            {
-                out.append(";...");
-            }
-            out.append("}");
-        }
+         }
+         else
+         {
+                out.append(" ANALYZER_ELF_SKIPPED_SIZE_LIMIT=")
+                    .append(fileSize);
+         }
+    }
 
         return out.toString();
     }
