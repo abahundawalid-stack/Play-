@@ -1084,7 +1084,9 @@ public final class Ps2IsoForensicScanner
                 .append(",EXEC_SEGMENTS=").append(executableLoadCount)
                 .append(",SCANNED_WORDS=").append(scannedInstructions)
                 .append(",JAL_COUNT=").append(directCalls)
-                .append(",UNIQUE_JAL_TARGETS=").append(callTargets.size())
+                .append(",RETAINED_JAL_TARGETS=").append(callTargets.size())
+                .append(",DROPPED_JAL_TARGETS=").append(droppedCallTargets)
+                .append(",DROPPED_CALL_EDGES=").append(droppedCallEdges)
                 .append(",CALL_EDGES=");
 
             int edgeShown = 0;
