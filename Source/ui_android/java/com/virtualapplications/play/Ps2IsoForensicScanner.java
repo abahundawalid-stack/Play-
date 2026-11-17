@@ -1014,9 +1014,33 @@ public final class Ps2IsoForensicScanner
                     {
                         long target = ((pc + 4L) & 0xF0000000L) |
                             ((word & 0x03FFFFFFL) << 2);
-                        callTargets.add(target);
-                        callEdges.add(String.format(
-                            Locale.ROOT, "0x%X->0x%X", pc, target));
+                        if(callTargets.contains(target))
+                        {
+                            // Already retained.
+                        }
+                        else if(callTargets.size() < 4096)
+                        {
+                            callTargets.add(target);
+                        }
+                        else
+                        {
+                            droppedCallTargets++;
+                        }
+
+                        String edge = String.format(
+                            Locale.ROOT, "0x%X->0x%X", pc, target);
+                        if(callEdges.contains(edge))
+                        {
+                            // Already retained.
+                        }
+                        else if(callEdges.size() < 4096)
+                        {
+                            callEdges.add(edge);
+                        }
+                        else
+                        {
+                            droppedCallEdges++;
+                        }
                         directCalls++;
                     }
                 }
