@@ -1065,8 +1065,14 @@ public final class Ps2IsoForensicScanner
 
                 if(fullElf != null)
                 {
+                    Ps2MipsR5900Engine.Result r5900 =
+                    Ps2MipsR5900Engine.analyze(fullElf);
+
                     out.append(" ")
-                        .append(Ps2MipsDeepAnalyzer.analyze(fullElf));
+                        .append(r5900.report);
+
+                    out.append(" ")
+                        .append(Ps2IrxModuleParser.analyze(fullElf));
                 }
                 else
                 {
