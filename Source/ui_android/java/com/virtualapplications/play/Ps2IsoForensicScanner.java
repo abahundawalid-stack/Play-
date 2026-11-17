@@ -1021,6 +1021,38 @@ public final class Ps2IsoForensicScanner
                 scannedInstructions += words;
             }
 
+        if(machine == 8 && elfClass == 1 && dataEncoding == 1)
+        {
+            final long MAX_DEEP_ELF_BYTES = 64L * 1024L * 1024L;
+
+            if(fileSize <= MAX_DEEP_ELF_BYTES &&
+               fileSize <= Integer.MAX_VALUE)
+            {
+                byte[] fullElf = readExtentsRange(
+                    channel,
+                    baseOffset,
+                    regionEnd,
+                    extents,
+                    0,
+                    (int)fileSize,
+                    fileSize);
+
+                if(fullElf != null)
+                {
+                    out.append(" ")
+                        .append(Ps2MipsDeepAnalyzer.analyze(fullElf));
+                }
+                else
+                {
+                    out.append(" MIPS_DEEP=FULL_ELF_READ_FAILED");
+                }
+            }
+            else
+            {
+                out.append(" MIPS_DEEP=SKIPPED_ELF_SIZE_LIMIT");
+            }
+        }
+            
             out.append(" MIPS_STATIC{LOAD_SEGMENTS=")
                 .append(loadCount)
                 .append(",EXEC_SEGMENTS=").append(executableLoadCount)
