@@ -1023,8 +1023,8 @@ public final class Ps2IsoForensicScanner
 
         if(machine == 8 && elfClass == 1 && dataEncoding == 1)
         {
-            final long MAX_DEEP_ELF_BYTES = 64L * 1024L * 1024L;
-
+            final long MAX_DEEP_ELF_BYTES = 16L * 1024L * 1024L;
+            
             if(fileSize <= MAX_DEEP_ELF_BYTES &&
                fileSize <= Integer.MAX_VALUE)
             {
