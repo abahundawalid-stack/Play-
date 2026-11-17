@@ -981,6 +981,8 @@ public final class Ps2IsoForensicScanner
             Set<Long> callTargets = new TreeSet<>();
             int scannedInstructions = 0;
             int directCalls = 0;
+            long droppedCallTargets = 0;
+            long droppedCallEdges = 0;
             long scanBudget = 32L * 1024L * 1024L;
             Set<String> callEdges = new TreeSet<>();
             for(ElfLoadSegment segment : loads)
