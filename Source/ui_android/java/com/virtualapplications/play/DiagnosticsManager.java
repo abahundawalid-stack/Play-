@@ -474,6 +474,26 @@ public final class DiagnosticsManager
 
         report.append("\n");
 
+        report.append(
+            "GS PIPELINE DIAGNOSTICS\n" +
+            "------------------------------------\n"
+        );
+
+        try
+        {
+           report.append(
+               StatsManager.getGsPipelineDiagnostics()
+           );
+        }
+        catch(Exception e)
+        {
+            report.append(
+               "GS pipeline counters: UNAVAILABLE\n"
+            );
+        }
+
+        report.append("\n");
+        
         report.append("GRAPHICS / PERFORMANCE\n");
         report.append("------------------------------------\n");
 
