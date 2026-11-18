@@ -270,7 +270,24 @@ public final class Ps2MipsR5900Engine {
     }
     private static Ins decode(long pc,long w){int op=(int)(w>>>26),rs=(int)(w>>>21&31),rt=(int)(w>>>16&31),rd=(int)(w>>>11&31),sa=(int)(w>>>6&31),fn=(int)(w&63);String r="",flow="NEXT";boolean valid=true;
         if(op==0){switch(fn){case 0:r="sll";break;case 2:r="srl";break;case 3:r="sra";break;case 4:r="sllv";break;case 6:r="srlv";break;case 7:r="srav";break;case 8:r="jr $"+rs;flow=rs==31?"RETURN":"INDIRECT";break;case 9:r="jalr $"+rd+",$"+rs;flow="CALL";break;case 10:r="movz";break;case 11:r="movn";break;case 12:r="syscall";break;case 13:r="break";break;case 15:r="sync";break;case 16:r="mfhi";break;case 17:r="mthi";break;case 18:r="mflo";break;case 19:r="mtlo";break;case 20:r="dsllv";break;case 22:r="dsrlv";break;case 23:r="dsrav";break;case 24:r="mult";break;case 25:r="multu";break;case 26:r="div";break;case 27:r="divu";break;case 40:r="mfsa";break;case 41:r="mtsa";break;case 32:r="add";break;case 33:r="addu";break;case 34:r="sub";break;case 35:r="subu";break;case 36:r="and";break;case 37:r="or";break;case 38:r="xor";break;case 39:r="nor";break;case 42:r="slt";break;case 43:r="sltu";break;case 44:r="dadd";break;case 45:r="daddu";break;case 46:r="dsub";break;case 47:r="dsubu";break;case 48:r="tge";break;case 49:r="tgeu";break;case 50:r="tlt";break;case 51:r="tltu";break;case 52:r="teq";break;case 54:r="tne";break;case 56:r="dsll";break;case 58:r="dsrl";break;case 59:r="dsra";break;case 60:r="dsll32";break;case 62:r="dsrl32";break;case 63:r="dsra32";break;default:valid=false;r="unknown.special."+fn;}}
-        else if(op==1){r="REGIMM."+rt;flow=(rt==0||rt==1||rt==2||rt==3||rt==16||rt==17||rt==18||rt==19)?"COND":"NEXT";if(flow.equals("NEXT"))valid=false;}
+        else if(op==1) {
+            switch(rt) {
+                case 0:  r = "bltz"; break;
+                case 1:  r = "bgez"; break;
+                case 2:  r = "bltzl"; break;
+                case 3:  r = "bgezl"; break;
+                case 16: r = "bltzal"; break;
+                case 17: r = "bgezal"; break;
+                case 18: r = "bltzall"; break;
+                case 19: r = "bgezall"; break;
+                default:
+                    r = "unknown.regimm." + rt;
+                    valid = false;
+                    break;
+            }
+
+            flow = valid ? "COND" : "NEXT";
+        }
         else if(op==2||op==3){r=(op==2?"j ":"jal ")+hx(jumpTarget(pc,w));flow=op==3?"CALL":"JUMP";}
         else if(op==4||op==5||op==6||op==7||op==20||op==21||op==22||op==23){r="branch.op"+op;flow="COND";}
         else if(op>=8&&op<=15){String[] n={"addi","addiu","slti","sltiu","andi","ori","xori","lui"};r=n[op-8]+" $"+rt+",$"+rs+",0x"+Integer.toHexString((int)(w&65535));}
