@@ -101,8 +101,11 @@ public final class Ps2MipsR5900Engine {
                authoritativeSeeds.add(functionAddress);
             }
         }                             
-        Map<Long,Func> funcs=new TreeMap<>(); Set<Long> globallyDecoded=new HashSet<>();
-        ArrayDeque<Long> pending=new ArrayDeque<>(seeds);
+        Map<Long, Func> funcs = new TreeMap<>();
+        Set<Long> globallyDecoded = new HashSet<>();
+
+        ArrayDeque<Long> pending =
+            new ArrayDeque<>(authoritativeSeeds);
         long decoded=0,unknown=0,invalid=0,codeBytes=0; long functionCount=0;
         while(!pending.isEmpty() && functionCount<MAX_FUNCS &&
               globallyDecoded.size()<MAX_GLOBAL_DECODED_WORDS){long start=pending.removeFirst()&U32;if(funcs.containsKey(start)||!maps(start,exec))continue;
