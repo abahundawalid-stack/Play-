@@ -16,4 +16,6 @@ public class StatsManager
 	public static native boolean isProfiling();
 
 	public static native String getProfilingInfo();
+
+	public static native String getGsPipelineDiagnostics();
 }
