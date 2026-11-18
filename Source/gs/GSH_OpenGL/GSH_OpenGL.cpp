@@ -2113,6 +2113,15 @@ void CGSH_OpenGL::VertexKick(uint8 nRegister, uint64 nValue)
 			if(needCtx) SetRenderingContext(m_PrimitiveMode);
 		}
 
+        const size_t bufferedVertices =
+            m_vertexBuffer.size() - vertexCountBefore;
+
+        if(bufferedVertices != 0)
+        {
+            CStatsManager::GetInstance().RecordGsBufferedVertices(
+                static_cast<uint32>(bufferedVertices));
+        }
+		
 		switch(m_primitiveType)
 		{
 		case PRIM_POINT:
