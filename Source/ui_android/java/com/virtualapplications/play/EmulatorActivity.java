@@ -311,6 +311,22 @@ public class EmulatorActivity extends Activity
                     EmulatorActivity.this,
                     frames,
                     drawCalls
+                );               
+
+                String profilingInfo = "";
+
+                if(StatsManager.isProfiling())
+                {
+                    profilingInfo = StatsManager.getProfilingInfo();
+
+                    _profileTextView.setText(profilingInfo);
+                }
+
+                DiagnosticsManager.recordSample(
+                    EmulatorActivity.this,
+                    frames,
+                    drawCalls,
+                    profilingInfo
                 );
 
                 _fpsTextView.setText(
@@ -322,15 +338,7 @@ public class EmulatorActivity extends Activity
                     )
                 );
 
-                if(StatsManager.isProfiling())
-                {
-                    String profilingInfo =
-                        StatsManager.getProfilingInfo();
-
-                    _profileTextView.setText(profilingInfo);
-                }
-
-                StatsManager.clearStats();
+                StatsManager.clearStats();               
 
                 if(_activityRunning)
                 {
