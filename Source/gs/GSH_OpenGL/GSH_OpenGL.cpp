@@ -2043,6 +2043,9 @@ void CGSH_OpenGL::VertexKick(uint8 nRegister, uint64 nValue)
 
 	if(!m_drawEnabled) nDrawingKick = false;
 
+	CStatsManager::GetInstance().RecordGsVertexKick(
+    nDrawingKick);
+
 	if(nFog)
 	{
 		m_VtxBuffer[m_nVtxCount - 1].position = nValue & 0x00FFFFFFFFFFFFFFULL;
