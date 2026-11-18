@@ -15,6 +15,14 @@ public:
 	void OnNewFrame(CPS2VM*);
 	void OnGsNewFrame(uint32);
 
+    void RecordGsRegisterWrite();
+    void RecordGsVertexKick(bool drawingKick);
+    void RecordGsBufferedVertices(uint32 count);
+    void RecordGsBufferFlush();
+    void RecordGsDrawSubmission();
+
+    std::string GetGsPipelineDiagnostics() const;
+
 	static float ComputeCpuUsageRatio(int32 idleTicks, int32 totalTicks);
 
 	uint32 GetFrames();
