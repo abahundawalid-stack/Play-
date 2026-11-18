@@ -43,6 +43,7 @@ public final class DiagnosticsManager
         long now = System.currentTimeMillis();
 
         prefs(context).edit()
+            .putString("last_profiling_info", "")
             .putBoolean("running", true)
             .putString(
                 "game_path",
