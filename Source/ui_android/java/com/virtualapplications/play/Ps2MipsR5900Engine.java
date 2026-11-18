@@ -475,6 +475,11 @@ public final class Ps2MipsR5900Engine {
                f.incomplete = true;
            }
         }
+        // Build real basic blocks after all reachable instructions and edges
+        // for this function have been collected.
+        for (Func function : funcs.values()) {
+            buildControlFlowGraph(function);
+        }
         // Deduplicate overlapping function decodes for byte accounting; retain function-local views and all discovered edges.
         codeBytes=globallyDecoded.size()*4L;long execBytes=0;for(Seg s:exec)execBytes+=s.fs;long dataBytes=Math.max(0,execBytes-codeBytes);
         StringBuilder out=new StringBuilder(32768);
