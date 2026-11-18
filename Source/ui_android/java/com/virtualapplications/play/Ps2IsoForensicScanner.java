@@ -1021,6 +1021,9 @@ public final class Ps2IsoForensicScanner
                 }
                 else if(type == 0xFF80)
                 {
+                    out.append(" ")
+                        .append(Ps2ElfMappingValidator.analyze(fullElf));
+                    
                     // PS2 IOP relocatable module: IRX
                     out.append(" ")
                         .append(Ps2IrxModuleParser.analyze(fullElf));
