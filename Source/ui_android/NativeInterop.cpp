@@ -585,3 +585,15 @@ Java_com_virtualapplications_play_NativeInterop_getAudioDiagnostics(
 
     return result;
 }
+
+extern "C" JNIEXPORT jstring JNICALL
+Java_com_virtualapplications_play_StatsManager_getGsPipelineDiagnostics(
+    JNIEnv* env,
+    jclass clazz)
+{
+    const std::string diagnostics =
+        CStatsManager::GetInstance()
+            .GetGsPipelineDiagnostics();
+
+    return env->NewStringUTF(diagnostics.c_str());
+}
