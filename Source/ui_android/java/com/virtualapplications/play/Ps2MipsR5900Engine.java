@@ -93,9 +93,14 @@ public final class Ps2MipsR5900Engine {
             for(int n=0;n<shnum;n++){int s=(int)shoff+n*shent;long typ=u32(b,s+4),off=u32(b,s+16),sz=u32(b,s+20),link=u32(b,s+24),es=u32(b,s+36);
                 if((typ!=2&&typ!=11)||es<16||sz%es!=0||!range(off,sz,elf.length)||link>=shnum)continue;
                 int st=(int)shoff+(int)link*shent;long sto=u32(b,st+16),sts=u32(b,st+20);if(u32(b,st+4)!=3||!range(sto,sts,elf.length))continue;
-                for(long q=0;q<sz/es;q++){int x=(int)(off+q*es);int info=b.get(x+12)&255;long val=u32(b,x+4);if((info&15)==2&&maps(val,exec))seeds.add(val&~3L);}
+                for(long q=0;q<sz/es;q++){int x=(int)(off+q*es);int info=b.get(x+12)&255;long val=u32(b,x+4);}
+        if ((info & 15) == 2) {
+            long functionAddress = val & ~3L;
+
+            if (maps(functionAddress, exec)) {
+               authoritativeSeeds.add(functionAddress);
             }
-        }
+        }                             
         Map<Long,Func> funcs=new TreeMap<>(); Set<Long> globallyDecoded=new HashSet<>();
         ArrayDeque<Long> pending=new ArrayDeque<>(seeds);
         long decoded=0,unknown=0,invalid=0,codeBytes=0; long functionCount=0;
