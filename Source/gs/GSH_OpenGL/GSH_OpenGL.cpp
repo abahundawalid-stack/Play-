@@ -1761,7 +1761,9 @@ void CGSH_OpenGL::FlushVertexBuffer()
 {
 	if(m_vertexBuffer.empty()) return;
 
-	CStatsManager::GetInstance().RecordGsBufferFlush();
+	#if defined(__ANDROID__)
+    CStatsManager::GetInstance().RecordGsBufferFlush();
+    #endif
 
 	assert(m_renderState.isValid == true);
 
@@ -1896,7 +1898,9 @@ void CGSH_OpenGL::DoRenderPass()
 
 	glDrawArrays(primitiveMode, 0, m_vertexBuffer.size());
 
+    #if defined(__ANDROID__)
     CStatsManager::GetInstance().RecordGsDrawSubmission();
+    #endif
 
     m_drawCallCount++;
 }
@@ -1987,7 +1991,10 @@ void CGSH_OpenGL::CopyToFb(
 
 void CGSH_OpenGL::WriteRegisterImpl(uint8 nRegister, uint64 nData)
 {
-	CStatsManager::GetInstance().RecordGsRegisterWrite();
+	#if defined(__ANDROID__)
+    CStatsManager::GetInstance().RecordGsRegisterWrite();
+    #endif
+	
 	CGSHandler::WriteRegisterImpl(nRegister, nData);
 
 	switch(nRegister)
@@ -2049,8 +2056,10 @@ void CGSH_OpenGL::VertexKick(uint8 nRegister, uint64 nValue)
 
 	if(!m_drawEnabled) nDrawingKick = false;
 
-	CStatsManager::GetInstance().RecordGsVertexKick(
-    nDrawingKick);
+	#if defined(__ANDROID__)
+    CStatsManager::GetInstance().RecordGsVertexKick(
+        nDrawingKick);
+    #endif
 
 	if(nFog)
 	{
@@ -2161,12 +2170,14 @@ void CGSH_OpenGL::VertexKick(uint8 nRegister, uint64 nValue)
 		const size_t bufferedVertices =
             m_vertexBuffer.size() - vertexCountBefore;
 
+        #if defined(__ANDROID__)
         if(bufferedVertices != 0)
         {
             CStatsManager::GetInstance().RecordGsBufferedVertices(
                 static_cast<uint32>(bufferedVertices));
         }
-
+        #endif
+		
 		if(nDrawingKick && m_drawingToDepth)
 		{
 			DrawToDepth(m_primitiveType, m_PrimitiveMode);
