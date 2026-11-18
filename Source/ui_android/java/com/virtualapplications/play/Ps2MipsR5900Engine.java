@@ -208,7 +208,10 @@ public final class Ps2MipsR5900Engine {
         codeBytes=globallyDecoded.size()*4L;long execBytes=0;for(Seg s:exec)execBytes+=s.fs;long dataBytes=Math.max(0,execBytes-codeBytes);
         StringBuilder out=new StringBuilder(32768);
         out.append("R5900_ANALYSIS{MODEL=REACHABILITY_BASED_STATIC;ENTRY=").append(hx(entry)).append(";EXEC_SEGMENTS=").append(exec.size())
-           .append(";FUNCTION_SEEDS=").append(seeds.size()).append(";FUNCTIONS_DISCOVERED=").append(funcs.size()).append(";DECODED_UNIQUE_WORDS=").append(globallyDecoded.size())
+           .append(";AUTHORITATIVE_FUNCTION_SEEDS=")
+           .append(authoritativeSeeds.size())
+           .append(";CALL_TARGET_CANDIDATES=")
+           .append(candidateSeeds.size()).append(";FUNCTIONS_DISCOVERED=").append(funcs.size()).append(";DECODED_UNIQUE_WORDS=").append(globallyDecoded.size())
            .append(";DECODED_BYTES=").append(codeBytes).append(";UNREACHED_EXEC_BYTES_ESTIMATE=").append(dataBytes).append(";UNKNOWN_ENCODINGS=").append(unknown).append(";UNSUPPORTED_OR_INVALID_ENCODINGS=").append(invalid).append("\n");
         long edgeTotal=0,blockTotal=0;for(Func f:funcs.values()){edgeTotal+=f.edges.size();blockTotal+=f.blocks.size();}
         out.append("FUNCTIONS_BEGIN\n");
