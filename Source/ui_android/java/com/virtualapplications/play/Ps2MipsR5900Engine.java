@@ -409,6 +409,7 @@ public final class Ps2MipsR5900Engine {
                     b,
                     elf,
                     (pc + 4) & U32
+                    exec
                 );
 
                 if (maps(target, exec)) {
@@ -438,6 +439,7 @@ public final class Ps2MipsR5900Engine {
                         b,
                         elf,
                         (pc + 4) & U32
+                        exec
                     );
 
                     if (target >= 0 && maps(target, exec)) {
@@ -458,6 +460,7 @@ public final class Ps2MipsR5900Engine {
                         b,
                         elf,
                         (pc + 4) & U32
+                        exec
                     );
                 }
 
