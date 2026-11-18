@@ -6,7 +6,7 @@
 #include <map>
 #include "Types.h"
 #include "Singleton.h"
-#include "Profiler.h"
+#include "../Profiler.h"
 #include "../PS2VM.h"
 
 class CStatsManager : public CSingleton<CStatsManager>
