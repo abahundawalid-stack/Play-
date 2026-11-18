@@ -506,7 +506,49 @@ public final class Ps2MipsR5900Engine {
         out.append("FUNCTIONS_BEGIN\n");
         long reportedInstructions=0;
         for(Func f:funcs.values()){
-            out.append("FUNCTION ").append(hx(f.entry)).append(" INSNS=").append(f.ins.size()).append(" BLOCK_TARGETS=").append(f.blocks.size()).append(" EDGES=").append(f.edges.size()).append(f.incomplete?" INCOMPLETE":"").append('\n');
+            out.append("FUNCTION ")
+               .append(hx(f.entry))
+               .append(" INSNS=")
+               .append(f.ins.size())
+               .append(" BASIC_BLOCKS=")
+               .append(f.basicBlocks.size())
+               .append(" INSTRUCTION_EDGES=")
+               .append(f.edges.size())
+               .append(f.incomplete ? " INCOMPLETE" : "")
+               .append('\n');
+
+            for (BasicBlock block : f.basicBlocks) {
+                out.append("  BLOCK ")
+                   .append(hx(block.start))
+                   .append(" - ")
+                   .append(hx(block.end))
+                   .append(" INSNS=")
+                   .append(block.instructionAddresses.size())
+                   .append('\n');
+
+                for (Long address : block.instructionAddresses) {
+                    Ins instruction = f.ins.get(address);
+
+                    if (instruction != null) {
+                        out.append("    BLOCK_INSN ")
+                           .append(hx(address))
+                           .append(instruction.delay ? " DELAY_SLOT" : "")
+                           .append('\n');
+                    }
+                }
+
+                for (Edge edge : block.successors) {
+                    out.append("    CFG_SUCCESSOR ")
+                       .append(edge)
+                       .append('\n');
+                }
+
+                for (Edge edge : block.calls) {
+                    out.append("    CFG_CALL ")
+                       .append(edge)
+                       .append('\n');
+                }
+            }
             for(Ins i:f.ins.values()) {
                 if(reportedInstructions++ >= MAX_REPORTED_INSTRUCTIONS) break;
                 out.append(String.format(
