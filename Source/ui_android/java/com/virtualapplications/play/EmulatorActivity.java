@@ -307,12 +307,6 @@ public class EmulatorActivity extends Activity
                     ? drawCalls / frames
                     : 0;
 
-                DiagnosticsManager.recordSample(
-                    EmulatorActivity.this,
-                    frames,
-                    drawCalls
-                );               
-
                 String profilingInfo = "";
 
                 if(StatsManager.isProfiling())
@@ -338,7 +332,7 @@ public class EmulatorActivity extends Activity
                     )
                 );
 
-                StatsManager.clearStats();               
+                StatsManager.clearStats();             
 
                 if(_activityRunning)
                 {
