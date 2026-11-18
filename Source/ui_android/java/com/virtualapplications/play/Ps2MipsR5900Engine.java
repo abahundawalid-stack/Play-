@@ -508,11 +508,11 @@ public final class Ps2MipsR5900Engine {
         return -1;
     }
     private static boolean writesRt(int op) {
-        return (op >= 8 && op <= 18) ||
+        return (op >= 8 && op <= 15) ||
                (op >= 24 && op <= 27) ||
                (op >= 32 && op <= 39) ||
-               (op >= 48 && op <= 55) ||
-               (op >= 56 && op <= 63);
+               op == 48 ||  // LL
+               op == 56;    // SC
     }
     private static void markDelay(
         Func f,
@@ -523,7 +523,6 @@ public final class Ps2MipsR5900Engine {
     {
         markDelay(f, b, elf, pc, segs, false);
     }
-
     private static void markDelay(
         Func f,
         ByteBuffer b,
