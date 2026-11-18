@@ -123,7 +123,14 @@ float CStatsManager::ComputeCpuUsageRatio(
         static_cast<float>(idleTicks) /
         static_cast<float>(totalTicks);
 
-    idleRatio = std::max(0.f, std::min(idleRatio, 1.f));
+    if(idleRatio < 0.f)
+    {
+        idleRatio = 0.f;
+    }
+    else if(idleRatio > 1.f)
+    {
+        idleRatio = 1.f;
+    }
 
     return (1.f - idleRatio) * 100.f;
 }
