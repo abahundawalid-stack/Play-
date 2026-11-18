@@ -311,6 +311,10 @@ public final class Ps2MipsR5900Engine {
         }
         else if(op>=8&&op<=15){String[] n={"addi","addiu","slti","sltiu","andi","ori","xori","lui"};r=n[op-8]+" $"+rt+",$"+rs+",0x"+Integer.toHexString((int)(w&65535));}
         else if(op==16||op==17||op==18){int cop=(int)(w>>>21&31);r=(op==16?"cop0":op==17?"cop1":"cop2")+".subdecode_required."+cop;valid=false;}
+        else if(op==26 || op==27) {
+            r = (op == 26 ? "ldl" : "ldr") +
+                " $" + rt + ",imm($" + rs + ")";
+        }
         else if(op==28){int major=(int)(w&63),sub=(int)((w>>>6)&31);r=mmi(major,sub,rs,rt,rd,sa);if(r.startsWith("unknown")||r.contains("reserved"))valid=false;}
         else if(op==24||op==25){r=(op==24?"daddi":"daddiu")+" $"+rt+",$"+rs+",0x"+Integer.toHexString((int)(w&65535));}
         else if(op==30||op==31){r=(op==30?"lq":"sq")+" $"+rt+", "+(short)w+"($"+rs+")";}
