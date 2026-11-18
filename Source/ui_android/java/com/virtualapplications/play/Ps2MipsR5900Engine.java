@@ -569,7 +569,19 @@ public final class Ps2MipsR5900Engine {
         }
         if(reportedInstructions>=MAX_REPORTED_INSTRUCTIONS)
             out.append("INSTRUCTION_LIST_TRUNCATED_AFTER=").append(MAX_REPORTED_INSTRUCTIONS).append('\n');
-        out.append("FUNCTIONS_END\nTOTAL_EDGES=").append(edgeTotal).append(";TOTAL_BLOCK_TARGETS=").append(blockTotal)
+        out.append("FUNCTIONS_END\n")
+           .append("TOTAL_INSTRUCTION_EDGES=")
+           .append(edgeTotal)
+           .append(";TOTAL_BASIC_BLOCKS=")
+           .append(blockTotal)
+           .append(";TOTAL_CFG_SUCCESSORS=")
+           .append(cfgEdgeTotal)
+           .append(";TOTAL_CFG_CALLS=")
+           .append(callEdgeTotal)
+           .append(";INDIRECT_TARGETS=LOCAL_LUI_ORI_ADDIU_PATTERN_ONLY")
+           .append(";GLOBAL_BUDGET_REACHED=")
+           .append(globallyDecoded.size() >= MAX_GLOBAL_DECODED_WORDS)
+           .append(";LIMITATIONS=STATIC_REACHABILITY_CANNOT_PROVE_RUNTIME_PATHS_OR_ALL_COMPUTED_JUMPS;UNREACHED_BYTES_ARE_NOT_PROVEN_DATA;COP_AND_VU_SUBDECODERS_PARTIAL;INDIRECT_REGISTER_TARGETS_NOT_YET_PROPAGATED}");
            .append(";INDIRECT_TARGETS=LOCAL_LUI_ORI_ADDIU_PATTERN_ONLY;GLOBAL_BUDGET_REACHED=")
            .append(globallyDecoded.size()>=MAX_GLOBAL_DECODED_WORDS)
            .append(";LIMITATIONS=STATIC_REACHABILITY_CANNOT_PROVE_RUNTIME_PATHS_OR_ALL_COMPUTED_JUMPS;UNREACHED_BYTES_ARE_NOT_PROVEN_DATA;COP_AND_VU_SUBDECODERS_PARTIAL;INDIRECT_REGISTER_TARGETS_NOT_YET_PROPAGATED}");
