@@ -105,7 +105,58 @@ public final class Ps2MipsR5900Engine {
                 if(!seen.add(pc)||!maps(pc,exec))continue;
                 Seg sg=segment(pc,exec);long delta=pc-sg.va;if(delta+4>sg.fs)continue;long fo=sg.off+delta;if(!range(fo,4,elf.length))continue;
                 long w=u32(b,(int)fo);Ins in=decode(pc,w);f.ins.put(pc,in);globallyDecoded.add(pc);decoded++;if(in.text.startsWith("unknown"))unknown++;if(!in.valid)invalid++;
-                if(in.flow.equals("COND")){long t=branchTarget(pc,w);in.target=t;boolean link=opcodeOf(w)==1 && regimmRt(w)>=16;f.edges.add(new Edge(pc,t,link?"conditional-call":"conditional-branch"));f.edges.add(new Edge(pc,(pc+8)&U32,"fallthrough"));f.blocks.add(t);f.blocks.add((pc+8)&U32);if(link && maps(t,exec) && !funcs.containsKey(t))pending.add(t);if(maps(t,exec))work.add(t);if(maps((pc+8)&U32,exec))work.add((pc+8)&U32);markDelay(f,b,elf,pc+4,exec);}
+                if(in.flow.equals("COND")) {
+                    long t = branchTarget(pc, w);
+                    in.target = t;
+
+                    int op = opcodeOf(w);
+                    int rt = regimmRt(w);
+
+                    boolean link =
+                        op == 1 && (rt == 16 || rt == 17 ||
+                                    rt == 18 || rt == 19);
+
+                    boolean likely = isBranchLikely(w);
+
+                    f.edges.add(new Edge(
+                        pc,
+                        t,
+                        link ? "conditional-call" :
+                        (likely ? "branch-likely-taken" : "conditional-branch")
+                    ));
+
+                    f.edges.add(new Edge(
+                        pc,
+                        (pc + 8) & U32,
+                        likely
+                            ? "branch-likely-not-taken-annuls-delay"
+                            : "fallthrough"
+                    ));
+
+                    f.blocks.add(t);
+                    f.blocks.add((pc + 8) & U32);
+
+                    if(link && maps(t, exec) && !funcs.containsKey(t)) {
+                        pending.add(t);
+                    }
+
+                    if(maps(t, exec)) {
+                        work.add(t);
+                    }
+
+                    if(maps((pc + 8) & U32, exec)) {
+                        work.add((pc + 8) & U32);
+                    }
+
+                    markDelay(
+                        f,
+                        b,
+                        elf,
+                        pc + 4,
+                        exec,
+                        likely
+                    );
+                }
                 else if(in.flow.equals("CALL")){int targetReg=(int)((w>>>21)&31);long t=in.text.startsWith("jalr")?resolveJalrTarget(pc,targetReg,b,exec):jumpTarget(pc,w);in.target=t;f.edges.add(new Edge(pc,t<0?0:t,t<0?"indirect-call-unresolved":(in.text.startsWith("jalr")?"indirect-call-resolved":"call")));f.edges.add(new Edge(pc,(pc+8)&U32,"call-continuation"));f.blocks.add((pc+8)&U32);if(t>=0&&maps(t,exec)&&!funcs.containsKey(t))pending.add(t);markDelay(f,b,elf,pc+4,exec);long cont=(pc+8)&U32;if(maps(cont,exec))work.add(cont);}
                 else if(in.flow.equals("JUMP")){long t=jumpTarget(pc,w);in.target=t;f.edges.add(new Edge(pc,t,"jump"));f.blocks.add(t);markDelay(f,b,elf,pc+4,exec);if(maps(t,exec))work.add(t);}
                 else if(in.flow.equals("INDIRECT")){int targetReg=(int)((w>>>21)&31);long t=resolveJalrTarget(pc,targetReg,b,exec);in.target=t;f.edges.add(new Edge(pc,t<0?0:t,t<0?"indirect-jump-unresolved":"indirect-jump-resolved"));markDelay(f,b,elf,pc+4,exec);if(t>=0&&maps(t,exec))work.add(t);}
