@@ -82,7 +82,12 @@ public final class Ps2MipsR5900Engine {
         }
         if(exec.isEmpty())return new Result("R5900=NO_EXEC_LOAD",0,0,1,0,0);
 
-        TreeSet<Long> seeds=new TreeSet<>(); seeds.add(entry);
+        // Strong evidence: ELF entry point and STT_FUNC symbols.
+        TreeSet<Long> authoritativeSeeds = new TreeSet<>();
+        authoritativeSeeds.add(entry);
+
+        // Weaker evidence: targets discovered from JAL/JALR calls.
+        TreeSet<Long> candidateSeeds = new TreeSet<>();
         // Function symbols are authoritative seeds only when their address maps to file-backed executable bytes.
         if(shnum>0&&shnum<=8192&&shent>=40&&range(shoff,(long)shent*shnum,elf.length)){
             for(int n=0;n<shnum;n++){int s=(int)shoff+n*shent;long typ=u32(b,s+4),off=u32(b,s+16),sz=u32(b,s+20),link=u32(b,s+24),es=u32(b,s+36);
