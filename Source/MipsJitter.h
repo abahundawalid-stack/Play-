@@ -1,7 +1,7 @@
 #pragma once
 
 #include <map>
-#include "Jitter.h"
+#include "../deps/CodeGen/include/Jitter.h"
 
 class CMipsJitter : public Jitter::CJitter
 {
