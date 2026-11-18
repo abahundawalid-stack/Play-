@@ -1894,7 +1894,9 @@ void CGSH_OpenGL::DoRenderPass()
 
 	glDrawArrays(primitiveMode, 0, m_vertexBuffer.size());
 
-	m_drawCallCount++;
+    CStatsManager::GetInstance().RecordGsDrawSubmission();
+
+    m_drawCallCount++;
 }
 
 void CGSH_OpenGL::DrawToDepth(unsigned int primitiveType, uint64 primReg)
