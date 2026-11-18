@@ -1981,6 +1981,7 @@ void CGSH_OpenGL::CopyToFb(
 
 void CGSH_OpenGL::WriteRegisterImpl(uint8 nRegister, uint64 nData)
 {
+	CStatsManager::GetInstance().RecordGsRegisterWrite();
 	CGSHandler::WriteRegisterImpl(nRegister, nData);
 
 	switch(nRegister)
