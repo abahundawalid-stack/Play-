@@ -243,6 +243,23 @@ public final class Ps2MipsR5900Engine {
         if(major==0x12)return "mfhi1";if(major==0x13)return "mthi1";if(major==0x14)return "mflo1";if(major==0x15)return "mtlo1";if(major==0x18)return "mult1";if(major==0x19)return "multu1";if(major==0x1a)return "div1";if(major==0x1b)return "divu1";if(major==0x20)return "madd1";if(major==0x21)return "maddu1";
         return "unknown.mmi.major."+major+".sub."+sub;
     }
+    private static boolean isBranchLikely(long w) {
+        int op = (int)(w >>> 26);
+        int rt = (int)((w >>> 16) & 31);
+
+        if(op >= 20 && op <= 23) {
+            return true;
+        }
+
+        if(op == 1) {
+            return rt == 2 ||
+                   rt == 3 ||           
+                   rt == 18 ||
+                   rt == 19;
+        }
+
+        return false;
+    }
     private static int opcodeOf(long w){return (int)(w>>>26)&63;} private static int regimmRt(long w){return (int)(w>>>16)&31;}
     private static long branchTarget(long pc,long w){return (pc+4+((long)(short)w<<2))&U32;}
     private static long jumpTarget(long pc,long w){return (((pc+4)&0xf0000000L)|((w&0x03ffffffL)<<2))&U32;}
