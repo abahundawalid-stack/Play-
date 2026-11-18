@@ -58,10 +58,42 @@ public final class Ps2MipsR5900Engine {
         Edge(long f,long t,String k){from=f;to=t;kind=k;}
         public String toString(){return hx(from)+" -> "+hx(to)+" ["+kind+"]";}
     }
+    private static final class BasicBlock {         
+        long start;
+        long end;
+
+        List<Long> instructionAddresses = new ArrayList<>();
+        List<Edge> successors = new ArrayList<>();
+        List<Edge> calls = new ArrayList<>();
+
+        BasicBlock(long address) {
+            start = address;
+            end = address;
+        }
+
+        void addInstruction(long address) {
+            instructionAddresses.add(address);
+            end = address;
+        }
+    }
     private static final class Func {
-        long entry; TreeMap<Long,Ins> ins=new TreeMap<>(); List<Edge> edges=new ArrayList<>();
-        Set<Long> blocks=new TreeSet<>(); boolean incomplete;
-        Func(long e){entry=e;}
+        long entry;
+
+        TreeMap<Long, Ins> ins = new TreeMap<>();
+        List<Edge> edges = new ArrayList<>();
+
+        // Legacy target-address collection; retained for diagnostics.
+        Set<Long> blocks = new TreeSet<>();
+
+        // Actual basic blocks and instruction-to-block ownership.
+        List<BasicBlock> basicBlocks = new ArrayList<>();
+        Map<Long, BasicBlock> instructionBlocks = new HashMap<>();
+
+        boolean incomplete;
+
+        Func(long e) {
+            entry = e;
+        }
     }
 
     public static Result analyze(byte[] elf) {
