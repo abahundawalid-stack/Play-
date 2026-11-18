@@ -602,19 +602,6 @@ void CPS2OS::LoadExecutableInternal()
         LOG_NAME,
         "[JPOG_BOOT] STAGE 11: EE ENTRY POINT READY PC=0x%08X\r\n",
         m_ee.m_State.nPC);
-
-#ifdef DEBUGGER_INCLUDED
-    std::pair<uint32, uint32> executableRange = GetExecutableRange();
-    uint32 minAddr = executableRange.first;
-    uint32 maxAddr = executableRange.second & ~0x03;
-
-    m_ee.m_State.nCOP0[CCOP_SCU::STATUS] |= CMIPS::STATUS_CU0;
-
-    if(minAddr < maxAddr)
-    {
-        m_ee.SetProgramRange(minAddr, maxAddr);
-    }
-#endif
 }
 
 void CPS2OS::UnloadExecutable()
