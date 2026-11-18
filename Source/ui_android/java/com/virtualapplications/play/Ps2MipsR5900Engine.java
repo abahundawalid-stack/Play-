@@ -186,7 +186,17 @@ public final class Ps2MipsR5900Engine {
                         likely
                     );
                 }
-                else if(in.flow.equals("CALL")){int targetReg=(int)((w>>>21)&31);long t=in.text.startsWith("jalr")?resolveJalrTarget(pc,targetReg,b,exec):jumpTarget(pc,w);in.target=t;f.edges.add(new Edge(pc,t<0?0:t,t<0?"indirect-call-unresolved":(in.text.startsWith("jalr")?"indirect-call-resolved":"call")));f.edges.add(new Edge(pc,(pc+8)&U32,"call-continuation"));f.blocks.add((pc+8)&U32);if(t>=0&&maps(t,exec)&&!funcs.containsKey(t))pending.add(t);markDelay(f,b,elf,pc+4,exec);long cont=(pc+8)&U32;if(maps(cont,exec))work.add(cont);}
+                else if(in.flow.equals("CALL")){int targetReg=(int)((w>>>21)&31);long t=in.text.startsWith("jalr")?resolveJalrTarget(pc,targetReg,b,exec):jumpTarget(pc,w);in.target=t;f.edges.add(new Edge(pc,t<0?0:t,t<0?"indirect-call-unresolved":(in.text.startsWith("jalr")?"indirect-call-resolved":"call")));f.edges.add(new Edge(pc,(pc+8)&U32,"call-continuation"));f.blocks.add((pc+8)&U32);markDelay(f,b,elf,pc+4,exec);long cont=(pc+8)&U32;if(maps(cont,exec))work.add(cont);}
+                if (t >= 0 &&
+                    maps(t, exec) &&
+                    !funcs.containsKey(t)) {
+
+                    if (!authoritativeSeeds.contains(t)) {
+                        candidateSeeds.add(t);
+                    }
+
+                    pending.add(t);
+                }
                 else if(in.flow.equals("JUMP")){long t=jumpTarget(pc,w);in.target=t;f.edges.add(new Edge(pc,t,"jump"));f.blocks.add(t);markDelay(f,b,elf,pc+4,exec);if(maps(t,exec))work.add(t);}
                 else if(in.flow.equals("INDIRECT")){int targetReg=(int)((w>>>21)&31);long t=resolveJalrTarget(pc,targetReg,b,exec);in.target=t;f.edges.add(new Edge(pc,t<0?0:t,t<0?"indirect-jump-unresolved":"indirect-jump-resolved"));markDelay(f,b,elf,pc+4,exec);if(t>=0&&maps(t,exec))work.add(t);}
                 else if(in.flow.equals("RETURN")){f.edges.add(new Edge(pc,0,"return"));markDelay(f,b,elf,pc+4,exec);}
