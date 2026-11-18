@@ -289,7 +289,26 @@ public final class Ps2MipsR5900Engine {
             flow = valid ? "COND" : "NEXT";
         }
         else if(op==2||op==3){r=(op==2?"j ":"jal ")+hx(jumpTarget(pc,w));flow=op==3?"CALL":"JUMP";}
-        else if(op==4||op==5||op==6||op==7||op==20||op==21||op==22||op==23){r="branch.op"+op;flow="COND";}
+        else if(op==4 || op==5 || op==6 || op==7 ||
+                op==20 || op==21 || op==22 || op==23) {
+
+            switch(op) {
+                case 4:  r = "beq"; break;
+                case 5:  r = "bne"; break;
+                case 6:  r = "blez"; break;
+                case 7:  r = "bgtz"; break;
+                case 20: r = "beql"; break;
+                case 21: r = "bnel"; break;          
+                case 22: r = "blezl"; break;
+                case 23: r = "bgtzl"; break;
+                default:
+                    r = "unknown.branch." + op;
+                    valid = false;
+                    break;
+            }
+
+            flow = valid ? "COND" : "NEXT";
+        }
         else if(op>=8&&op<=15){String[] n={"addi","addiu","slti","sltiu","andi","ori","xori","lui"};r=n[op-8]+" $"+rt+",$"+rs+",0x"+Integer.toHexString((int)(w&65535));}
         else if(op==16||op==17||op==18){int cop=(int)(w>>>21&31);r=(op==16?"cop0":op==17?"cop1":"cop2")+".subdecode_required."+cop;valid=false;}
         else if(op==28){int major=(int)(w&63),sub=(int)((w>>>6)&31);r=mmi(major,sub,rs,rt,rd,sa);if(r.startsWith("unknown")||r.contains("reserved"))valid=false;}
