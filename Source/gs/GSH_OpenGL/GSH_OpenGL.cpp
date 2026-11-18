@@ -7,6 +7,7 @@
 #include "../GsPixelFormats.h"
 #include "../GsTransferRange.h"
 #include "GSH_OpenGL.h"
+#include "ui_shared/StatsManager.h"
 
 #ifdef USE_DUALSOURCE_BLENDING
 //Dual source blending constants
