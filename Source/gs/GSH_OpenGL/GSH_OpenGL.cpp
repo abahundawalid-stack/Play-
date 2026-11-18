@@ -1759,6 +1759,8 @@ void CGSH_OpenGL::FlushVertexBuffer()
 {
 	if(m_vertexBuffer.empty()) return;
 
+	CStatsManager::GetInstance().RecordGsBufferFlush();
+
 	assert(m_renderState.isValid == true);
 
 	auto shader = GetShaderFromCaps(m_renderState.shaderCaps);
