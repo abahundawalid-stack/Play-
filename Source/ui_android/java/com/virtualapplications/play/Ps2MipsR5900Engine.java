@@ -360,8 +360,46 @@ public final class Ps2MipsR5900Engine {
     private static int opcodeOf(long w){return (int)(w>>>26)&63;} private static int regimmRt(long w){return (int)(w>>>16)&31;}
     private static long branchTarget(long pc,long w){return (pc+4+((long)(short)w<<2))&U32;}
     private static long jumpTarget(long pc,long w){return (((pc+4)&0xf0000000L)|((w&0x03ffffffL)<<2))&U32;}
-    private static boolean maps(long a,List<Seg>s){return (a&3L)==0 && segment(a,s)!=null;}
-    private static Seg segment(long a,List<Seg>s){for(Seg x:s)if(a>=x.va&&a-x.va<x.fs)return x;return null;}
+    private static boolean maps(long address, List<Seg> segments) {
+        return (address & 3L) == 0 &&
+               segment(address, segments) != null;
+        }
+
+        /**
+         * Returns a segment only when the virtual address has exactly
+         * one file-backed executable mapping.
+         *
+         * Ambiguous VA mappings are rejected. Never silently select
+         * the first matching PT_LOAD segment.
+         */      
+    private static Seg segment(long address, List<Seg> segments) {
+        if (segments == null || segments.isEmpty()) {
+            return null;
+        }
+
+        Seg match = null;
+
+        for (Seg candidate : segments) {
+            if (address < candidate.va) {
+                continue;
+            }
+ 
+            long delta = address - candidate.va;
+       
+            if (delta >= candidate.fs) {
+                continue;
+            }
+
+            if (match != null) {
+                // More than one PT_LOAD maps this virtual address.
+                return null;
+            }
+
+            match = candidate;
+        }
+
+        return match;
+    }
     private static int u16(ByteBuffer b,int p){return b.getShort(p)&65535;} private static long u32(ByteBuffer b,int p){return b.getInt(p)&U32;}
     private static boolean range(long o,long n,long z){return o>=0&&n>=0&&o<=z&&n<=z-o;} private static String hx(long x){return String.format(Locale.ROOT,"0x%08X",x&U32);}
 }
