@@ -114,8 +114,20 @@ public final class Ps2MipsR5900Engine {
             ArrayDeque<Long> work=new ArrayDeque<>();Set<Long> seen=new HashSet<>();work.add(start);int steps=0;
             while(!work.isEmpty() && steps++<MAX_STEPS_PER_FUNC &&
                   globallyDecoded.size()<MAX_GLOBAL_DECODED_WORDS){long pc=work.removeFirst()&U32;
-                if(pc!=start && seeds.contains(pc)){f.edges.add(new Edge(pc,pc,"known-function-boundary"));continue;}
-                if(!seen.add(pc)||!maps(pc,exec))continue;
+                if (pc != start &&
+                    (authoritativeSeeds.contains(pc) ||
+                     candidateSeeds.contains(pc))) {
+
+                    f.edges.add(new Edge(
+                        pc,
+                        pc,
+                        authoritativeSeeds.contains(pc)
+                            ? "authoritative-function-boundary"
+                            : "call-target-function-boundary"
+                    ));
+
+                    continue;
+                }
                 Seg sg=segment(pc,exec);long delta=pc-sg.va;if(delta+4>sg.fs)continue;long fo=sg.off+delta;if(!range(fo,4,elf.length))continue;
                 long w=u32(b,(int)fo);Ins in=decode(pc,w);f.ins.put(pc,in);globallyDecoded.add(pc);decoded++;if(in.text.startsWith("unknown"))unknown++;if(!in.valid)invalid++;
                 if(in.flow.equals("COND")) {
