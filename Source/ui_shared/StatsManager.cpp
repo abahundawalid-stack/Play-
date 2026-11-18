@@ -40,6 +40,66 @@ void CStatsManager::OnNewFrame(CPS2VM* virtualMachine)
 #endif
 }
 
+void CStatsManager::RecordGsRegisterWrite()
+{
+    ++m_gsRegisterWrites;
+}
+
+void CStatsManager::RecordGsVertexKick(bool drawingKick)
+{
+    ++m_gsVertexKicks;
+
+    if(drawingKick)
+    {
+        ++m_gsDrawingKicks;
+    }
+}
+
+void CStatsManager::RecordGsBufferedVertices(uint32 count)
+{
+    m_gsBufferedVertices += count;
+}
+
+void CStatsManager::RecordGsBufferFlush()
+{
+    ++m_gsBufferFlushes;
+}
+
+void CStatsManager::RecordGsDrawSubmission()
+{
+    ++m_gsDrawSubmissions;
+}
+
+std::string CStatsManager::GetGsPipelineDiagnostics() const
+{
+    return string_format(
+        "GS register writes: %llu\n"
+        "GS vertex kicks: %llu\n"
+        "GS drawing kicks: %llu\n"
+        "GS vertices buffered: %llu\n"
+        "GS buffer flushes: %llu\n"
+        "OpenGL draw submissions: %llu\n",
+
+        static_cast<unsigned long long>(
+            m_gsRegisterWrites.load()),
+
+        static_cast<unsigned long long>(
+            m_gsVertexKicks.load()),
+
+        static_cast<unsigned long long>(
+            m_gsDrawingKicks.load()),
+
+        static_cast<unsigned long long>(
+            m_gsBufferedVertices.load()),
+
+        static_cast<unsigned long long>(
+            m_gsBufferFlushes.load()),
+
+        static_cast<unsigned long long>(
+            m_gsDrawSubmissions.load())
+    );
+}
+
 void CStatsManager::OnGsNewFrame(uint32 drawCalls)
 {
     std::lock_guard<std::mutex> statsLock(m_statsMutex);
