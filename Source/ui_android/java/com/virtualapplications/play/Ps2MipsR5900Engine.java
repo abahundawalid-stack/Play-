@@ -41,8 +41,17 @@ public final class Ps2MipsR5900Engine {
         Seg(long v,long o,long f,long m,long fl){va=v;off=o;fs=f;ms=m;flags=fl;}
     }
     private static final class Ins {
-        long pc, word, target=-1; String text, flow="NEXT"; boolean delay, valid;
-        Ins(long p,long w,String t,String f,boolean v){pc=p;word=w;text=t;flow=f;valid=v;}
+        long pc, word, target=-1;
+        String text, flow="NEXT";
+        boolean delay, delayAnnulledWhenNotTaken, valid;
+
+        Ins(long p, long w, String t, String f, boolean v) {
+            pc = p;
+            word = w;
+            text = t;
+            flow = f;
+            valid = v;
+        }
     }
     private static final class Edge {
         long from,to; String kind;
