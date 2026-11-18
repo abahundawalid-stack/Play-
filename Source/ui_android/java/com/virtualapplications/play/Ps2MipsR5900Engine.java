@@ -178,7 +178,18 @@ public final class Ps2MipsR5900Engine {
             out.append("FUNCTION ").append(hx(f.entry)).append(" INSNS=").append(f.ins.size()).append(" BLOCK_TARGETS=").append(f.blocks.size()).append(" EDGES=").append(f.edges.size()).append(f.incomplete?" INCOMPLETE":"").append('\n');
             for(Ins i:f.ins.values()) {
                 if(reportedInstructions++ >= MAX_REPORTED_INSTRUCTIONS) break;
-                out.append(String.format(Locale.ROOT,"  %08X  %08X  %-9s %s%s\n",i.pc,i.word,i.flow,i.text,i.delay?" ; delay-slot":""));
+                out.append(String.format(
+                    Locale.ROOT,
+                    "  %08X  %08X  %-9s %s%s%s\n",
+                    i.pc,
+                    i.word,                   
+                    i.flow,
+                    i.text,
+                    i.delay ? " ; delay-slot" : "",
+                    i.delayAnnulledWhenNotTaken
+                        ? " ; annulled-if-branch-not-taken"
+                        : ""          
+                ));
             }
             for(Edge e:f.edges)out.append("  EDGE ").append(e).append('\n');
             if(reportedInstructions>=MAX_REPORTED_INSTRUCTIONS) break;
