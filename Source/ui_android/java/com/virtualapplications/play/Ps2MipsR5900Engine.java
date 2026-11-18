@@ -161,7 +161,11 @@ public final class Ps2MipsR5900Engine {
                     f.blocks.add(t);
                     f.blocks.add((pc + 8) & U32);
 
-                    if(link && maps(t, exec) && !funcs.containsKey(t)) {
+                    if (link && maps(t, exec) && !funcs.containsKey(t)) {
+                        if (!authoritativeSeeds.contains(t)) {
+                            candidateSeeds.add(t);
+                        }
+
                         pending.add(t);
                     }
 
