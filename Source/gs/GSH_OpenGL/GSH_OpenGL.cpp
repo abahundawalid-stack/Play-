@@ -2115,18 +2115,12 @@ void CGSH_OpenGL::VertexKick(uint8 nRegister, uint64 nValue)
 				}
 			}
 			if(needCtx) SetRenderingContext(m_PrimitiveMode);
-		}
+		}       
 
-        const size_t bufferedVertices =
-            m_vertexBuffer.size() - vertexCountBefore;
+        const size_t vertexCountBefore =
+            m_vertexBuffer.size();
 
-        if(bufferedVertices != 0)
-        {
-            CStatsManager::GetInstance().RecordGsBufferedVertices(
-                static_cast<uint32>(bufferedVertices));
-        }
-		
-		switch(m_primitiveType)
+        switch(m_primitiveType)	
 		{
 		case PRIM_POINT:
 			if(nDrawingKick) Prim_Point();
@@ -2161,6 +2155,15 @@ void CGSH_OpenGL::VertexKick(uint8 nRegister, uint64 nValue)
 			m_nVtxCount = 2;
 			break;
 		}
+
+		const size_t bufferedVertices =
+            m_vertexBuffer.size() - vertexCountBefore;
+
+        if(bufferedVertices != 0)
+        {
+            CStatsManager::GetInstance().RecordGsBufferedVertices(
+                static_cast<uint32>(bufferedVertices));
+        }
 
 		if(nDrawingKick && m_drawingToDepth)
 		{
