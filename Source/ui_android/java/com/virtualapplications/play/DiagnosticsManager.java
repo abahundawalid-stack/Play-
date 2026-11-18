@@ -102,6 +102,9 @@ public final class DiagnosticsManager
         int max = Math.max(oldMax, safeFrames);
 
         p.edit()
+            .putString(
+                "last_profiling_info",
+                profilingInfo == null ? "" : profilingInfo)
             .putLong("samples", samples)
             .putLong("total_frames", totalFrames)
             .putLong("total_draw_calls", totalDrawCalls)
@@ -124,6 +127,9 @@ public final class DiagnosticsManager
         if(p.getBoolean("running", false))
         {
             p.edit()
+                .putString(
+                    "last_profiling_info",
+                    profilingInfo == null ? "" : profilingInfo)
                 .putBoolean("running", false)
                 .putLong(
                     "end_time",
