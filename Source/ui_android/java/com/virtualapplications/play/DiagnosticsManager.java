@@ -535,17 +535,20 @@ public final class DiagnosticsManager
         {
            if(StatsManager.isProfiling())
            {
-               String profilingInfo = StatsManager.getProfilingInfo();
+               String profilingInfo =
+               p.getString("last_profiling_info", "");
 
                report.append("Profiler status: ACTIVE\n");
 
-               if(profilingInfo != null && !profilingInfo.trim().isEmpty())
+               if(profilingInfo != null &&
+                  !profilingInfo.trim().isEmpty())
                {
-        report.append(profilingInfo);
+                   report.append(profilingInfo);
                }
                else
                {
-                   report.append("Profiler data: NOT AVAILABLE YET\n");
+                   report.append(
+                       "Profiler data: NOT AVAILABLE YET\n");
                }
            }
            else
