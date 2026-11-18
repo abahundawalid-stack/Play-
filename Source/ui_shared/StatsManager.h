@@ -40,6 +40,13 @@ private:
 	uint32 m_frames = 0;
 	uint32 m_drawCalls = 0;
 
+    std::atomic<uint64> m_gsRegisterWrites{0};
+    std::atomic<uint64> m_gsVertexKicks{0};
+    std::atomic<uint64> m_gsDrawingKicks{0};
+    std::atomic<uint64> m_gsBufferedVertices{0};
+    std::atomic<uint64> m_gsBufferFlushes{0};
+    std::atomic<uint64> m_gsDrawSubmissions{0};
+
 	CPS2VM::CPU_UTILISATION_INFO m_cpuUtilisation;
 
 #ifdef PROFILE
