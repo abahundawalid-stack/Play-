@@ -88,121 +88,360 @@ public final class Ps2MipsR5900Engine {
 
         // Weaker evidence: targets discovered from JAL/JALR calls.
         TreeSet<Long> candidateSeeds = new TreeSet<>();
-        // Function symbols are authoritative seeds only when their address maps to file-backed executable bytes.
-        if(shnum>0&&shnum<=8192&&shent>=40&&range(shoff,(long)shent*shnum,elf.length)){
-            for(int n=0;n<shnum;n++){int s=(int)shoff+n*shent;long typ=u32(b,s+4),off=u32(b,s+16),sz=u32(b,s+20),link=u32(b,s+24),es=u32(b,s+36);
-                if((typ!=2&&typ!=11)||es<16||sz%es!=0||!range(off,sz,elf.length)||link>=shnum)continue;
-                int st=(int)shoff+(int)link*shent;long sto=u32(b,st+16),sts=u32(b,st+20);if(u32(b,st+4)!=3||!range(sto,sts,elf.length))continue;
-                for(long q=0;q<sz/es;q++){int x=(int)(off+q*es);int info=b.get(x+12)&255;long val=u32(b,x+4);}
-        if ((info & 15) == 2) {
-            long functionAddress = val & ~3L;
+        // Function symbols are authoritative seeds only when their address
+        // maps to file-backed executable bytes.
+        if (shnum > 0 &&
+            shnum <= 8192 &&
+            shent >= 40 &&
+            range(shoff, (long) shent * shnum, elf.length)) {
 
-            if (maps(functionAddress, exec)) {
-               authoritativeSeeds.add(functionAddress);
+        for (int n = 0; n < shnum; n++) {
+            int section = (int) shoff + n * shent;
+
+            long type = u32(b, section + 4);
+            long offset = u32(b, section + 16);
+            long size = u32(b, section + 20);
+            long link = u32(b, section + 24);
+            long entrySize = u32(b, section + 36);
+
+            if ((type != 2 && type != 11) ||
+                entrySize < 16 ||
+                size % entrySize != 0 ||
+                !range(offset, size, elf.length) ||
+                link >= shnum) {
+                continue;
             }
-        }                             
-        Map<Long, Func> funcs = new TreeMap<>();
-        Set<Long> globallyDecoded = new HashSet<>();
 
-        ArrayDeque<Long> pending =
-            new ArrayDeque<>(authoritativeSeeds);
-        long decoded=0,unknown=0,invalid=0,codeBytes=0; long functionCount=0;
-        while(!pending.isEmpty() && functionCount<MAX_FUNCS &&
-              globallyDecoded.size()<MAX_GLOBAL_DECODED_WORDS){long start=pending.removeFirst()&U32;if(funcs.containsKey(start)||!maps(start,exec))continue;
-            Func f=new Func(start);funcs.put(start,f);functionCount++;
-            f.blocks.add(start);
-            ArrayDeque<Long> work=new ArrayDeque<>();Set<Long> seen=new HashSet<>();work.add(start);int steps=0;
-            while(!work.isEmpty() && steps++<MAX_STEPS_PER_FUNC &&
-                  globallyDecoded.size()<MAX_GLOBAL_DECODED_WORDS){long pc=work.removeFirst()&U32;
-                if (pc != start &&
-                    (authoritativeSeeds.contains(pc) ||
-                     candidateSeeds.contains(pc))) {
+            int stringSection =
+                (int) shoff + (int) link * shent;
 
-                    f.edges.add(new Edge(
-                        pc,
-                        pc,
-                        authoritativeSeeds.contains(pc)
-                            ? "authoritative-function-boundary"
-                            : "call-target-function-boundary"
-                    ));
+            long stringType = u32(b, stringSection + 4);
+            long stringOffset = u32(b, stringSection + 16);
+            long stringSize = u32(b, stringSection + 20);
 
-                    continue;
+            if (stringType != 3 ||
+                !range(stringOffset, stringSize, elf.length)) {
+                continue;
+            }
+
+            for (long q = 0; q < size / entrySize; q++) {
+                int symbol = (int) (offset + q * entrySize);
+
+                int info = b.get(symbol + 12) & 255;
+                long value = u32(b, symbol + 4);
+
+                if ((info & 15) == 2) {
+                    long functionAddress = value & ~3L;
+
+                    if (maps(functionAddress, exec)) {
+                        authoritativeSeeds.add(functionAddress);
+                    }
                 }
-                Seg sg=segment(pc,exec);long delta=pc-sg.va;if(delta+4>sg.fs)continue;long fo=sg.off+delta;if(!range(fo,4,elf.length))continue;
-                long w=u32(b,(int)fo);Ins in=decode(pc,w);f.ins.put(pc,in);globallyDecoded.add(pc);decoded++;if(in.text.startsWith("unknown"))unknown++;if(!in.valid)invalid++;
-                if(in.flow.equals("COND")) {
-                    long t = branchTarget(pc, w);
-                    in.target = t;
+            }
+        }
+    }
 
-                    int op = opcodeOf(w);
-                    int rt = regimmRt(w);
+    Map<Long, Func> funcs = new TreeMap<>();
+    Set<Long> globallyDecoded = new HashSet<>();
 
-                    boolean link =
-                        op == 1 && (rt == 16 || rt == 17 ||
-                                    rt == 18 || rt == 19);
+    ArrayDeque<Long> pending =
+        new ArrayDeque<>(authoritativeSeeds);
 
-                    boolean likely = isBranchLikely(w);
+    long decoded = 0;
+    long unknown = 0;
+    long invalid = 0;
+    long codeBytes = 0;
+    long functionCount = 0;
+
+    while (!pending.isEmpty() &&
+           functionCount < MAX_FUNCS &&
+           globallyDecoded.size() < MAX_GLOBAL_DECODED_WORDS) {
+
+        long start = pending.removeFirst() & U32;
+
+        if (funcs.containsKey(start) || !maps(start, exec)) {
+            continue;
+        }
+
+        Func f = new Func(start);
+        funcs.put(start, f);
+        functionCount++;
+
+        f.blocks.add(start);
+
+        ArrayDeque<Long> work = new ArrayDeque<>();
+        Set<Long> seen = new HashSet<>();
+
+        work.add(start);
+
+        int steps = 0;
+
+        while (!work.isEmpty() &&
+               steps++ < MAX_STEPS_PER_FUNC &&
+               globallyDecoded.size() < MAX_GLOBAL_DECODED_WORDS) {
+
+            long pc = work.removeFirst() & U32;
+
+            if (!seen.add(pc)) {
+                continue;
+            }
+
+            if (pc != start &&
+                (authoritativeSeeds.contains(pc) ||
+                 candidateSeeds.contains(pc))) {
+
+                f.edges.add(new Edge(
+                    pc,
+                    pc,
+                    authoritativeSeeds.contains(pc)
+                        ? "authoritative-function-boundary"
+                        : "call-target-function-boundary"
+                ));
+
+                continue;
+            }
+
+            Seg sg = segment(pc, exec);
+
+            if (sg == null) {
+                continue;
+            }
+
+            long delta = pc - sg.va;
+
+            if (delta + 4 > sg.fs) {
+                continue;
+            }
+
+            long fileOffset = sg.off + delta;
+
+            if (!range(fileOffset, 4, elf.length)) {
+                continue;
+            }
+
+            long word = u32(b, (int) fileOffset);
+            Ins in = decode(pc, word);
+
+            f.ins.put(pc, in);
+            globallyDecoded.add(pc);
+
+            decoded++;
+
+            if (in.text.startsWith("unknown")) {
+                unknown++;
+            }
+
+            if (!in.valid) {
+                invalid++;
+            }
+
+            // Conditional branch, including REGIMM link branches.
+            if (in.flow.equals("COND")) {
+                long target = branchTarget(pc, word);
+                long fallthrough = (pc + 8) & U32;
+
+                in.target = target;
+
+                int op = opcodeOf(word);
+                int rt = regimmRt(word);
+
+                boolean link =
+                    op == 1 &&
+                    (rt == 16 || rt == 17 ||
+                     rt == 18 || rt == 19);
+
+                boolean likely = isBranchLikely(word);
+
+                f.edges.add(new Edge(
+                    pc,
+                    target,
+                    link
+                        ? "conditional-call"
+                        : (likely
+                            ? "branch-likely-taken"
+                            : "conditional-branch")
+                ));
+
+                f.edges.add(new Edge(
+                    pc,
+                    fallthrough,
+                    likely
+                        ? "branch-likely-not-taken-annuls-delay"
+                        : "fallthrough"
+                ));
+
+                f.blocks.add(target);
+                f.blocks.add(fallthrough);
+
+                // A link branch is also evidence of a possible function entry.
+                if (link &&
+                    maps(target, exec) &&
+                    !funcs.containsKey(target)) {
+
+                    if (!authoritativeSeeds.contains(target)) {
+                        candidateSeeds.add(target);
+                    }
+
+                    pending.add(target);
+                }
+
+                if (maps(target, exec)) {
+                    work.add(target);
+                }
+
+                if (maps(fallthrough, exec)) {
+                    work.add(fallthrough);
+                }
+
+                markDelay(
+                    f,
+                    b,
+                    elf,
+                    (pc + 4) & U32,
+                    exec,
+                    likely
+                );
+            }
+
+            // Direct JAL or locally resolved JALR.
+            else if (in.flow.equals("CALL")) {
+                int targetReg = (int) ((word >>> 21) & 31);
+
+                long target = in.text.startsWith("jalr")
+                    ? resolveJalrTarget(pc, targetReg, b, exec)
+                    : jumpTarget(pc, word);
+
+                long continuation = (pc + 8) & U32;
+
+                in.target = target;
+
+                f.edges.add(new Edge(
+                    pc,
+                    target < 0 ? 0 : target,
+                    target < 0
+                        ? "indirect-call-unresolved"
+                        : (in.text.startsWith("jalr")
+                            ? "indirect-call-resolved"
+                            : "call")
+                ));
+
+                f.edges.add(new Edge(
+                    pc,
+                    continuation,
+                    "call-continuation"
+                ));
+
+                f.blocks.add(continuation);
+
+                markDelay(
+                    f,
+                    b,
+                    elf,
+                    (pc + 4) & U32,
+                    exec
+                );
+
+                if (maps(continuation, exec)) {
+                    work.add(continuation);
+                }
+
+                // A resolved call target is a candidate function entry.
+                if (target >= 0 &&
+                    maps(target, exec) &&
+                    !funcs.containsKey(target)) {
+
+                    if (!authoritativeSeeds.contains(target)) {
+                        candidateSeeds.add(target);
+                    }
+
+                    pending.add(target);
+                }
+            }
+
+            // Direct unconditional jump.
+            else if (in.flow.equals("JUMP")) {
+                long target = jumpTarget(pc, word);
+
+                in.target = target;
+
+                f.edges.add(new Edge(
+                    pc,
+                    target,
+                    "jump"
+                ));
+
+                f.blocks.add(target);
+
+                markDelay(
+                    f,
+                    b,
+                    elf,
+                    (pc + 4) & U32
+                );
+
+                if (maps(target, exec)) {
+                    work.add(target);
+                }
+            }
+
+            // Register-indirect jump.
+            else if (in.flow.equals("INDIRECT")) {
+                int targetReg = (int) ((word >>> 21) & 31);
+
+                long target =
+                    resolveJalrTarget(pc, targetReg, b, exec);
+
+                    in.target = target;
 
                     f.edges.add(new Edge(
                         pc,
-                        t,
-                        link ? "conditional-call" :
-                        (likely ? "branch-likely-taken" : "conditional-branch")
+                        target < 0 ? 0 : target,
+                        target < 0
+                            ? "indirect-jump-unresolved"
+                            : "indirect-jump-resolved"
                     ));
-
-                    f.edges.add(new Edge(
-                        pc,
-                        (pc + 8) & U32,
-                        likely
-                            ? "branch-likely-not-taken-annuls-delay"
-                            : "fallthrough"
-                    ));
-
-                    f.blocks.add(t);
-                    f.blocks.add((pc + 8) & U32);
-
-                    if (link && maps(t, exec) && !funcs.containsKey(t)) {
-                        if (!authoritativeSeeds.contains(t)) {
-                            candidateSeeds.add(t);
-                        }
-
-                        pending.add(t);
-                    }
-
-                    if(maps(t, exec)) {
-                        work.add(t);
-                    }
-
-                    if(maps((pc + 8) & U32, exec)) {
-                        work.add((pc + 8) & U32);
-                    }
 
                     markDelay(
                         f,
                         b,
                         elf,
-                        pc + 4,
-                        exec,
-                        likely
+                        (pc + 4) & U32
+                    );
+
+                    if (target >= 0 && maps(target, exec)) {
+                        work.add(target);
+                    }
+                }
+
+                // Function return.
+                else if (in.flow.equals("RETURN")) {
+                    f.edges.add(new Edge(
+                        pc,
+                        0,
+                        "return"
+                    ));
+
+                    markDelay(
+                        f,
+                        b,
+                        elf,
+                        (pc + 4) & U32
                     );
                 }
-                else if(in.flow.equals("CALL")){int targetReg=(int)((w>>>21)&31);long t=in.text.startsWith("jalr")?resolveJalrTarget(pc,targetReg,b,exec):jumpTarget(pc,w);in.target=t;f.edges.add(new Edge(pc,t<0?0:t,t<0?"indirect-call-unresolved":(in.text.startsWith("jalr")?"indirect-call-resolved":"call")));f.edges.add(new Edge(pc,(pc+8)&U32,"call-continuation"));f.blocks.add((pc+8)&U32);markDelay(f,b,elf,pc+4,exec);long cont=(pc+8)&U32;if(maps(cont,exec))work.add(cont);}
-                if (t >= 0 &&
-                    maps(t, exec) &&
-                    !funcs.containsKey(t)) {
 
-                    if (!authoritativeSeeds.contains(t)) {
-                        candidateSeeds.add(t);
-                    }
+               // Ordinary instruction: continue sequentially.
+               else {
+                   long next = (pc + 4) & U32;
 
-                    pending.add(t);
-                }
-                else if(in.flow.equals("JUMP")){long t=jumpTarget(pc,w);in.target=t;f.edges.add(new Edge(pc,t,"jump"));f.blocks.add(t);markDelay(f,b,elf,pc+4,exec);if(maps(t,exec))work.add(t);}
-                else if(in.flow.equals("INDIRECT")){int targetReg=(int)((w>>>21)&31);long t=resolveJalrTarget(pc,targetReg,b,exec);in.target=t;f.edges.add(new Edge(pc,t<0?0:t,t<0?"indirect-jump-unresolved":"indirect-jump-resolved"));markDelay(f,b,elf,pc+4,exec);if(t>=0&&maps(t,exec))work.add(t);}
-                else if(in.flow.equals("RETURN")){f.edges.add(new Edge(pc,0,"return"));markDelay(f,b,elf,pc+4,exec);}
-                else {long next=(pc+4)&U32;if(maps(next,exec))work.add(next);}
-            }
-            if(steps>=MAX_STEPS_PER_FUNC)f.incomplete=true;
+                   if (maps(next, exec)) {
+                       work.add(next);
+                   }
+               }
+           }
+
+           if (steps >= MAX_STEPS_PER_FUNC) {
+               f.incomplete = true;
+           }
         }
         // Deduplicate overlapping function decodes for byte accounting; retain function-local views and all discovered edges.
         codeBytes=globallyDecoded.size()*4L;long execBytes=0;for(Seg s:exec)execBytes+=s.fs;long dataBytes=Math.max(0,execBytes-codeBytes);
