@@ -7,7 +7,9 @@
 #include "../GsPixelFormats.h"
 #include "../GsTransferRange.h"
 #include "GSH_OpenGL.h"
-#include "ui_shared/StatsManager.h"
+#if defined(__ANDROID__)
+#include "../../ui_shared/StatsManager.h"
+#endif
 
 #ifdef USE_DUALSOURCE_BLENDING
 //Dual source blending constants
