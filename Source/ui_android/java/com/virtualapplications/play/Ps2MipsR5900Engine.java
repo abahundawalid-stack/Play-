@@ -604,6 +604,7 @@ public final class Ps2MipsR5900Engine {
 
     private static boolean isCallEdge(String kind) {
         return kind.equals("call") ||
+               kind.equals("conditional-call") ||
                kind.equals("indirect-call-resolved") ||
                kind.equals("indirect-call-unresolved");
     }
