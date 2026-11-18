@@ -1031,6 +1031,9 @@ public final class Ps2IsoForensicScanner
                 else if((type == 2 || type == 3) &&
                         executableLoadCount > 0)
                 {
+                    out.append(" ")
+                        .append(Ps2ElfMappingValidator.analyze(fullElf));
+                    
                     // MIPS R5900 EE executable/shared object
                     Ps2MipsR5900Engine.Result r5900 =
                     Ps2MipsR5900Engine.analyze(fullElf);
