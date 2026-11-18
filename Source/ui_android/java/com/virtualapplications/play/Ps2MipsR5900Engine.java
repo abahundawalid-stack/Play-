@@ -518,6 +518,170 @@ public final class Ps2MipsR5900Engine {
     /** Resolve only the common local LUI + ORI/ADDIU address materialization pattern.
      * Stops at the first write to the target register; never guesses through loads or control flow.
      */
+    private static boolean isControlFlowInstruction(Ins instruction) {
+        if (instruction == null) {
+            return false;
+        }
+
+        return instruction.flow.equals("COND") ||
+               instruction.flow.equals("CALL") ||
+               instruction.flow.equals("JUMP") ||
+               instruction.flow.equals("INDIRECT") ||
+               instruction.flow.equals("RETURN");
+    }
+
+    private static boolean isCallEdge(String kind) {
+        return kind.equals("call") ||
+               kind.equals("indirect-call-resolved") ||
+               kind.equals("indirect-call-unresolved");
+    }
+
+    private static void buildControlFlowGraph(Func function) {
+        function.basicBlocks.clear();
+        function.instructionBlocks.clear();
+
+        if (function.ins.isEmpty()) {
+            return;
+        }
+ 
+        TreeSet<Long> leaders = new TreeSet<>();
+
+        leaders.add(function.entry);
+
+        // Branch and jump destinations become leaders when decoded.
+        for (Edge edge : function.edges) {
+            if (edge.to == 0) {
+                continue;
+            }
+
+            Ins targetInstruction = function.ins.get(edge.to);
+
+            if (targetInstruction != null &&
+                !targetInstruction.delay) {
+                leaders.add(edge.to);
+            }
+        }
+
+        // The instruction after a delay slot starts a new block.
+        for (Ins instruction : function.ins.values()) {
+            if (!isControlFlowInstruction(instruction)) {
+                continue;
+            }
+
+            long afterDelay = (instruction.pc + 8) & U32;
+ 
+            if (function.ins.containsKey(afterDelay)) {
+                leaders.add(afterDelay);
+            }
+        }
+
+        BasicBlock current = null;
+        Ins previous = null;
+
+        for (Ins instruction : function.ins.values()) {
+            long address = instruction.pc;
+
+            boolean contiguous =
+                previous != null &&
+                ((previous.pc + 4) & U32) == address;
+
+            boolean previousWasControl =   
+                previous != null &&
+                isControlFlowInstruction(previous);
+
+            boolean startsNewBlock =
+                current == null ||
+                !contiguous ||
+                leaders.contains(address) ||
+                previous.delay ||
+                (previousWasControl && !instruction.delay);
+
+            // A branch/jump delay slot belongs to its controlling block.
+            if (previousWasControl && instruction.delay && contiguous) {
+                startsNewBlock = false;
+            }
+
+            if (startsNewBlock) {
+                current = new BasicBlock(address);
+                function.basicBlocks.add(current);
+            }
+
+            current.addInstruction(address);
+            function.instructionBlocks.put(address, current);
+
+            previous = instruction;
+        }
+
+        // Convert instruction-level edges into block-level successors.
+        for (Edge edge : function.edges) {
+            BasicBlock source =
+                function.instructionBlocks.get(edge.from);
+
+            if (source == null) {
+                continue;
+            }
+
+            if (edge.kind.equals("return") ||
+                edge.kind.equals("indirect-jump-unresolved") ||
+                edge.kind.equals("indirect-call-unresolved")) {
+
+                if (isCallEdge(edge.kind)) {
+                    source.calls.add(edge);
+                }
+
+                continue;
+            }
+
+            if (isCallEdge(edge.kind)) {
+                source.calls.add(edge);
+                continue;
+            }
+
+            BasicBlock destination =
+                function.instructionBlocks.get(edge.to);
+
+            if (destination != null) {
+                source.successors.add(new Edge(
+                    source.start,
+                    destination.start,
+                    edge.kind
+                ));
+            }
+        }
+
+        // Remove duplicate block-level edges.
+        for (BasicBlock block : function.basicBlocks) {
+            List<Edge> uniqueSuccessors = new ArrayList<>();
+            Set<String> seenSuccessors = new HashSet<>();
+
+            for (Edge edge : block.successors) {
+                String key =
+                    edge.to + ":" + edge.kind;
+
+                if (seenSuccessors.add(key)) {
+                    uniqueSuccessors.add(edge);
+                }
+            }
+
+            block.successors.clear();
+            block.successors.addAll(uniqueSuccessors);
+
+            List<Edge> uniqueCalls = new ArrayList<>();
+            Set<String> seenCalls = new HashSet<>();
+
+            for (Edge edge : block.calls) {
+                String key =
+                    edge.to + ":" + edge.kind;
+
+                if (seenCalls.add(key)) {
+                    uniqueCalls.add(edge);
+                }
+            }
+
+            block.calls.clear();
+            block.calls.addAll(uniqueCalls);
+        }
+    }
     private static long resolveJalrTarget(long pc,int reg,ByteBuffer b,List<Seg> segs){
         if(reg==0)return -1;
         long low=0; int lowOp=-1;
