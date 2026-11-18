@@ -126,10 +126,7 @@ public final class DiagnosticsManager
 
         if(p.getBoolean("running", false))
         {
-            p.edit()
-                .putString(
-                    "last_profiling_info",
-                    profilingInfo == null ? "" : profilingInfo)
+            p.edit()               
                 .putBoolean("running", false)
                 .putLong(
                     "end_time",
