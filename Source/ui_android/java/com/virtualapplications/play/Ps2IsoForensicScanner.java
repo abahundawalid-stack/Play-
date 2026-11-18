@@ -244,16 +244,39 @@ public final class Ps2IsoForensicScanner
         report.append("Region size: ").append(regionSize).append('\n');
 
         long declaredBytes = volumeSectors * SECTOR_SIZE;
+        if(volumeSectors <= 0 ||
+           volumeSectors > Long.MAX_VALUE / SECTOR_SIZE)
+        
+        {
+            result.errors++;
+            report.append("INVALID VOLUME SPACE SIZE OR OVERFLOW\n");
+            return;
+        }
+
         if(declaredBytes > regionSize)
         {
-            report.append("WARNING: Declared volume exceeds available region.\n");
+            result.errors++;
+            report.append(
+                "INVALID VOLUME BOUNDARY: DECLARED VOLUME EXCEEDS REGION. ")
+                .append("DECLARED_BYTES=")
+                .append(declaredBytes)
+                .append("; AVAILABLE_BYTES=")
+                .append(regionSize)
+                .append('\n');
+            return;
         }
-        else if(declaredBytes < regionSize)
+
+        if(declaredBytes < regionSize)
         {
-            report.append("NOTE: Bytes after declared volume are excluded from this filesystem.\n");
+            report.append(
+                "NOTE: Bytes after declared volume are excluded from this filesystem.\n");
+
             regionSize = declaredBytes;
             regionEnd = checkedRegionEnd(
-                baseOffset, regionSize, channel.size());
+                baseOffset,
+                regionSize,
+                channel.size());
+
             if(regionEnd < 0)
             {
                 result.errors++;
