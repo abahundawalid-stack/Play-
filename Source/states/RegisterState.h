@@ -2,7 +2,7 @@
 
 #include <map>
 #include "xml/Node.h"
-#include "uint128.h"
+#include "../uint128.h"
 
 //NOTE: Making this inheritable prevents moving the object.
 class CRegisterState final
