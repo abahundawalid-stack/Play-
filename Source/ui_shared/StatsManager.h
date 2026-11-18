@@ -1,5 +1,7 @@
 #pragma once
 
+#include <atomic>
+#include <string>
 #include <mutex>
 #include <map>
 #include "Types.h"
