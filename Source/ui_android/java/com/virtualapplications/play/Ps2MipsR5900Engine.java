@@ -408,7 +408,7 @@ public final class Ps2MipsR5900Engine {
                     f,
                     b,
                     elf,
-                    (pc + 4) & U32
+                    (pc + 4) & U32,
                     exec
                 );
 
@@ -438,7 +438,7 @@ public final class Ps2MipsR5900Engine {
                         f,
                         b,
                         elf,
-                        (pc + 4) & U32
+                        (pc + 4) & U32,
                         exec
                     );
 
@@ -459,7 +459,7 @@ public final class Ps2MipsR5900Engine {
                         f,
                         b,
                         elf,
-                        (pc + 4) & U32
+                        (pc + 4) & U32,
                         exec
                     );
                 }
