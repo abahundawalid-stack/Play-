@@ -718,8 +718,44 @@ public final class Ps2MipsR5900Engine {
                     edge.kind
                 ));
             }
-        }
+        }        
+        // Ordinary instructions ending a basic block must flow
+        // to the immediately following decoded basic block.
+        // Delay-slot instructions are excluded because their
+        // controlling branch/call/jump determines the flow.
+        for (int i = 0; i < function.basicBlocks.size() - 1; i++) {
+            BasicBlock block = function.basicBlocks.get(i);
+            BasicBlock nextBlock = function.basicBlocks.get(i + 1);
 
+            if (block.instructionAddresses.isEmpty()) {
+                continue;
+            }
+
+            long lastAddress =
+                block.instructionAddresses.get(
+                    block.instructionAddresses.size() - 1
+                );
+
+            Ins lastInstruction = function.ins.get(lastAddress);
+
+            if (lastInstruction == null ||
+                lastInstruction.delay ||
+                !lastInstruction.flow.equals("NEXT")) {
+                continue;
+            }
+
+            long expectedNext = (lastAddress + 4) & U32;
+
+            if (nextBlock.start != expectedNext) {
+                continue;
+            }
+
+            block.successors.add(new Edge(
+                block.start,
+                nextBlock.start,
+                "fallthrough"
+            ));
+        }
         // Remove duplicate block-level edges.
         for (BasicBlock block : function.basicBlocks) {
             List<Edge> uniqueSuccessors = new ArrayList<>();
