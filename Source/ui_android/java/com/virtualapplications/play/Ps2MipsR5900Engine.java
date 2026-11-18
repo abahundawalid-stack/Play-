@@ -489,7 +489,20 @@ public final class Ps2MipsR5900Engine {
            .append(";CALL_TARGET_CANDIDATES=")
            .append(candidateSeeds.size()).append(";FUNCTIONS_DISCOVERED=").append(funcs.size()).append(";DECODED_UNIQUE_WORDS=").append(globallyDecoded.size())
            .append(";DECODED_BYTES=").append(codeBytes).append(";UNREACHED_EXEC_BYTES_ESTIMATE=").append(dataBytes).append(";UNKNOWN_ENCODINGS=").append(unknown).append(";UNSUPPORTED_OR_INVALID_ENCODINGS=").append(invalid).append("\n");
-        long edgeTotal=0,blockTotal=0;for(Func f:funcs.values()){edgeTotal+=f.edges.size();blockTotal+=f.blocks.size();}
+        long edgeTotal = 0;
+        long blockTotal = 0;
+        long cfgEdgeTotal = 0;
+        long callEdgeTotal = 0;
+
+        for (Func function : funcs.values()) {
+            edgeTotal += function.edges.size();
+            blockTotal += function.basicBlocks.size();
+
+            for (BasicBlock block : function.basicBlocks) {
+                cfgEdgeTotal += block.successors.size();
+                callEdgeTotal += block.calls.size();
+            }
+        }
         out.append("FUNCTIONS_BEGIN\n");
         long reportedInstructions=0;
         for(Func f:funcs.values()){
