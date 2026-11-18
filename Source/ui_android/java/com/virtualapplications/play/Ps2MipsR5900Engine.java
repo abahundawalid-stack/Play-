@@ -216,7 +216,47 @@ public final class Ps2MipsR5900Engine {
         return -1;
     }
     private static boolean writesRt(int op){return (op>=8&&op<=18)||(op>=24&&op<=25)||(op>=32&&op<=39)||(op>=48&&op<=55)||(op>=56&&op<=63);}
-    private static void markDelay(Func f,ByteBuffer b,byte[] elf,long pc,List<Seg> segs){if(!maps(pc,segs))return;Seg s=segment(pc,segs);long d=pc-s.va;if(d+4>s.fs||!range(s.off+d,4,elf.length))return;Ins x=decode(pc,u32(b,(int)(s.off+d)));x.delay=true;f.ins.put(pc,x);}
+    private static void markDelay(
+        Func f,
+        ByteBuffer b,
+        byte[] elf,
+        long pc,
+        List<Seg> segs)
+    {
+        markDelay(f, b, elf, pc, segs, false);
+    }
+
+    private static void markDelay(
+        Func f,
+        ByteBuffer b,
+        byte[] elf,
+        long pc,
+        List<Seg> segs,
+        boolean annulledWhenNotTaken)
+   {
+        if(!maps(pc, segs)) return;
+
+        Seg s = segment(pc, segs);
+        if(s == null) return;
+
+        long d = pc - s.va;
+
+        if(d + 4 > s.fs ||
+           !range(s.off + d, 4, elf.length)) {
+            return;
+        }
+
+        Ins x = decode(
+            pc,
+            u32(b, (int)(s.off + d))
+        );
+
+        x.delay = true;
+        x.delayAnnulledWhenNotTaken =
+            annulledWhenNotTaken;
+
+        f.ins.put(pc, x);
+    }
     private static Ins decode(long pc,long w){int op=(int)(w>>>26),rs=(int)(w>>>21&31),rt=(int)(w>>>16&31),rd=(int)(w>>>11&31),sa=(int)(w>>>6&31),fn=(int)(w&63);String r="",flow="NEXT";boolean valid=true;
         if(op==0){switch(fn){case 0:r="sll";break;case 2:r="srl";break;case 3:r="sra";break;case 4:r="sllv";break;case 6:r="srlv";break;case 7:r="srav";break;case 8:r="jr $"+rs;flow=rs==31?"RETURN":"INDIRECT";break;case 9:r="jalr $"+rd+",$"+rs;flow="CALL";break;case 10:r="movz";break;case 11:r="movn";break;case 12:r="syscall";break;case 13:r="break";break;case 15:r="sync";break;case 16:r="mfhi";break;case 17:r="mthi";break;case 18:r="mflo";break;case 19:r="mtlo";break;case 20:r="dsllv";break;case 22:r="dsrlv";break;case 23:r="dsrav";break;case 24:r="mult";break;case 25:r="multu";break;case 26:r="div";break;case 27:r="divu";break;case 40:r="mfsa";break;case 41:r="mtsa";break;case 32:r="add";break;case 33:r="addu";break;case 34:r="sub";break;case 35:r="subu";break;case 36:r="and";break;case 37:r="or";break;case 38:r="xor";break;case 39:r="nor";break;case 42:r="slt";break;case 43:r="sltu";break;case 44:r="dadd";break;case 45:r="daddu";break;case 46:r="dsub";break;case 47:r="dsubu";break;case 48:r="tge";break;case 49:r="tgeu";break;case 50:r="tlt";break;case 51:r="tltu";break;case 52:r="teq";break;case 54:r="tne";break;case 56:r="dsll";break;case 58:r="dsrl";break;case 59:r="dsra";break;case 60:r="dsll32";break;case 62:r="dsrl32";break;case 63:r="dsra32";break;default:valid=false;r="unknown.special."+fn;}}
         else if(op==1){r="REGIMM."+rt;flow=(rt==0||rt==1||rt==2||rt==3||rt==16||rt==17||rt==18||rt==19)?"COND":"NEXT";if(flow.equals("NEXT"))valid=false;}
