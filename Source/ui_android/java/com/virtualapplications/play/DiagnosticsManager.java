@@ -67,7 +67,8 @@ public final class DiagnosticsManager
     public static synchronized void recordSample(
         Context context,
         int frames,
-        int drawCalls)
+        int drawCalls,
+        String profilingInfo)
     {
         android.content.SharedPreferences p = prefs(context);
 
