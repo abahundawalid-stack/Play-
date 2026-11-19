@@ -18,4 +18,6 @@ public class StatsManager
 	public static native String getProfilingInfo();
 
 	public static native String getGsPipelineDiagnostics();
+
+	public static native String getRuntimeExecutionDiagnostics();
 }
