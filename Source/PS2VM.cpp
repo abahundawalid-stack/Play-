@@ -829,6 +829,16 @@ void CPS2VM::UpdateEe()
 		}
 		m_cpuUtilisation.eeTotalTicks += executed;
 
+		#ifdef __ANDROID__
+		
+        CStatsManager::GetInstance().RecordCpuExecution(
+            true,
+			
+        static_cast<uint64>(executed),
+            m_ee->m_EE.m_State.nPC,
+            m_ee->IsCpuIdle());
+        #endif
+
 		static uint64 bootTraceCycles = 0;
         bootTraceCycles += static_cast<uint32>(executed);
 
