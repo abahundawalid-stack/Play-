@@ -235,70 +235,144 @@ void CSubSystem::Reset(uint32 ramSize)
 	m_isIdle = false;
 }
 
+
 int CSubSystem::ExecuteCpu(int quota)
 {
-	m_isIdle = false;
-	int executed = 0;
-	if(m_EE.m_State.callMsEnabled)
-	{
-		if(m_vpu0->IsVuReady())
-		{
-			//callMs mode over
-			m_EE.m_State.callMsAddr = m_VU0.m_State.nPC;
-			m_EE.m_State.callMsEnabled = 0;
-		}
-	}
-	else if(!m_EE.m_State.nHasException)
-	{
-		executed = (quota - m_EE.m_executor->Execute(quota));
-	}
-	if(m_EE.m_State.nHasException)
-	{
-		switch(m_EE.m_State.nHasException)
-		{
-		case MIPS_EXCEPTION_SYSCALL:
-			m_os->HandleSyscall();
-			break;
-		case MIPS_EXCEPTION_TLB:
-			m_os->HandleTLBException();
-			break;
-		case MIPS_EXCEPTION_VU_CALLMS:
-			assert(m_EE.m_State.callMsEnabled);
-			if(m_EE.m_State.callMsEnabled)
-			{
-				//We are in callMs mode
-				m_vpu0->ExecuteMicroProgram(m_EE.m_State.callMsAddr);
-				m_EE.m_State.nHasException = MIPS_EXCEPTION_NONE;
-			}
-			break;
-		case MIPS_EXCEPTION_IDLE:
-		{
-			m_isIdle = true;
-			m_EE.m_State.nHasException = MIPS_EXCEPTION_NONE;
-		}
-		break;
-		case MIPS_EXCEPTION_CHECKPENDINGINT:
-		{
-			m_EE.m_State.nHasException = MIPS_EXCEPTION_NONE;
-			CheckPendingInterrupts();
-		}
-		break;
-		case MIPS_EXCEPTION_RETURNFROMEXCEPTION:
-		{
-			m_EE.m_State.nHasException = MIPS_EXCEPTION_NONE;
-			m_os->HandleReturnFromException();
-			CheckPendingInterrupts();
-		}
-		break;
-		default:
-			assert(0);
-			break;
-		}
-		assert(!m_EE.m_State.nHasException);
-	}
-	return executed;
-}
+    m_isIdle = false;
+    int executed = 0;
 
+    // JPOG: capture CPU state BEFORE executing the EE block.
+    // Limit output to avoid flooding the Android log.
+    static uint32 jpogEeTraceCount = 0;
+    const bool captureJpogTrace = (jpogEeTraceCount < 64);
+
+    if(captureJpogTrace)
+    {
+        const auto& state = m_EE.m_State;
+        const uint32 pcBefore = state.nPC;
+
+        uint32 opcodeBefore = 0xFFFFFFFF;
+        if(pcBefore < PS2::EE_RAM_SIZE)
+        {
+            opcodeBefore = m_EE.m_pMemoryMap->GetInstruction(pcBefore);
+        }
+
+        CLog::GetInstance().Print(
+            LOG_NAME,
+            "[JPOG_EE_TRACE][BEFORE] N=%u "
+            "PC=%08X OP=%08X EX=%u "
+            "CAUSE=%08X EPC=%08X STATUS=%08X "
+            "QUOTA=%d\r\n",
+            jpogEeTraceCount,
+            pcBefore,
+            opcodeBefore,
+            state.nHasException,
+            state.nCOP0[CCOP_SCU::CAUSE],
+            state.nCOP0[CCOP_SCU::EPC],
+            state.nCOP0[CCOP_SCU::STATUS],
+            quota);
+    }
+
+    if(m_EE.m_State.callMsEnabled)
+    {
+        if(m_vpu0->IsVuReady())
+        {
+            // callMs mode over
+            m_EE.m_State.callMsAddr = m_VU0.m_State.nPC;
+            m_EE.m_State.callMsEnabled = 0;
+        }
+    }
+    else if(!m_EE.m_State.nHasException)
+    {
+        executed = (quota - m_EE.m_executor->Execute(quota));
+    }
+
+    if(m_EE.m_State.nHasException)
+    {
+        switch(m_EE.m_State.nHasException)
+        {
+        case MIPS_EXCEPTION_SYSCALL:
+            m_os->HandleSyscall();
+            break;
+
+        case MIPS_EXCEPTION_TLB:
+            m_os->HandleTLBException();
+            break;
+
+        case MIPS_EXCEPTION_VU_CALLMS:
+            assert(m_EE.m_State.callMsEnabled);
+            if(m_EE.m_State.callMsEnabled)
+            {
+                m_vpu0->ExecuteMicroProgram(m_EE.m_State.callMsAddr);
+                m_EE.m_State.nHasException = MIPS_EXCEPTION_NONE;
+            }
+            break;
+
+        case MIPS_EXCEPTION_IDLE:
+        {
+            m_isIdle = true;
+            m_EE.m_State.nHasException = MIPS_EXCEPTION_NONE;
+        }
+        break;
+
+        case MIPS_EXCEPTION_CHECKPENDINGINT:
+        {
+            m_EE.m_State.nHasException = MIPS_EXCEPTION_NONE;
+            CheckPendingInterrupts();
+        }
+        break;
+
+        case MIPS_EXCEPTION_RETURNFROMEXCEPTION:
+        {
+            m_EE.m_State.nHasException = MIPS_EXCEPTION_NONE;
+            m_os->HandleReturnFromException();
+            CheckPendingInterrupts();
+        }
+        break;
+
+        default:
+            if(captureJpogTrace)
+            {
+                CLog::GetInstance().Print(
+                    LOG_NAME,
+                    "[JPOG_EE_TRACE][UNHANDLED_EXCEPTION] "
+                    "EX=%u PC=%08X CAUSE=%08X EPC=%08X\r\n",
+                    m_EE.m_State.nHasException,
+                    m_EE.m_State.nPC,
+                    m_EE.m_State.nCOP0[CCOP_SCU::CAUSE],
+                    m_EE.m_State.nCOP0[CCOP_SCU::EPC]);
+            }
+
+            assert(0);
+            break;
+        }
+    }
+
+    if(captureJpogTrace)
+    {
+        const auto& state = m_EE.m_State;
+
+        CLog::GetInstance().Print(
+            LOG_NAME,
+            "[JPOG_EE_TRACE][AFTER] N=%u "
+            "PC=%08X EX=%u "
+            "CAUSE=%08X EPC=%08X STATUS=%08X "
+            "EXECUTED=%d IDLE=%u\r\n",
+            jpogEeTraceCount,
+            state.nPC,
+            state.nHasException,
+            state.nCOP0[CCOP_SCU::CAUSE],
+            state.nCOP0[CCOP_SCU::EPC],
+            state.nCOP0[CCOP_SCU::STATUS],
+            executed,
+            m_isIdle ? 1 : 0);
+
+        ++jpogEeTraceCount;
+    }
+
+    assert(!m_EE.m_State.nHasException);
+    return executed;
+}
 bool CSubSystem::IsCpuIdle() const
 {
 	return m_os->IsIdle() || m_isIdle;
