@@ -713,8 +713,12 @@ public class EmulatorActivity extends Activity
 
             _surfaceCreated = true;
 
-            updateVirtualMachineState();
+            DiagnosticsManager.recordLaunchStage(
+                EmulatorActivity.this,
+                "GS_SURFACE_READY");
 
+            updateVirtualMachineState();
+            
             promptAutosaveRecovery();
         }
 
