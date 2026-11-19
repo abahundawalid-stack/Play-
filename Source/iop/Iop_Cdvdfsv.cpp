@@ -920,18 +920,16 @@ bool CCdvdfsv::ReadChain(
         }
         catch(const std::exception& except)
         {
-            if(diagnosticReadCommand)
-            {
-                CStatsManager::GetInstance()
-                    .RecordCdvdFailure(
-                        diagnosticType,
-                        false);
-	    	}	
+            CStatsManager::GetInstance().RecordCdvdFailure(
+                0,
+                false);
+
             CLog::GetInstance().Warn(
                 LOG_NAME,
                 "ReadChain tuple %u failed: %s\r\n",
                 tuple,
                 except.what());
+
             return true;
         }
     }
