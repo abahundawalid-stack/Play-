@@ -355,6 +355,7 @@ public final class DiagnosticsManager
 
         String[] logFiles =
         {
+            "launch_trace.log",
             "ps2vm.log",
             "iop_bios.log",
             "iop_cdvdman.log"
