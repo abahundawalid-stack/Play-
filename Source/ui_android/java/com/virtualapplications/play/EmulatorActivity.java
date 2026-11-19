@@ -198,6 +198,10 @@ public class EmulatorActivity extends Activity
     {
         super.onCreate(savedInstanceState);
 
+        DiagnosticsManager.recordLaunchStage(
+            this,
+            "EMULATOR_ACTIVITY_CREATED");
+
         ThemeManager.applyTheme(this, null);
         setContentView(R.layout.emulator);
         setupWindow();
