@@ -13,6 +13,11 @@
 #include "make_unique.h"
 #include "string_format.h"
 #include "PS2VM.h"
+
+#ifdef __ANDROID__
+#include "ui_shared/StatsManager.h"
+#endif
+
 #include "PS2VM_Preferences.h"
 #include "ee/PS2OS.h"
 #include "ee/EeExecutor.h"
@@ -37,6 +42,7 @@
 #include "Log.h"
 #include "DiskUtils.h"
 #include "GameConfig.h"
+
 #ifdef __ANDROID__
 #include "android/JavaVM.h"
 #endif
