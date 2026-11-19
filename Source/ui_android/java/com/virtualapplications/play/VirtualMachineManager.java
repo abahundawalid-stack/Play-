@@ -18,11 +18,13 @@ public class VirtualMachineManager
     {
         private ProgressDialog progDialog;
 
-        final Context _ctx;
-        final String _bootablePath;
-        final OnGameLaunchCompleteListener _completeListener;
+        private final Context _ctx;
+        private final String _bootablePath;
+        private final OnGameLaunchCompleteListener _completeListener;
 
-        Exception _exception;
+        private Exception _exception;
+        private Intent _emulatorIntent;
+        private boolean _bootCompleted = false;
 
         public GameLauncher(
             Context ctx,
@@ -34,16 +36,11 @@ public class VirtualMachineManager
             _completeListener = completeListener;
         }
 
-        private void setLaunchStage(Context context, String stage)
+        private void setLaunchStage(String stage)
         {
-            context.getApplicationContext()
-                .getSharedPreferences(
-                    "play_diagnostics",
-                    Context.MODE_PRIVATE)
-                .edit()
-                .putString("launch_stage", stage)
-                .putLong("launch_stage_time", System.currentTimeMillis())
-                .commit();
+            DiagnosticsManager.recordLaunchStage(
+                _ctx,
+                stage);
         }
 
         @Override
@@ -55,106 +52,92 @@ public class VirtualMachineManager
                 _ctx.getString(R.string.launch_game_msg),
                 true);
         }
-      
+
         @Override
         protected Void doInBackground(Void... params)
         {
             try
             {
-               DiagnosticsManager.beginSession(
-                   _ctx,
-                   _bootablePath);
+                DiagnosticsManager.beginSession(
+                    _ctx,
+                    _bootablePath);
 
-               setLaunchStage(
-                   _ctx,
-                   "INITIALIZING_ANDROID_RESOURCES");
+                setLaunchStage(
+                    "INITIALIZING_ANDROID_RESOURCES");
 
-               Context appContext =
-                   _ctx.getApplicationContext();
+                Context appContext =
+                    _ctx.getApplicationContext();
 
-               NativeInterop.setFilesDirPath(
-                   appContext.getFilesDir().getAbsolutePath());
+                NativeInterop.setFilesDirPath(
+                    appContext.getFilesDir().getAbsolutePath());
 
-               NativeInterop.setCacheDirPath(
-                   appContext.getCacheDir().getAbsolutePath());
+                NativeInterop.setCacheDirPath(
+                    appContext.getCacheDir().getAbsolutePath());
 
-               NativeInterop.setAssetManager(
-                   appContext.getAssets());
+                NativeInterop.setAssetManager(
+                    appContext.getAssets());
 
-               NativeInterop.setContentResolver(
-                   appContext.getContentResolver());
+                NativeInterop.setContentResolver(
+                    appContext.getContentResolver());
 
-               setLaunchStage(
-                   _ctx,
-                   "CREATING_VIRTUAL_MACHINE");
+                setLaunchStage(
+                    "CREATING_VIRTUAL_MACHINE");
 
                 if(!NativeInterop.isVirtualMachineCreated())
                 {
                     NativeInterop.createVirtualMachine();
                 }
 
-                // Baru ditulis setelah VM benar-benar siap.
+                if(!NativeInterop.isVirtualMachineCreated())
+                {
+                    throw new IllegalStateException(
+                        "Virtual machine was not created.");
+                }
+
                 setLaunchStage(
-                    _ctx,
                     "VIRTUAL_MACHINE_READY");
-                
+
                 setLaunchStage(
-                    _ctx,
                     "CHECKING_BOOTABLE_TYPE");
 
                 if(BootablesInterop.IsBootableExecutablePath(
                     _bootablePath))
                 {
                     setLaunchStage(
-                        _ctx,
                         "LOADING_ELF");
 
-                NativeInterop.loadElf(_bootablePath);
+                    NativeInterop.loadElf(_bootablePath);
                 }
                 else
                 {
                     setLaunchStage(
-                        _ctx,
                         "BOOTING_DISK_IMAGE");
 
-                NativeInterop.bootDiskImage(_bootablePath);
+                    NativeInterop.bootDiskImage(_bootablePath);
                 }
 
                 setLaunchStage(
-                    _ctx,
                     "GAME_BOOT_RETURNED");
 
-                setLaunchStage(
-                    _ctx,
-                    "OPENING_EMULATOR_ACTIVITY");
-
-                Intent intent = new Intent(
+                _emulatorIntent = new Intent(
                     _ctx,
                     EmulatorActivity.class);
 
-                intent.putExtra(
+                _emulatorIntent.putExtra(
                     "diagnostic_game_path",
                     _bootablePath);
 
-                intent.addFlags(
-                    Intent.FLAG_ACTIVITY_NEW_TASK);
-
-                _ctx.startActivity(intent);
+                _bootCompleted = true;
+            }
+            catch(Exception e)
+            {
+                _exception = e;
 
                 setLaunchStage(
-                    _ctx,
-                    "EMULATOR_ACTIVITY_START_REQUESTED");
-                }
-                catch(Exception e)
-                {
-                    setLaunchStage(
-                        _ctx,
-                        "LAUNCH_FAILED: " + e);
+                    "LAUNCH_FAILED: " + e);
 
                 DiagnosticsManager.finishSession(_ctx);
-
-                        _exception = e;
-                }
+            }
 
             return null;
         }
@@ -162,31 +145,89 @@ public class VirtualMachineManager
         @Override
         protected void onPostExecute(Void result)
         {
+            dismissProgressDialog();
+
+            if(_exception != null)
+            {
+                displaySimpleMessage(
+                    "Game Launch Failed",
+                    _exception.getMessage() != null
+                        ? _exception.getMessage()
+                        : _exception.toString());
+
+                return;
+            }
+
+            if(!_bootCompleted || _emulatorIntent == null)
+            {
+                setLaunchStage(
+                    "LAUNCH_FAILED: Emulator intent was not prepared");
+
+                DiagnosticsManager.finishSession(_ctx);
+
+                displaySimpleMessage(
+                    "Game Launch Failed",
+                    "The emulator launch could not be completed.");
+
+                return;
+            }
+
+            try
+            {
+                setLaunchStage(
+                    "OPENING_EMULATOR_ACTIVITY");
+
+                // Activity dibuka di UI thread setelah
+                // dialog Loading Play Game ditutup.
+                _ctx.startActivity(_emulatorIntent);
+
+                setLaunchStage(
+                    "EMULATOR_ACTIVITY_START_REQUESTED");
+
+                if(_completeListener != null)
+                {
+                    _completeListener.onComplete();
+                }
+            }
+            catch(Exception e)
+            {
+                setLaunchStage(
+                    "EMULATOR_ACTIVITY_START_FAILED: " + e);
+
+                DiagnosticsManager.finishSession(_ctx);
+
+                displaySimpleMessage(
+                    "Emulator Activity Error",
+                    e.getMessage() != null
+                        ? e.getMessage()
+                        : e.toString());
+            }
+        }
+
+        @Override
+        protected void onCancelled()
+        {
+            dismissProgressDialog();
+
+            setLaunchStage(
+                "LAUNCH_CANCELLED");
+
+            DiagnosticsManager.finishSession(_ctx);
+
+            super.onCancelled();
+        }
+
+        private void dismissProgressDialog()
+        {
             if(progDialog != null && progDialog.isShowing())
             {
                 try
                 {
                     progDialog.dismiss();
                 }
-                catch(Exception e)
+                catch(Exception ignored)
                 {
-                    // Ignore dialog dismissal errors.
-                }
-            }
-
-            if(_exception != null)
-            {
-                displaySimpleMessage(
-                    "Error",
-                    _exception.getMessage() != null
-                        ? _exception.getMessage()
-                        : "Unable to initialize or launch the game.");
-            }
-            else
-            {
-                if(_completeListener != null)
-                {
-                    _completeListener.onComplete();
+                    // Dialog may already have been dismissed.
                 }
             }
         }
