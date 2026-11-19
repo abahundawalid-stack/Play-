@@ -926,6 +926,10 @@ bool CCdvdfsv::ReadChain(
                         dstOffset +
                         (static_cast<uint64>(sector) *
                          CDVD_SECTOR_SIZE));
+
+                CStatsManager::GetInstance().RecordCdvdReadSuccess(
+                    0,
+                    CDVD_SECTOR_SIZE);
             }
         }
         catch(const std::exception& except)
