@@ -564,20 +564,42 @@ public final class DiagnosticsManager
         report.append("\n");
 
         report.append(
-            "GS PIPELINE DIAGNOSTICS\n" +
-            "------------------------------------\n"
+            "RUNTIME EXECUTION DIAGNOSTICS\n" +
+            "====================================\n\n"
         );
 
         try
         {
-           report.append(
-               StatsManager.getGsPipelineDiagnostics()
-           );
+            String runtimeDiagnostics =
+                StatsManager.getRuntimeExecutionDiagnostics();
+
+            if(runtimeDiagnostics != null &&
+               !runtimeDiagnostics.trim().isEmpty())
+            {
+                report.append(runtimeDiagnostics);
+            }
+            else
+            {
+                report.append(
+                    "Runtime diagnostics: UNAVAILABLE\n"
+                );
+            }
         }
         catch(Exception e)
         {
             report.append(
-               "GS pipeline counters: UNAVAILABLE\n"
+                "Runtime diagnostics: JAVA ERROR\n"
+            );
+
+            report.append(
+                "Details: "
+            ).append(e.getClass().getSimpleName())
+             .append('\n');
+        }
+        catch(LinkageError e)
+        {
+            report.append(
+                "Runtime diagnostics: NATIVE LINK ERROR\n"
             );
         }
 
