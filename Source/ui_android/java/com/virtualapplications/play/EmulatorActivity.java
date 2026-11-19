@@ -657,10 +657,18 @@ public class EmulatorActivity extends Activity
         if(_activityRunning)
         {
             NativeInterop.resumeVirtualMachine();
+
+            DiagnosticsManager.recordLaunchStage(
+                this,
+                "VM_RESUME_REQUESTED");
         }
         else
         {
             NativeInterop.pauseVirtualMachine();
+
+            DiagnosticsManager.recordLaunchStage(
+                this,
+                "VM_PAUSE_REQUESTED");
         }
     }
 
