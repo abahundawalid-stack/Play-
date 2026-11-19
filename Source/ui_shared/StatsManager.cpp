@@ -100,6 +100,124 @@ std::string CStatsManager::GetGsPipelineDiagnostics() const
     );
 }
 
+void CStatsManager::RecordCpuExecution(
+    bool isEe,
+    uint64 ticks,
+    uint32 pc,
+    bool idle)
+{
+    auto& totalTicks = isEe
+        ? m_eeExecutionTicks
+        : m_iopExecutionTicks;
+
+    auto& batches = isEe
+        ? m_eeExecutionBatches
+        : m_iopExecutionBatches;
+
+    auto& idleTicks = isEe
+        ? m_eeIdleTicks
+        : m_iopIdleTicks;
+
+    auto& firstPc = isEe
+        ? m_eeFirstPc
+        : m_iopFirstPc;
+
+    auto& lastPc = isEe
+        ? m_eeLastPc
+        : m_iopLastPc;
+
+    auto& lastIdle = isEe
+        ? m_eeLastIdle
+        : m_iopLastIdle;
+
+    totalTicks.fetch_add(ticks);
+    batches.fetch_add(1);
+
+    if(idle)
+    {
+        idleTicks.fetch_add(ticks);
+    }
+
+    uint32 expected = 0xFFFFFFFF;
+
+    firstPc.compare_exchange_strong(
+        expected,
+        pc);
+
+    lastPc.store(pc);
+    lastIdle.store(idle ? 1 : 0);
+}
+
+void CStatsManager::RecordCdvdRequest(
+    uint32 type,
+    uint32 firstSector,
+    uint32 sectorCount)
+{
+    if(type >= 3) return;
+
+    m_cdvdRequests[type].fetch_add(1);
+
+    m_cdvdRequestedSectors[type].fetch_add(
+        sectorCount);
+
+    uint32 expected = 0xFFFFFFFF;
+
+    m_cdvdFirstSector[type].compare_exchange_strong(
+        expected,
+        firstSector);
+
+    m_cdvdLastSector[type].store(firstSector);
+}
+
+void CStatsManager::RecordCdvdReadSuccess(
+    uint32 type,
+    uint64 bytes)
+{
+    if(type >= 3) return;
+
+    m_cdvdSuccessfulBytes[type].fetch_add(bytes);
+}
+
+void CStatsManager::RecordCdvdFailure(
+    uint32 type,
+    bool rejected)
+{
+    if(type >= 3) return;
+
+    m_cdvdFailures[type].fetch_add(1);
+
+    if(rejected)
+    {
+        m_cdvdRejected[type].fetch_add(1);
+    }
+}
+
+void CStatsManager::RecordGsPrimitive(
+    uint32 primitiveType,
+    uint32 vertexCount)
+{
+    if(primitiveType >= 7) return;
+
+    m_gsPrimitiveCounts[primitiveType].fetch_add(1);
+
+    m_gsPrimitiveVertices[primitiveType].fetch_add(
+        vertexCount);
+}
+
+void CStatsManager::RecordGsEmptyBuffer()
+{
+    m_gsEmptyBufferEvents.fetch_add(1);
+}
+
+void CStatsManager::RecordGsRenderingSkipped(
+    bool drawDisabled)
+{
+    if(drawDisabled)
+    {
+        m_gsDrawDisabledEvents.fetch_add(1);
+    }
+}
+
 void CStatsManager::OnGsNewFrame(uint32 drawCalls)
 {
     std::lock_guard<std::mutex> statsLock(m_statsMutex);
