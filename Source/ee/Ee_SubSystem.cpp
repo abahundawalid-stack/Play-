@@ -235,7 +235,6 @@ void CSubSystem::Reset(uint32 ramSize)
 	m_isIdle = false;
 }
 
-
 int CSubSystem::ExecuteCpu(int quota)
 {
     m_isIdle = false;
