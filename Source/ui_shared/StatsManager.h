@@ -80,6 +80,46 @@ private:
     std::atomic<uint64> m_gsBufferFlushes{0};
     std::atomic<uint64> m_gsDrawSubmissions{0};
 
+    // EE / IOP execution diagnostics.
+    std::atomic<uint64> m_eeExecutionTicks{0};
+    std::atomic<uint64> m_iopExecutionTicks{0};
+
+    std::atomic<uint64> m_eeExecutionBatches{0};
+    std::atomic<uint64> m_iopExecutionBatches{0};
+
+    std::atomic<uint64> m_eeIdleTicks{0};
+    std::atomic<uint64> m_iopIdleTicks{0};
+
+    std::atomic<uint32> m_eeFirstPc{0xFFFFFFFF};
+    std::atomic<uint32> m_eeLastPc{0};
+
+    std::atomic<uint32> m_iopFirstPc{0xFFFFFFFF};
+    std::atomic<uint32> m_iopLastPc{0};
+
+    std::atomic<uint32> m_eeLastIdle{0};
+    std::atomic<uint32> m_iopLastIdle{0};
+
+    // CDVD diagnostics.
+    // Index: 0 = EE, 1 = IOP, 2 = STREAM.
+    std::atomic<uint64> m_cdvdRequests[3]{};
+    std::atomic<uint64> m_cdvdRequestedSectors[3]{};
+    std::atomic<uint64> m_cdvdSuccessfulBytes[3]{};
+    std::atomic<uint64> m_cdvdFailures[3]{};
+    std::atomic<uint64> m_cdvdRejected[3]{};
+
+    std::atomic<uint32> m_cdvdFirstSector[3] = {
+        0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF
+    };
+
+    std::atomic<uint32> m_cdvdLastSector[3]{};
+
+    // GS primitive and skipped-render diagnostics.
+    std::atomic<uint64> m_gsPrimitiveCounts[7]{};
+    std::atomic<uint64> m_gsPrimitiveVertices[7]{};
+
+    std::atomic<uint64> m_gsEmptyBufferEvents{0};
+    std::atomic<uint64> m_gsDrawDisabledEvents{0};
+
 	CPS2VM::CPU_UTILISATION_INFO m_cpuUtilisation;
 
 #ifdef PROFILE
