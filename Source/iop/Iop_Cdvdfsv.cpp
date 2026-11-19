@@ -221,6 +221,11 @@ void CCdvdfsv::FinishPendingCommand()
                             m_pendingReadAddr +
                             (static_cast<uint64>(i) *
                              CDVD_SECTOR_SIZE));
+					
+                    CStatsManager::GetInstance()
+                        .RecordCdvdReadSuccess(
+                            0,
+                            CDVD_SECTOR_SIZE);
                 }
             }
         }
