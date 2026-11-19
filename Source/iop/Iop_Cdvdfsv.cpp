@@ -899,12 +899,22 @@ bool CCdvdfsv::ReadChain(
                dstOffset) ||
            ((dstOffset & 1) != 0))
         {
+            CStatsManager::GetInstance().RecordCdvdFailure(
+                0,
+                true);
+
             CLog::GetInstance().Warn(
                 LOG_NAME,
                 "ReadChain rejected: invalid tuple %u.\r\n",
                 tuple);
+
             return true;
-        }
+        }  
+
+        CStatsManager::GetInstance().RecordCdvdRequest(
+            0,
+            sectorPos,
+            sectorCount);
 
         try
         {
