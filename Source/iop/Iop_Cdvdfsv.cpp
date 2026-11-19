@@ -207,6 +207,9 @@ void CCdvdfsv::FinishPendingCommand()
                    m_pendingReadCount,
                    PS2::EE_RAM_SIZE))
             {
+				CStatsManager::GetInstance()
+                    .RecordCdvdFailure(0, true);
+				
                 CLog::GetInstance().Warn(
                     LOG_NAME,
                     "Pending EE read rejected: invalid sector or RAM range.\r\n");
@@ -242,6 +245,9 @@ void CCdvdfsv::FinishPendingCommand()
                    m_pendingReadCount,
                    PS2::IOP_RAM_SIZE))
             {
+                CStatsManager::GetInstance()
+                    .RecordCdvdFailure(1, true);
+				
                 CLog::GetInstance().Warn(
                     LOG_NAME,
                     "Pending IOP read rejected: invalid sector or RAM range.\r\n");
@@ -277,6 +283,9 @@ void CCdvdfsv::FinishPendingCommand()
                    m_pendingReadCount,
                    PS2::EE_RAM_SIZE))
             {
+                CStatsManager::GetInstance()
+                    .RecordCdvdFailure(2, true);
+				
                 CLog::GetInstance().Warn(
                     LOG_NAME,
                     "Pending stream read rejected: invalid sector or RAM range.\r\n");
