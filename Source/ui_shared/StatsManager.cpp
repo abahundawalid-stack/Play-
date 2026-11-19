@@ -363,6 +363,133 @@ std::string CStatsManager::GetProfilingInfo()
 
 #endif
 
+std::string CStatsManager::GetRuntimeExecutionDiagnostics() const
+{
+    std::string result;
+
+    const auto formatPc = [](uint32 pc) -> std::string
+    {
+        if(pc == 0xFFFFFFFF)
+        {
+            return "UNAVAILABLE";
+        }
+
+        return string_format("0x%08X", pc);
+    };
+
+    result += "EE EXECUTION\n";
+    result += "------------------------------------\n";
+
+    result += string_format(
+        "Execution ticks: %llu\n"
+        "Execution batches: %llu\n"
+        "Instruction count: UNAVAILABLE\n"
+        "First observed PC: %s\n"
+        "Last observed PC: %s\n"
+        "Idle ticks: %llu\n"
+        "Last idle state: %s\n\n",
+        static_cast<unsigned long long>(m_eeExecutionTicks.load()),
+        static_cast<unsigned long long>(m_eeExecutionBatches.load()),
+        formatPc(m_eeFirstPc.load()).c_str(),
+        formatPc(m_eeLastPc.load()).c_str(),
+        static_cast<unsigned long long>(m_eeIdleTicks.load()),
+        m_eeExecutionBatches.load() == 0
+            ? "UNAVAILABLE"
+            : (m_eeLastIdle.load() ? "IDLE" : "ACTIVE"));
+
+    result += "IOP EXECUTION\n";
+    result += "------------------------------------\n";
+
+    result += string_format(
+        "Execution ticks: %llu\n"
+        "Execution batches: %llu\n"
+        "Instruction count: UNAVAILABLE\n"
+        "First observed PC: %s\n"
+        "Last observed PC: %s\n"
+        "Idle ticks: %llu\n"
+        "Last idle state: %s\n\n",
+        static_cast<unsigned long long>(m_iopExecutionTicks.load()),
+        static_cast<unsigned long long>(m_iopExecutionBatches.load()),
+        formatPc(m_iopFirstPc.load()).c_str(),
+        formatPc(m_iopLastPc.load()).c_str(),
+        static_cast<unsigned long long>(m_iopIdleTicks.load()),
+        m_iopExecutionBatches.load() == 0
+            ? "UNAVAILABLE"
+            : (m_iopLastIdle.load() ? "IDLE" : "ACTIVE"));
+
+    static const char* cdvdNames[3] = {
+        "EE READ",
+        "IOP READ",
+        "STREAM READ"
+    };
+
+    result += "CDVD READ DIAGNOSTICS\n";
+    result += "------------------------------------\n";
+
+    for(uint32 i = 0; i < 3; i++)
+    {
+        result += string_format(
+            "%s\n"
+            "Requests: %llu\n"
+            "First sector: %s\n"
+            "Last request start sector: %u\n"
+            "Requested sectors: %llu\n"
+            "Successful bytes: %llu\n"
+            "Failures: %llu\n"
+            "Rejected requests: %llu\n\n",
+            cdvdNames[i],
+            static_cast<unsigned long long>(m_cdvdRequests[i].load()),
+            formatPc(m_cdvdFirstSector[i].load()).c_str(),
+            m_cdvdLastSector[i].load(),
+            static_cast<unsigned long long>(m_cdvdRequestedSectors[i].load()),
+            static_cast<unsigned long long>(m_cdvdSuccessfulBytes[i].load()),
+            static_cast<unsigned long long>(m_cdvdFailures[i].load()),
+            static_cast<unsigned long long>(m_cdvdRejected[i].load()));
+    }
+
+    static const char* primitiveNames[7] = {
+        "POINT",
+        "LINE",
+        "LINESTRIP",
+        "TRIANGLE",
+        "TRIANGLESTRIP",
+        "TRIANGLEFAN",
+        "SPRITE"
+    };
+
+    result += "GS RENDERING DIAGNOSTICS\n";
+    result += "------------------------------------\n";
+
+    for(uint32 i = 0; i < 7; i++)
+    {
+        result += string_format(
+            "%s: %llu primitives, %llu vertices\n",
+            primitiveNames[i],
+            static_cast<unsigned long long>(m_gsPrimitiveCounts[i].load()),
+            static_cast<unsigned long long>(m_gsPrimitiveVertices[i].load()));
+    }
+
+    result += string_format(
+        "\nGS empty buffer events: %llu\n"
+        "GS draw-disabled events: %llu\n"
+        "GS buffer flushes: %llu\n"
+        "GS draw submissions: %llu\n"
+        "GS vertex kicks: %llu\n"
+        "GS drawing kicks: %llu\n"
+        "GS vertices buffered: %llu\n"
+        "GS register writes: %llu\n",
+        static_cast<unsigned long long>(m_gsEmptyBufferEvents.load()),
+        static_cast<unsigned long long>(m_gsDrawDisabledEvents.load()),
+        static_cast<unsigned long long>(m_gsBufferFlushes.load()),
+        static_cast<unsigned long long>(m_gsDrawSubmissions.load()),
+        static_cast<unsigned long long>(m_gsVertexKicks.load()),
+        static_cast<unsigned long long>(m_gsDrawingKicks.load()),
+        static_cast<unsigned long long>(m_gsBufferedVertices.load()),
+        static_cast<unsigned long long>(m_gsRegisterWrites.load()));
+
+    return result;
+}
+
 void CStatsManager::ClearStats()
 {
     std::lock_guard<std::mutex> statsLock(m_statsMutex);
