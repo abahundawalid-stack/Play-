@@ -435,6 +435,10 @@ public class EmulatorActivity extends Activity
     {
         super.onResume();
 
+        DiagnosticsManager.recordLaunchStage(
+            this,
+            "EMULATOR_ACTIVITY_RESUMED");
+
         _activityRunning = true;
 
         updateVirtualMachineState();
