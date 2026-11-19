@@ -329,6 +329,13 @@ void CCdvdfsv::FinishPendingCommand()
     }
     catch(const std::exception& except)
     {
+        if(diagnosticReadCommand)
+        {
+            CStatsManager::GetInstance()
+                .RecordCdvdFailure(
+                    diagnosticType,
+                    false);
+		}
         CLog::GetInstance().Warn(
             LOG_NAME,
             "Pending CDVDFSV read failed: %s\r\n",
@@ -913,6 +920,13 @@ bool CCdvdfsv::ReadChain(
         }
         catch(const std::exception& except)
         {
+            if(diagnosticReadCommand)
+            {
+                CStatsManager::GetInstance()
+                    .RecordCdvdFailure(
+                        diagnosticType,
+                        false);
+	    	}	
             CLog::GetInstance().Warn(
                 LOG_NAME,
                 "ReadChain tuple %u failed: %s\r\n",
