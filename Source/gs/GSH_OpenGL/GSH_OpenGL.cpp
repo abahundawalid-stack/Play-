@@ -1759,8 +1759,13 @@ void CGSH_OpenGL::Prim_Sprite()
 
 void CGSH_OpenGL::FlushVertexBuffer()
 {
-	if(m_vertexBuffer.empty()) return;
-
+	if(m_vertexBuffer.empty())
+    {
+    #if defined(__ANDROID__)
+        CStatsManager::GetInstance().RecordGsEmptyBuffer();
+    #endif
+        return;
+	}
 	#if defined(__ANDROID__)
     CStatsManager::GetInstance().RecordGsBufferFlush();
     #endif
