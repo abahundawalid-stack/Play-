@@ -1899,7 +1899,12 @@ void CGSH_OpenGL::DoRenderPass()
 	default:
 		assert(false);
 		break;
-	}
+	}	
+	#if defined(__ANDROID__)
+    CStatsManager::GetInstance().RecordGsPrimitive(
+        static_cast<uint32>(m_primitiveType),
+        static_cast<uint32>(m_vertexBuffer.size()));
+    #endif
 
 	glDrawArrays(primitiveMode, 0, m_vertexBuffer.size());
 
