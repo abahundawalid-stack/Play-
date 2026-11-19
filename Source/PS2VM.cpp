@@ -890,6 +890,16 @@ void CPS2VM::UpdateIop()
 		}
 		m_cpuUtilisation.iopTotalTicks += executed;
 
+		#ifdef __ANDROID__
+		
+        CStatsManager::GetInstance().RecordCpuExecution(
+            false,
+			
+        static_cast<uint64>(executed),
+            m_iop->m_cpu.m_State.nPC,
+            m_iop->IsCpuIdle());
+        #endif
+
 		m_iopExecutionTicks -= executed;
 		m_iop->CountTicks(executed);
 
