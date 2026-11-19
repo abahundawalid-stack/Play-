@@ -524,30 +524,28 @@ void CPS2OS::LoadELF(Framework::CStream* stream, const char* executablePath, con
 
 void CPS2OS::LoadExecutableInternal()
 {
-    // Load only valid PT_LOAD segments into EE main RAM.
     const auto& header = m_elf->GetHeader();
     const uint64 elfSize = m_elf->GetFileSize();
 
+    uint32 loadedSegmentCount = 0;
+    bool entryPointIsExecutable = false;
+
+    // Load setiap PT_LOAD ke alamat virtual EE yang ditentukan ELF.
     for(unsigned int i = 0; i < header.nProgHeaderCount; i++)
     {
         auto p = m_elf->GetProgram(i);
-        if(p == nullptr) continue;
 
-        if(p->nType != ELF::PT_LOAD) continue;
-
-        if(p->nFileSize == 0 && p->nMemorySize == 0)
-        {
+        if(p == nullptr || p->nType != ELF::PT_LOAD)
             continue;
-        }
 
-        // ELF requires filesz <= memsz.
+        // Ukuran file tidak boleh melebihi ukuran memori.
         if(p->nFileSize > p->nMemorySize)
         {
             throw std::runtime_error(
                 "Invalid ELF segment: file size exceeds memory size.");
         }
 
-        // Validate source data range without overflowing.
+        // Validasi rentang sumber file.
         if(p->nOffset > elfSize ||
            p->nFileSize > (elfSize - p->nOffset))
         {
@@ -555,7 +553,7 @@ void CPS2OS::LoadExecutableInternal()
                 "Invalid ELF segment: source data outside executable.");
         }
 
-        // Validate EE RAM destination range without overflowing.
+        // Validasi rentang tujuan EE RAM.
         if(p->nVAddress > m_ramSize ||
            p->nMemorySize > (m_ramSize - p->nVAddress))
         {
@@ -563,9 +561,25 @@ void CPS2OS::LoadExecutableInternal()
                 "Invalid ELF segment: destination outside EE RAM.");
         }
 
+        if(p->nMemorySize == 0)
+            continue;
+
+        const uint64 segmentEnd =
+            static_cast<uint64>(p->nVAddress) + p->nMemorySize;
+
+        // Pastikan entry point berada di segmen executable.
+        if((p->nFlags & ELF::PF_X) != 0 &&
+           header.nEntryPoint >= p->nVAddress &&
+           static_cast<uint64>(header.nEntryPoint) < segmentEnd)
+        {
+            entryPointIsExecutable = true;
+        }
+
         CLog::GetInstance().Print(
             LOG_NAME,
-            "[JPOG_BOOT] ELF SEGMENT %u: VA=0x%08X FILE=0x%llX SIZE=%llu MEM=%llu FLAGS=0x%X\r\n",
+            "[JPOG_BOOT] ELF PT_LOAD %u: "
+            "VA=0x%08X FILE=0x%llX "
+            "FILESIZE=%llu MEMSIZE=%llu FLAGS=0x%X\r\n",
             i,
             p->nVAddress,
             static_cast<unsigned long long>(p->nOffset),
@@ -575,7 +589,7 @@ void CPS2OS::LoadExecutableInternal()
 
         uint8* destination = m_ram + p->nVAddress;
 
-        // Copy initialized segment data.
+        // Salin data yang tersedia di ELF.
         if(p->nFileSize != 0)
         {
             memcpy(
@@ -584,7 +598,7 @@ void CPS2OS::LoadExecutableInternal()
                 p->nFileSize);
         }
 
-        // Clear BSS / uninitialized segment memory.
+        // Bersihkan BSS.
         if(p->nMemorySize > p->nFileSize)
         {
             memset(
@@ -592,16 +606,37 @@ void CPS2OS::LoadExecutableInternal()
                 0,
                 p->nMemorySize - p->nFileSize);
         }
+
+        ++loadedSegmentCount;
     }
 
-    // Start execution at the ELF entry point.
+    if(loadedSegmentCount == 0)
+    {
+        throw std::runtime_error(
+            "Invalid ELF executable: no loadable PT_LOAD segments found.");
+    }
+
+    if(header.nEntryPoint >= m_ramSize ||
+       !entryPointIsExecutable)
+    {
+        throw std::runtime_error(
+            "Invalid ELF executable: entry point is not inside an executable EE segment.");
+    }
+
+    // Bersihkan blok instruksi terjemahan setelah ELF dimuat.
+    OnRequestInstructionCacheFlush();
+
+    // Entry point ELF ditempatkan pada PC.
     m_ee.m_State.nPC = header.nEntryPoint;
-    m_ee.m_State.nGPR[CMIPS::A0].nV[0] = header.nEntryPoint;
 
     CLog::GetInstance().Print(
         LOG_NAME,
-        "[JPOG_BOOT] STAGE 11: EE ENTRY POINT READY PC=0x%08X\r\n",
-        m_ee.m_State.nPC);
+        "[JPOG_BOOT] STAGE 11: "
+        "EE ENTRY POINT READY "
+        "PC=0x%08X SEGMENTS=%u "
+        "EXECUTABLE_ENTRY=YES\r\n",
+        m_ee.m_State.nPC,
+        loadedSegmentCount);
 }
 
 void CPS2OS::UnloadExecutable()
