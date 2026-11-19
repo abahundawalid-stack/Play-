@@ -2,7 +2,7 @@
 
 #include "Types.h"
 #include "../MIPS.h"
-#include "iop/IopBios.h"
+#include "../iop/IopBios.h"
 
 class CPS2OS;
 namespace Framework
