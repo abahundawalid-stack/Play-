@@ -102,6 +102,34 @@ public final class DiagnosticsManager
     {
         long now = System.currentTimeMillis();
 
+        File logDirectory = new File(
+            context.getApplicationContext().getFilesDir(),
+            "logs");
+
+        if(!logDirectory.exists())
+        {
+            logDirectory.mkdirs();
+        } 
+
+        File traceFile = new File(
+            logDirectory,
+            "launch_trace.log");
+
+        try(FileWriter writer = new FileWriter(traceFile, false))
+        {
+            writer.write(
+                "JPOG BOOT TRACE SESSION: " +
+                now +
+                System.lineSeparator());
+        }
+        catch(IOException e)
+        {
+            android.util.Log.e(
+                Constants.TAG,
+                "Cannot initialize JPOG boot trace",
+                e);
+        }
+        
         prefs(context).edit()
             .putString("last_profiling_info", "")
             .putBoolean("running", true)
