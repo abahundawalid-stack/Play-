@@ -498,6 +498,52 @@ void CStatsManager::ClearStats()
     m_drawCalls = 0;
     m_cpuUtilisation = CPS2VM::CPU_UTILISATION_INFO();
 
+    // Reset existing GS counters.
+    m_gsRegisterWrites.store(0);
+    m_gsVertexKicks.store(0);
+    m_gsDrawingKicks.store(0);
+    m_gsBufferedVertices.store(0);
+    m_gsBufferFlushes.store(0);
+    m_gsDrawSubmissions.store(0);
+
+    // Reset EE diagnostics.
+    m_eeExecutionTicks.store(0);
+    m_eeExecutionBatches.store(0);
+    m_eeIdleTicks.store(0);
+    m_eeFirstPc.store(0xFFFFFFFF);
+    m_eeLastPc.store(0);
+    m_eeLastIdle.store(0);
+
+    // Reset IOP diagnostics.
+    m_iopExecutionTicks.store(0);
+    m_iopExecutionBatches.store(0);
+    m_iopIdleTicks.store(0);
+    m_iopFirstPc.store(0xFFFFFFFF);
+    m_iopLastPc.store(0);
+    m_iopLastIdle.store(0);
+
+    // Reset CDVD diagnostics.
+    for(uint32 i = 0; i < 3; i++)
+    {
+        m_cdvdRequests[i].store(0);
+        m_cdvdRequestedSectors[i].store(0);
+        m_cdvdSuccessfulBytes[i].store(0);
+        m_cdvdFailures[i].store(0);
+        m_cdvdRejected[i].store(0);
+        m_cdvdFirstSector[i].store(0xFFFFFFFF);
+        m_cdvdLastSector[i].store(0);
+    }
+
+    // Reset GS primitive diagnostics.
+    for(uint32 i = 0; i < 7; i++)
+    {
+        m_gsPrimitiveCounts[i].store(0);
+        m_gsPrimitiveVertices[i].store(0);
+    }
+
+    m_gsEmptyBufferEvents.store(0);
+    m_gsDrawDisabledEvents.store(0);
+    
 #ifdef PROFILE
     std::lock_guard<std::mutex> profileLock(m_profilerZonesMutex);
 
