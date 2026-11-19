@@ -256,6 +256,11 @@ void CCdvdfsv::FinishPendingCommand()
                             m_pendingReadAddr +
                             (static_cast<uint64>(i) *
                              CDVD_SECTOR_SIZE));
+
+					CStatsManager::GetInstance()
+                        .RecordCdvdReadSuccess(
+                            1,
+                            CDVD_SECTOR_SIZE);
                 }
             }
         }
@@ -286,6 +291,11 @@ void CCdvdfsv::FinishPendingCommand()
                             m_pendingReadAddr +
                             (static_cast<uint64>(i) *
                              CDVD_SECTOR_SIZE));
+
+				    CStatsManager::GetInstance()
+                        .RecordCdvdReadSuccess(
+                            2,
+                            CDVD_SECTOR_SIZE);
 
                     m_streamPos++;
                 }
