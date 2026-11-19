@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Types.h"
-#include "MIPS.h"
+#include "../MIPS.h"
 #include "iop/IopBios.h"
 
 class CPS2OS;
