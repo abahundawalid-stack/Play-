@@ -159,6 +159,39 @@ void CCdvdfsv::FinishPendingCommand()
             ? m_opticalMedia->GetFileSystem()
             : nullptr;
 
+    uint32 diagnosticType = 0;
+    bool diagnosticReadCommand = true;
+
+    if(m_pendingCommand == COMMAND_READ)
+    {
+        diagnosticType = 0;
+    }
+    else if(m_pendingCommand == COMMAND_READIOP)
+    {
+        diagnosticType = 1;
+    }
+    else if(m_pendingCommand == COMMAND_STREAM_READ)
+    {
+        diagnosticType = 2;
+    }
+    else
+    {
+        diagnosticReadCommand = false;
+    }
+
+    if(diagnosticReadCommand)
+    {
+        const uint32 diagnosticSector =
+            (m_pendingCommand == COMMAND_STREAM_READ)
+                ? m_streamPos
+                : m_pendingReadSector;
+
+        CStatsManager::GetInstance().RecordCdvdRequest(
+            diagnosticType,
+            diagnosticSector,
+            m_pendingReadCount);
+	}
+
     try
     {
         if(m_pendingCommand == COMMAND_READ)
