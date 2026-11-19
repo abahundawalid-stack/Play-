@@ -5,6 +5,7 @@
 #include "Iop_Cdvdman.h"
 #include "Iop_SifManPs2.h"
 #include "TimeUtils.h"
+#include "../ui_shared/StatsManager.h"
 
 using namespace Iop;
 
