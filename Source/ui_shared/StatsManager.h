@@ -23,6 +23,39 @@ public:
 
     std::string GetGsPipelineDiagnostics() const;
 
+    // Runtime CPU diagnostics.
+    void RecordCpuExecution(
+        bool isEe,
+        uint64 ticks,
+        uint32 pc,
+        bool idle);
+
+    // CDVD diagnostics:
+    // type: 0 = EE, 1 = IOP, 2 = STREAM
+    void RecordCdvdRequest(
+        uint32 type,
+        uint32 firstSector,
+        uint32 sectorCount);
+
+    void RecordCdvdReadSuccess(
+        uint32 type,
+        uint64 bytes);
+
+    void RecordCdvdFailure(
+        uint32 type,
+        bool rejected);
+
+    // GS diagnostics:
+    // primitiveType uses CGSHandler::PRIM_TYPE values.
+    void RecordGsPrimitive(
+        uint32 primitiveType,
+        uint32 vertexCount);
+
+    void RecordGsEmptyBuffer();
+    void RecordGsRenderingSkipped(bool drawDisabled);
+
+    std::string GetRuntimeExecutionDiagnostics() const;
+
 	static float ComputeCpuUsageRatio(int32 idleTicks, int32 totalTicks);
 
 	uint32 GetFrames();
