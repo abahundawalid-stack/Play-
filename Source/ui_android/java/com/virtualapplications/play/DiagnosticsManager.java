@@ -37,6 +37,65 @@ public final class DiagnosticsManager
             .getSharedPreferences(PREFS, Context.MODE_PRIVATE);
     }
 
+    public static synchronized void recordLaunchStage(
+        Context context,
+        String stage)
+    {
+        Context appContext = context.getApplicationContext();
+
+        android.content.SharedPreferences preferences =
+            appContext.getSharedPreferences(
+                PREFS,
+                Context.MODE_PRIVATE);
+
+        long now = System.currentTimeMillis();
+
+        String safeStage =
+            stage == null ? "UNKNOWN_STAGE" : stage;
+
+        preferences.edit()
+            .putString("launch_stage", safeStage)
+            .putLong("launch_stage_time", now)
+            .commit();
+
+        File logDirectory = new File(
+            appContext.getFilesDir(),
+            "logs");
+
+        if(!logDirectory.exists() && !logDirectory.mkdirs())
+        {
+            android.util.Log.e(
+                Constants.TAG,
+                "Cannot create diagnostic log directory: " +
+                logDirectory.getAbsolutePath());
+ 
+            return;
+        }
+
+        File traceFile = new File(
+            logDirectory,
+            "launch_trace.log");
+
+        try(FileWriter writer = new FileWriter(traceFile, true))
+        {
+            writer.write(
+                "[JPOG_BOOT_TRACE] " +
+                now +
+                " | " +
+                safeStage +
+                System.lineSeparator());
+
+            writer.flush();
+        }
+        catch(IOException e)
+        {
+            android.util.Log.e(
+                Constants.TAG,
+                "Cannot write JPOG boot trace",
+                e);
+        }
+    }
+    
     public static synchronized void beginSession(
         Context context,
         String gamePath)
