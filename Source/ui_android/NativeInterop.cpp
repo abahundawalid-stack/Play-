@@ -597,3 +597,15 @@ Java_com_virtualapplications_play_StatsManager_getGsPipelineDiagnostics(
 
     return env->NewStringUTF(diagnostics.c_str());
 }
+
+extern "C" JNIEXPORT jstring JNICALL
+Java_com_virtualapplications_play_StatsManager_getRuntimeExecutionDiagnostics(
+    JNIEnv* env,
+    jclass clazz)
+{
+    const std::string diagnostics =
+        CStatsManager::GetInstance()
+            .GetRuntimeExecutionDiagnostics();
+
+    return env->NewStringUTF(diagnostics.c_str());
+}
