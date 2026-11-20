@@ -116,6 +116,10 @@ private:
 	int32 m_path3XferActiveTicks = 0;
 	uint8 m_fifoBuffer[FIFO_SIZE];
 	uint32 m_fifoIndex = 0;
+    uint64 m_totalFifoWrites = 0;
+    uint64 m_totalGifPackets = 0;
+    uint64 m_totalDmaQwcReceived = 0;
+    uint64 m_totalFifoStallEvents = 0;
 	uint8* m_ram;
 	uint8* m_spr;
 	CGSHandler*& m_gs;
