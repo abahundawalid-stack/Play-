@@ -307,6 +307,15 @@ int CSubSystem::ExecuteCpu(int quota)
             }
             break;
 
+		case MIPS_EXCEPTION_MEMORY_STALL:
+        {
+            // The current EE store instruction was not accepted.
+            // Clear the temporary yield exception; nPC still points
+            // to the same instruction, so the next EE execution retries it.
+            m_EE.m_State.nHasException = MIPS_EXCEPTION_NONE;
+        }
+        break;
+
         case MIPS_EXCEPTION_IDLE:
         {
             m_isIdle = true;
