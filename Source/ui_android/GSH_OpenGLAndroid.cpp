@@ -105,6 +105,8 @@ void CGSH_OpenGLAndroid::InitializeImpl()
         return;
     }
 
+    EGLint numConfigs = 0;
+	
     if(eglChooseConfig(
            m_display, configAttribs, &m_config, 1, &numConfigs) != EGL_TRUE ||
        numConfigs == 0)
