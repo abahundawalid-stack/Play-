@@ -651,8 +651,19 @@ public class EmulatorActivity extends Activity
     {
         if(!_surfaceCreated)
         {
+            Log.w(Constants.TAG,
+                "[ORBIT2SX_BOOT] VM state update skipped: Surface not ready.");
+
+            DiagnosticsManager.recordLaunchStage(
+                this,
+                "VM_STATE_SKIPPED_NO_SURFACE");
+
             return;
-        }
+        } 
+
+        Log.i(Constants.TAG,
+            "[ORBIT2SX_BOOT] updateVirtualMachineState activityRunning=" +
+            _activityRunning + " surfaceCreated=" + _surfaceCreated);
 
         if(_activityRunning)
         {
