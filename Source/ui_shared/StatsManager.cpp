@@ -78,29 +78,18 @@ std::string CStatsManager::GetGsPipelineDiagnostics() const
         "GS drawing kicks: %llu\n"
         "GS vertices buffered: %llu\n"
         "GS buffer flushes: %llu\n"
-        "OpenGL draw submissions: %llu\n",
+        "OpenGL draw submissions: %llu\n"
         "GIF FIFO writes: %llu\n"
         "GIF packets processed: %llu\n"
         "GIF DMA QWC received: %llu\n"
-        "GIF FIFO stall events: %llu\n"
+        "GIF FIFO stall events: %llu\n",
 
-        static_cast<unsigned long long>(
-            m_gsRegisterWrites.load()),
-
-        static_cast<unsigned long long>(
-            m_gsVertexKicks.load()),
-
-        static_cast<unsigned long long>(
-            m_gsDrawingKicks.load()),
-
-        static_cast<unsigned long long>(
-            m_gsBufferedVertices.load()),
-
-        static_cast<unsigned long long>(
-            m_gsBufferFlushes.load()),
-
-        static_cast<unsigned long long>(
-            m_gsDrawSubmissions.load())
+        static_cast<unsigned long long>(m_gsRegisterWrites.load()),
+        static_cast<unsigned long long>(m_gsVertexKicks.load()),
+        static_cast<unsigned long long>(m_gsDrawingKicks.load()),
+        static_cast<unsigned long long>(m_gsBufferedVertices.load()),
+        static_cast<unsigned long long>(m_gsBufferFlushes.load()),
+        static_cast<unsigned long long>(m_gsDrawSubmissions.load()),
 
         static_cast<unsigned long long>(m_gifFifoWrites.load()),
         static_cast<unsigned long long>(m_gifPackets.load()),
