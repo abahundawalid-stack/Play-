@@ -774,7 +774,7 @@ public class EmulatorActivity extends Activity
                     ? "ANDROID_SURFACE_CREATED_VALID"
                     : "ANDROID_SURFACE_CREATED_INVALID");
         }
-
+        
         @Override
         public void surfaceDestroyed(SurfaceHolder holder)
         {
@@ -787,11 +787,19 @@ public class EmulatorActivity extends Activity
 
             if(NativeInterop.isVirtualMachineCreated())
             {
+                // 1. Hentikan eksekusi VM terlebih dahulu.
                 NativeInterop.pauseVirtualMachine();
+
+                // 2. Lepaskan EGL surface dan ANativeWindow lama.
+                // Native setupGsHandler menerima null untuk melepas window.
+                NativeInterop.setupGsHandler(null);
             }
 
+            // 3. Tandai Surface sudah tidak tersedia.
             _surfaceCreated = false;
+
             stopStatsTimer();
         }
+
     }
 }
