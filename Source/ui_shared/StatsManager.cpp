@@ -79,6 +79,10 @@ std::string CStatsManager::GetGsPipelineDiagnostics() const
         "GS vertices buffered: %llu\n"
         "GS buffer flushes: %llu\n"
         "OpenGL draw submissions: %llu\n",
+        "GIF FIFO writes: %llu\n"
+        "GIF packets processed: %llu\n"
+        "GIF DMA QWC received: %llu\n"
+        "GIF FIFO stall events: %llu\n"
 
         static_cast<unsigned long long>(
             m_gsRegisterWrites.load()),
@@ -97,6 +101,11 @@ std::string CStatsManager::GetGsPipelineDiagnostics() const
 
         static_cast<unsigned long long>(
             m_gsDrawSubmissions.load())
+
+        static_cast<unsigned long long>(m_gifFifoWrites.load()),
+        static_cast<unsigned long long>(m_gifPackets.load()),
+        static_cast<unsigned long long>(m_gifDmaQwc.load()),
+        static_cast<unsigned long long>(m_gifFifoStalls.load())
     );
 }
 
@@ -554,4 +563,24 @@ void CStatsManager::ClearStats()
         zonePair.second.maxValue = 0;
     }
 #endif
+}
+
+void CStatsManager::RecordGifFifoWrite()
+{
+    m_gifFifoWrites.fetch_add(1);
+}
+
+void CStatsManager::RecordGifPacket()
+{
+    m_gifPackets.fetch_add(1);
+}
+
+void CStatsManager::RecordGifDmaQwc(uint32 qwc)
+{
+    m_gifDmaQwc.fetch_add(qwc);
+}
+
+void CStatsManager::RecordGifFifoStall()
+{
+    m_gifFifoStalls.fetch_add(1);
 }
