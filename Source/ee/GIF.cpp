@@ -453,36 +453,45 @@ uint32 CGIF::ProcessMultiplePackets(const uint8* memory, uint32 memorySize, uint
 	return address - start;
 }
 
-void CGIF::ProcessFifoWrite(uint32 address, uint32 value)
+bool CGIF::ProcessFifoWrite(uint32 address, uint32 value)
 {
-    ++m_totalFifoWrites;
-    CStatsManager::GetInstance().RecordGifFifoWrite();
-
     static constexpr uint32 qwSize = 0x10;
 
+    // The FIFO has a fixed capacity. Never overwrite unread data.
     if(m_fifoIndex + sizeof(value) > FIFO_SIZE)
     {
         ++m_totalFifoStallEvents;
         CStatsManager::GetInstance().RecordGifFifoStall();
 
+        // Try to make room by processing pending GIF data.
         DrainFifo();
 
+        // Still full: reject this attempt without consuming the value.
+        // The EE store instruction will be retried later.
         if(m_fifoIndex + sizeof(value) > FIFO_SIZE)
         {
-            CLog::GetInstance().Warn(
-                LOG_NAME,
-                "GIF FIFO full: EE backpressure required.\r\n");
-            return;
+            return false;
         }
     }
 
-    memcpy(m_fifoBuffer + m_fifoIndex, &value, sizeof(value));
+    // Count only writes that are actually accepted.
+    ++m_totalFifoWrites;
+    CStatsManager::GetInstance().RecordGifFifoWrite();
+
+    memcpy(
+        m_fifoBuffer + m_fifoIndex,
+        &value,
+        sizeof(value));
+
     m_fifoIndex += sizeof(value);
 
+    // Process complete data as soon as possible.
     if(m_fifoIndex >= qwSize)
     {
         DrainFifo();
     }
+
+    return true;
 }
 
 void CGIF::DrainFifo()
