@@ -328,9 +328,22 @@ bool CGSH_OpenGLAndroid::SetupContext()
         m_context,
         m_surface);
 
-	m_surfaceRecoveryPending = false;
+	// Surface and context are valid and ready for rendering.
+    m_surfaceRecoveryPending = false;
 
-    return failRecovery();
+    CLog::GetInstance().Print(
+        "glesandroid",
+        "[ORBIT2SX_EGL] SetupContext completed successfully "
+        "display=%p context=%p surface=%p window=%p "
+        "width=%d height=%d\r\n",
+        m_display,
+        m_context,
+        m_surface,
+        m_window,
+        width,
+        height);
+
+    return true;
 }
 
 void CGSH_OpenGLAndroid::ReleaseImpl()
@@ -373,12 +386,12 @@ void CGSH_OpenGLAndroid::ReleaseImpl()
 void CGSH_OpenGLAndroid::PresentBackbuffer()
 {
     if(m_display == EGL_NO_DISPLAY ||
-       m_context == EGL_NO_CONTEXT ||
-       m_surface == EGL_NO_SURFACE)
+        m_context == EGL_NO_CONTEXT ||
+        m_surface == EGL_NO_SURFACE ||
+        m_surfaceRecoveryPending)
     {
         return;
     }
-
     if(eglSwapBuffers(m_display, m_surface) == EGL_TRUE)
     {
         return;
