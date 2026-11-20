@@ -149,22 +149,68 @@ void CMA_MIPSIV::Template_Store32Idx(const MemoryAccessIdxTraits& traits)
 		}
 		m_codeGen->Else();
 	}
+	
+    // Standard memory access.
+    {
+        ComputeMemAccessAddrNoXlat();
 
-	//Standard memory access
-	{
-		ComputeMemAccessAddrNoXlat();
+        m_codeGen->PushCtx();
+        m_codeGen->PushRel(
+            offsetof(CMIPS, m_State.nGPR[m_nRT].nV[0]));
+        m_codeGen->PushIdx(2);
 
-		m_codeGen->PushCtx();
-		m_codeGen->PushRel(offsetof(CMIPS, m_State.nGPR[m_nRT].nV[0]));
-		m_codeGen->PushIdx(2);
-		m_codeGen->Call(traits.setProxyFunction, 3, Jitter::CJitter::RETURN_VALUE_NONE);
+        if(traits.elementSize == 4)
+        {
+            // A 32-bit store proxy returns:
+            // 0 = accepted
+            // non-zero = device stalled
+            m_codeGen->Call(
+                traits.setProxyFunction,
+                3,
+                Jitter::CJitter::RETURN_VALUE_32);
 
-		m_codeGen->PullTop();
-	}
+            m_codeGen->PushCst(0);
+            m_codeGen->BeginIf(Jitter::CONDITION_NE);
+            {
+                // m_instrPosition is relative to the beginning
+                // of this compiled basic block.
+                //
+                // Keep PC at the exact SW instruction so that
+                // the instruction can be retried without loss.
+                m_codeGen->PushRel(
+                    offsetof(CMIPS, m_State.nPC));
 
-	if(usePageLookup)
-	{
-		m_codeGen->EndIf();
+                m_codeGen->PushCst(m_instrPosition);
+                m_codeGen->Add();
+
+                m_codeGen->PullRel(
+                    offsetof(CMIPS, m_State.nPC));
+
+                m_codeGen->PushCst(
+                    MIPS_EXCEPTION_MEMORY_STALL);
+
+                m_codeGen->PullRel(
+                    offsetof(CMIPS, m_State.nHasException));
+
+                // Skip all remaining instructions in this block.
+                // CompileEpilog will preserve PC and branch-delay state.
+                m_codeGen->Goto(
+                    m_codeGen->GetLastBlockLabel());
+            }
+            m_codeGen->EndIf();
+        }
+        else
+        {
+            // Byte and halfword stores retain their original
+            // void-returning proxy behavior.
+            m_codeGen->Call(
+                traits.setProxyFunction,
+                3,
+                Jitter::CJitter::RETURN_VALUE_NONE);
+        }
+
+        // Remove the original effective-address value.
+        m_codeGen->PullTop();
 	}
 }
 
