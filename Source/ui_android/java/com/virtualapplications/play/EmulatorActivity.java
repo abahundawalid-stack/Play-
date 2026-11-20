@@ -760,15 +760,34 @@ public class EmulatorActivity extends Activity
         @Override
         public void surfaceCreated(SurfaceHolder holder)
         {
-            Log.w(Constants.TAG, "surfaceCreated");
+            Surface surface = holder.getSurface();
+
+            boolean validSurface =
+                surface != null && surface.isValid();
+
+            Log.i(Constants.TAG,
+                "[ORBIT2SX_BOOT] surfaceCreated valid=" + validSurface);
+
+            DiagnosticsManager.recordLaunchStage(
+                EmulatorActivity.this,
+                validSurface
+                    ? "ANDROID_SURFACE_CREATED_VALID"
+                    : "ANDROID_SURFACE_CREATED_INVALID");
         }
 
         @Override
         public void surfaceDestroyed(SurfaceHolder holder)
         {
-        if(NativeInterop.isVirtualMachineCreated())
+            Log.w(Constants.TAG,
+                "[ORBIT2SX_BOOT] surfaceDestroyed; pausing VM.");
+
+            DiagnosticsManager.recordLaunchStage(
+                EmulatorActivity.this,
+                "ANDROID_SURFACE_DESTROYED");
+
+            if(NativeInterop.isVirtualMachineCreated())
             {
-        NativeInterop.pauseVirtualMachine();
+                NativeInterop.pauseVirtualMachine();
             }
 
             _surfaceCreated = false;
