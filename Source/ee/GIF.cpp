@@ -455,33 +455,34 @@ uint32 CGIF::ProcessMultiplePackets(const uint8* memory, uint32 memorySize, uint
 
 void CGIF::ProcessFifoWrite(uint32 address, uint32 value)
 {
-	++m_totalFifoWrites;
-	CStatsManager::GetInstance().RecordGifFifoStall();
-	CStatsManager::GetInstance().RecordGifFifoWrite();
-	
-	static constexpr uint32 qwSize = 0x10;
+    ++m_totalFifoWrites;
+    CStatsManager::GetInstance().RecordGifFifoWrite();
 
-	if(m_fifoIndex + sizeof(value) > FIFO_SIZE)
-	{
-		// Do not write past the GIF FIFO buffer.
-		// The EE-side FIFO-full stall still needs to be implemented.
-		DrainFifo();
+    static constexpr uint32 qwSize = 0x10;
 
-		if(m_fifoIndex + sizeof(value) > FIFO_SIZE)
-		{
-			CLog::GetInstance().Warn(LOG_NAME,
-			    "GIF FIFO is full; write requires EE backpressure.\r\n");
-			return;
-		}
-	}
+    if(m_fifoIndex + sizeof(value) > FIFO_SIZE)
+    {
+        ++m_totalFifoStallEvents;
+        CStatsManager::GetInstance().RecordGifFifoStall();
 
-	memcpy(m_fifoBuffer + m_fifoIndex, &value, sizeof(value));
-	m_fifoIndex += sizeof(value);
+        DrainFifo();
 
-	if(m_fifoIndex >= qwSize)
-	{
-		DrainFifo();
-	}
+        if(m_fifoIndex + sizeof(value) > FIFO_SIZE)
+        {
+            CLog::GetInstance().Warn(
+                LOG_NAME,
+                "GIF FIFO full: EE backpressure required.\r\n");
+            return;
+        }
+    }
+
+    memcpy(m_fifoBuffer + m_fifoIndex, &value, sizeof(value));
+    m_fifoIndex += sizeof(value);
+
+    if(m_fifoIndex >= qwSize)
+    {
+        DrainFifo();
+    }
 }
 
 void CGIF::DrainFifo()
