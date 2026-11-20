@@ -38,7 +38,7 @@ public:
 	virtual uint32 GetInstruction(uint32) = 0;
 	virtual void SetByte(uint32, uint8);
 	virtual void SetHalf(uint32, uint16) = 0;
-	virtual void SetWord(uint32, uint32) = 0;
+	virtual uint32 SetWord(uint32, uint32) = 0;
 	void InsertReadMap(uint32, uint32, void*, unsigned char);
 	void InsertReadMap(uint32, uint32, const MemoryMapHandlerType&, unsigned char);
 	void InsertWriteMap(uint32, uint32, void*, unsigned char);
@@ -68,5 +68,5 @@ public:
 	uint32 GetWord(uint32) override;
 	uint32 GetInstruction(uint32) override;
 	void SetHalf(uint32, uint16) override;
-	void SetWord(uint32, uint32) override;
+	uint32 SetWord(uint32, uint32) override;
 };
