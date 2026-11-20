@@ -39,8 +39,12 @@ public class NativeInterop
 
     public static native void bootDiskImage(String selectedFilePath);
 
-    public static native void setupGsHandler(Surface surface);
-
+    public static native void setupGsHandler(
+        android.view.Surface surface,
+        int width,
+        int height,
+        float refreshRate);
+ 
     public static native void notifyPreferencesChanged();
 
     // [vendor, renderer, OpenGL ES version, GLSL version]
