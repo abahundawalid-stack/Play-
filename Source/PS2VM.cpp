@@ -856,19 +856,36 @@ void CPS2VM::UpdateEe()
 #endif
 
 	while(m_eeExecutionTicks > 0)
-	{
-		int executed = m_ee->ExecuteCpu(m_singleStepEe ? 1 : m_eeExecutionTicks);
+	{		
+        // Simpan PC sebelum CPU mengeksekusi batch.
+        // Ini penting agar PC pertama benar-benar menunjukkan
+        // alamat instruksi yang akan dieksekusi.
+        const uint32 pcBefore =
+            m_ee->m_EE.m_State.nPC;
+
+        const int executed =
+            m_ee->ExecuteCpu(
+                m_singleStepEe ? 1 : m_eeExecutionTicks);
+
+        const uint32 pcAfter =
+            m_ee->m_EE.m_State.nPC;
+
         if(!firstEeExecutionLogged)
         {
             firstEeExecutionLogged = true;
 
             CLog::GetInstance().Print(
                 LOG_NAME,
-                "[ORBIT2SX_VM] FIRST_EE_EXECUTION PC=%08X executed=%d idle=%u\r\n",
-                m_ee->m_EE.m_State.nPC,
+                "[ORBIT2SX_EE] FIRST_EXECUTION "
+                "PC_BEFORE=%08X "
+                "PC_AFTER=%08X "
+                "EXECUTED=%d "
+                "IDLE=%u\r\n",
+                pcBefore,
+                pcAfter,
                 executed,
                 m_ee->IsCpuIdle() ? 1 : 0);
-		}		
+		}
 		if(m_ee->IsCpuIdle())
 		{
 			m_cpuUtilisation.eeIdleTicks += (m_eeExecutionTicks - executed);
@@ -880,9 +897,8 @@ void CPS2VM::UpdateEe()
 		
         CStatsManager::GetInstance().RecordCpuExecution(
             true,
-			
-        static_cast<uint64>(executed),
-            m_ee->m_EE.m_State.nPC,
+            static_cast<uint64>(executed),
+            pcBefore,
             m_ee->IsCpuIdle());
         #endif
 
