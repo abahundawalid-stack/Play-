@@ -384,6 +384,13 @@ Java_com_virtualapplications_play_NativeInterop_setupGsHandler(
         nativeWindow = ANativeWindow_fromSurface(env, surface);
     }
 
+    CLog::GetInstance().Print(
+        "nativeinterop",
+        "[ORBIT2SX_BOOT] setupGsHandler surface=%p nativeWindow=%p valid=%u\r\n",
+        surface,
+        nativeWindow,
+        nativeWindow != nullptr ? 1 : 0);
+    
     // Tidak ada VM: lepaskan reference yang baru diperoleh.
     if(g_virtualMachine == nullptr)
     {
@@ -403,6 +410,14 @@ Java_com_virtualapplications_play_NativeInterop_setupGsHandler(
     bool recreateNeeded =
         (gsHandler == nullptr) ||
         (g_currentGsHandlerId != gsHandlerId);
+
+    CLog::GetInstance().Print(
+        "nativeinterop",
+        "[ORBIT2SX_BOOT] GS handler=%p id=%d currentId=%d recreate=%u\r\n",
+        gsHandler,
+        gsHandlerId,
+        g_currentGsHandlerId,
+        recreateNeeded ? 1 : 0);
 
     if(recreateNeeded)
     {
