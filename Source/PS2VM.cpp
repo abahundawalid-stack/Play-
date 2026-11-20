@@ -352,14 +352,14 @@ void CPS2VM::Resume()
         CLog::GetInstance().Print(
             LOG_NAME,
             "[ORBIT2SX_VM] Resume ignored: already RUNNING.\r\n");
-
         return;
     }
 
     CLog::GetInstance().Print(
         LOG_NAME,
         "[ORBIT2SX_VM] Resume requested; currentStatus=%d.\r\n",
-        static_cast<int>(m_nStatus.load(std::memory_order_acquire))
+        static_cast<int>(
+            m_nStatus.load(std::memory_order_acquire)));
 
     m_mailBox.SendCall(
         std::bind(&CPS2VM::ResumeImpl, this),
@@ -368,7 +368,8 @@ void CPS2VM::Resume()
     CLog::GetInstance().Print(
         LOG_NAME,
         "[ORBIT2SX_VM] Resume mailbox call returned; status=%d.\r\n",
-        static_cast<int>(m_nStatus.load(std::memory_order_acquire))
+        static_cast<int>(
+            m_nStatus.load(std::memory_order_acquire)));
 
     OnRunningStateChange();
 }
@@ -383,12 +384,16 @@ void CPS2VM::Pause()
 
 void CPS2VM::PauseAsync()
 {
-	if(m_nStatus == PAUSED) return;
-	m_mailBox.SendCall([this]() {
-		PauseImpl();
-		OnMachineStateChange();
-		OnRunningStateChange();
-	});
+    if(m_nStatus.load(std::memory_order_acquire) == PAUSED)
+    {
+        return;
+    }
+
+    m_mailBox.SendCall([this]() {
+        PauseImpl();
+        OnMachineStateChange();
+        OnRunningStateChange();
+    });
 }
 
 void CPS2VM::Reset(uint32 eeRamSize, uint32 iopRamSize)
@@ -1190,7 +1195,7 @@ void CPS2VM::EmuThread()
 			    m_ee->m_VU1.m_executor->MustBreak() ||
 			    m_singleStepEe || m_singleStepIop || m_singleStepVu0 || m_singleStepVu1)
 			{
-				m_nStatus = PAUSED;
+				m_nStatus.store(PAUSED, std::memory_order_release);
 				m_singleStepEe = false;
 				m_singleStepIop = false;
 				m_singleStepVu0 = false;
