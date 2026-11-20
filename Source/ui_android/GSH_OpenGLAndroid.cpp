@@ -158,6 +158,14 @@ void CGSH_OpenGLAndroid::InitializeImpl()
 
     CGSH_OpenGL::InitializeImpl();
     m_rendererInitialized = true;
+
+    CLog::GetInstance().Print(
+        "glesandroid",
+        "[ORBIT2SX_EGL] renderer initialized display=%p context=%p surface=%p window=%p\r\n",
+        m_display,
+        m_context,
+        m_surface,
+        m_window);
 }
 
 bool CGSH_OpenGLAndroid::SetupContext()
