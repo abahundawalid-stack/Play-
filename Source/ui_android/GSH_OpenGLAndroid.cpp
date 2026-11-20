@@ -128,6 +128,13 @@ void CGSH_OpenGLAndroid::InitializeImpl()
 
     if(m_context == EGL_NO_CONTEXT)
     {
+        EGLint error = eglGetError();
+
+        CLog::GetInstance().Print(
+            "glesandroid",
+            "[ORBIT2SX_EGL] eglCreateContext failed error=0x%04X\r\n",
+            error);
+
         eglTerminate(m_display);
         m_display = EGL_NO_DISPLAY;
         m_config = nullptr;
