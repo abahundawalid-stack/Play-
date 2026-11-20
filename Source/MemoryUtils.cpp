@@ -95,10 +95,15 @@ void MemoryUtils_SetHalfProxy(CMIPS* context, uint32 value, uint32 vAddress)
 	context->m_pMemoryMap->SetHalf(address, static_cast<uint16>(value));
 }
 
-void MemoryUtils_SetWordProxy(CMIPS* context, uint32 value, uint32 vAddress)
+uint32 MemoryUtils_SetWordProxy(
+    CMIPS* context,
+    uint32 value,
+    uint32 vAddress)
 {
-	uint32 address = context->m_pAddrTranslator(context, vAddress);
-	context->m_pMemoryMap->SetWord(address, value);
+    uint32 address =
+        context->m_pAddrTranslator(context, vAddress);
+
+    return context->m_pMemoryMap->SetWord(address, value);
 }
 
 void MemoryUtils_SetDoubleProxy(CMIPS* context, uint64 value64, uint32 vAddress)
