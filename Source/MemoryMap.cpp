@@ -221,25 +221,43 @@ void CMemoryMap_LSBF::SetHalf(uint32 nAddress, uint16 nValue)
 	}
 }
 
-void CMemoryMap_LSBF::SetWord(uint32 nAddress, uint32 nValue)
+uint32 CMemoryMap_LSBF::SetWord(uint32 nAddress, uint32 nValue)
 {
-	assert((nAddress & 0x03) == 0);
-	const auto e = GetMap(m_writeMap, nAddress);
-	if(!e)
-	{
-		CLog::GetInstance().Print(LOG_NAME, "Wrote word to unmapped memory (0x%08X, 0x%08X).\r\n", nAddress, nValue);
-		return;
-	}
-	switch(e->nType)
-	{
-	case MEMORYMAP_TYPE_MEMORY:
-		*(uint32*)&((uint8*)e->pPointer)[nAddress - e->nStart] = nValue;
-		break;
-	case MEMORYMAP_TYPE_FUNCTION:
-		e->handler(nAddress, nValue);
-		break;
-	default:
-		assert(0);
-		break;
-	}
+    assert((nAddress & 0x03) == 0);
+
+    const auto e = GetMap(m_writeMap, nAddress);
+
+    if(!e)
+    {
+        CLog::GetInstance().Print(
+            LOG_NAME,
+            "Wrote word to unmapped memory (0x%08X, 0x%08X).\r\n",
+            nAddress,
+            nValue);
+
+        return 0;
+    }
+
+    switch(e->nType)
+    {
+    case MEMORYMAP_TYPE_MEMORY:
+    {
+        *reinterpret_cast<uint32*>(
+            &reinterpret_cast<uint8*>(e->pPointer)[nAddress - e->nStart]) =
+            nValue;
+
+        return 0;
+    }
+
+    case MEMORYMAP_TYPE_FUNCTION:
+    {
+        // Handler returns zero when accepted and non-zero when
+        // the target device cannot currently accept the write.
+        return e->handler(nAddress, nValue);
+    }
+
+    default:
+        assert(0);
+        return 0;
+    }
 }
