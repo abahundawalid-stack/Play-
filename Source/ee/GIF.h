@@ -59,7 +59,7 @@ public:
 	void CountTicks(uint32);
 
 	uint32 GetRegister(uint32);
-	void SetRegister(uint32, uint32);
+	uint32 SetRegister(uint32, uint32);
 
 	CGSHandler* GetGsHandler();
 
@@ -94,7 +94,7 @@ private:
 	uint32 ProcessRegList(const uint8*, uint32, uint32);
 	uint32 ProcessImage(const uint8*, uint32, uint32, uint32);
 
-	void ProcessFifoWrite(uint32, uint32);
+	bool ProcessFifoWrite(uint32, uint32);
 	void DrainFifo();
 
 	void DisassembleGet(uint32);
