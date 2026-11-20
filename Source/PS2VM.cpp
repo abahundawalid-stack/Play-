@@ -844,6 +844,8 @@ void CPS2VM::DestroySoundHandlerImpl()
 
 void CPS2VM::UpdateEe()
 {
+    static bool firstEeExecutionLogged = false;
+	
 #ifdef PROFILE
 	CProfilerZone profilerZone(m_eeProfilerZone);
 #endif
@@ -851,6 +853,17 @@ void CPS2VM::UpdateEe()
 	while(m_eeExecutionTicks > 0)
 	{
 		int executed = m_ee->ExecuteCpu(m_singleStepEe ? 1 : m_eeExecutionTicks);
+        if(!firstEeExecutionLogged)
+        {
+            firstEeExecutionLogged = true;
+
+            CLog::GetInstance().Print(
+                LOG_NAME,
+                "[ORBIT2SX_VM] FIRST_EE_EXECUTION PC=%08X executed=%d idle=%u\r\n",
+                m_ee->m_EE.m_State.nPC,
+                executed,
+                m_ee->IsCpuIdle() ? 1 : 0);
+		}		
 		if(m_ee->IsCpuIdle())
 		{
 			m_cpuUtilisation.eeIdleTicks += (m_eeExecutionTicks - executed);
