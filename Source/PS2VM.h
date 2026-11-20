@@ -2,6 +2,7 @@
 
 #include <thread>
 #include <future>
+#include <atomic>
 #include "filesystem_def.h"
 #include "Types.h"
 #include "MIPS.h"
@@ -151,7 +152,7 @@ private:
 	void EmuThread();
 
 	std::thread m_thread;
-	STATUS m_nStatus = PAUSED;
+	std::atomic<STATUS> m_nStatus{PAUSED};
 	bool m_nEnd = false;
 
 	uint32 m_eeFreqScaleNumerator = 1;
