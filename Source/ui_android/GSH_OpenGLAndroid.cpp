@@ -214,10 +214,16 @@ bool CGSH_OpenGLAndroid::SetupContext()
            newSurface,
            m_context) != EGL_TRUE)
     {
+        EGLint error = eglGetError();
+
+        CLog::GetInstance().Print(
+            "glesandroid",
+            "[ORBIT2SX_EGL] eglMakeCurrent failed error=0x%04X\r\n",
+            error);
+
         eglDestroySurface(m_display, newSurface);
         return false;
     }
-
     EGLint width = 0;
     EGLint height = 0;
 
