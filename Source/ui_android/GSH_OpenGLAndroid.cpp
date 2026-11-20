@@ -376,12 +376,13 @@ void CGSH_OpenGLAndroid::PresentBackbuffer()
         return;
     }
 
-    EGLint error = eglGetError();
+    const EGLint error = eglGetError();
 
     CLog::GetInstance().Print(
         "glesandroid",
-        "[ORBIT2SX_EGL] eglSwapBuffers failed error=0x%04X "
-        "display=%p context=%p surface=%p window=%p\r\n",
+        "[ORBIT2SX_EGL] eglSwapBuffers failed "
+        "error=0x%04X display=%p context=%p "
+        "surface=%p window=%p\r\n",
         error,
         m_display,
         m_context,
@@ -391,29 +392,105 @@ void CGSH_OpenGLAndroid::PresentBackbuffer()
     switch(error)
     {
     case EGL_BAD_SURFACE:
-    case EGL_BAD_NATIVE_WINDOW:
     {
-        // Context masih dipertahankan.
-        // Hanya surface yang dibuat ulang.
+        // Surface rusak, tetapi context belum dinyatakan hilang.
+        // Coba buat surface pengganti menggunakan context yang sama.
         if(m_window != nullptr)
         {
-            SetupContext();
+            if(!SetupContext())
+            {
+                CLog::GetInstance().Print(
+                    "glesandroid",
+                    "[ORBIT2SX_EGL] surface recovery failed; "
+                    "waiting for next window update.\r\n");
+            }
         }
+        break;
+    }
+
+    case EGL_BAD_NATIVE_WINDOW:
+    {
+        // Native window sudah tidak valid.
+        // Jangan membuat surface berulang kali dengan window yang sama.
+        // Tunggu callback SetWindow() dari lifecycle Android.
+        CLog::GetInstance().Print(
+            "glesandroid",
+            "[ORBIT2SX_EGL] native window invalid; "
+            "waiting for replacement window.\r\n");
         break;
     }
 
     case EGL_CONTEXT_LOST:
     {
-        // Jangan meneruskan rendering menggunakan context yang hilang.
-        // Resource OpenGL perlu dibangun ulang melalui siklus renderer.
+        if(m_contextRecoveryInProgress)
+        {
+            CLog::GetInstance().Print(
+                "glesandroid",
+                "[ORBIT2SX_EGL] context recovery already in progress.\r\n");
+            return;
+        }
+
+        if(m_window == nullptr)
+        {
+            CLog::GetInstance().Print(
+                "glesandroid",
+                "[ORBIT2SX_EGL] context lost without native window; "
+                "recovery deferred.\r\n");
+            return;
+        }
+
+        m_contextRecoveryInProgress = true;
+
         CLog::GetInstance().Print(
             "glesandroid",
-            "[ORBIT2SX_EGL] context lost; renderer recreation required.\r\n");
+            "[ORBIT2SX_EGL] context lost; rebuilding renderer.\r\n");
+
+        // ReleaseImpl melepas resource renderer, surface,
+        // context, dan display EGL.
+        ReleaseImpl();
+
+        // InitializeImpl membuat context dan surface baru,
+        // kemudian menginisialisasi ulang renderer OpenGL.
+        InitializeImpl();
+
+        const bool recovered =
+            m_rendererInitialized &&
+            m_display != EGL_NO_DISPLAY &&
+            m_context != EGL_NO_CONTEXT &&
+            m_surface != EGL_NO_SURFACE;
+
+        m_contextRecoveryInProgress = false;
+
+        CLog::GetInstance().Print(
+            "glesandroid",
+            "[ORBIT2SX_EGL] context recovery %s "
+            "display=%p context=%p surface=%p\r\n",
+            recovered ? "successful" : "failed",
+            m_display,
+            m_context,
+            m_surface);
+
+        break;
+    }
+
+    case EGL_BAD_DISPLAY:
+    {
+        CLog::GetInstance().Print(
+            "glesandroid",
+            "[ORBIT2SX_EGL] invalid EGL display; "
+            "renderer recovery required.\r\n");
         break;
     }
 
     default:
+    {
+        CLog::GetInstance().Print(
+            "glesandroid",
+            "[ORBIT2SX_EGL] unhandled presentation error "
+            "0x%04X.\r\n",
+            error);
         break;
+    }
     }
 }
 
