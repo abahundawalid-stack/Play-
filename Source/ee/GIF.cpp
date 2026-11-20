@@ -456,6 +456,7 @@ uint32 CGIF::ProcessMultiplePackets(const uint8* memory, uint32 memorySize, uint
 void CGIF::ProcessFifoWrite(uint32 address, uint32 value)
 {
 	++m_totalFifoWrites;
+	CStatsManager::GetInstance().RecordGifFifoStall();
 	CStatsManager::GetInstance().RecordGifFifoWrite();
 	
 	static constexpr uint32 qwSize = 0x10;
