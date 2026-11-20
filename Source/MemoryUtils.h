@@ -12,7 +12,7 @@ extern "C"
 
 	void MemoryUtils_SetByteProxy(CMIPS*, uint32, uint32);
 	void MemoryUtils_SetHalfProxy(CMIPS*, uint32, uint32);
-	void MemoryUtils_SetWordProxy(CMIPS*, uint32, uint32);
+	uint32 MemoryUtils_SetWordProxy(CMIPS*, uint32, uint32);
 	void MemoryUtils_SetDoubleProxy(CMIPS*, uint64, uint32);
 	void MemoryUtils_SetQuadProxy(CMIPS*, const uint128&, uint32);
 }
