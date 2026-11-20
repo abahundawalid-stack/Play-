@@ -50,7 +50,16 @@ CGSHandler::FactoryFunction CGSH_OpenGLAndroid::GetFactoryFunction(
 
 void CGSH_OpenGLAndroid::InitializeImpl()
 {
-    if(m_window == nullptr || m_display != EGL_NO_DISPLAY)
+    if(m_window == nullptr)
+    {
+        CLog::GetInstance().Print(
+            "glesandroid",
+            "[ORBIT2SX_EGL] InitializeImpl aborted: native window is null.\r\n");
+
+        return;
+    }
+
+    if(m_display != EGL_NO_DISPLAY)
     {
         return;
     }
