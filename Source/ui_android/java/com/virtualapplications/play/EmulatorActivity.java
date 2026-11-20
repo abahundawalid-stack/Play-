@@ -742,7 +742,15 @@ public class EmulatorActivity extends Activity
                     ? "ANDROID_SURFACE_VALID"
                     : "ANDROID_SURFACE_INVALID");
 
-            NativeInterop.setupGsHandler(surface);
+            float refreshRate = getWindowManager()
+                .getDefaultDisplay()
+                .getRefreshRate();
+
+            NativeInterop.setupGsHandler(
+                surface,
+                width,
+                height,
+                refreshRate);
 
             _surfaceCreated = validSurface;
 
@@ -790,9 +798,11 @@ public class EmulatorActivity extends Activity
                 // 1. Hentikan eksekusi VM terlebih dahulu.
                 NativeInterop.pauseVirtualMachine();
 
-                // 2. Lepaskan EGL surface dan ANativeWindow lama.
-                // Native setupGsHandler menerima null untuk melepas window.
-                NativeInterop.setupGsHandler(null);
+                NativeInterop.setupGsHandler(
+                    null,
+                    0,
+                    0,
+                    0.0f);
             }
 
             // 3. Tandai Surface sudah tidak tersedia.
