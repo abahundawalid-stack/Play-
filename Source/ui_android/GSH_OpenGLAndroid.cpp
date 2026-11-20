@@ -277,6 +277,13 @@ bool CGSH_OpenGLAndroid::SetupContext()
     SetPresentationParams(presentationParams);
 
     eglSwapInterval(m_display, 0);
+
+    CLog::GetInstance().Print(
+        "glesandroid",
+        "[ORBIT2SX_EGL] window surface ready width=%d height=%d\r\n",
+        width,
+        height);
+
     return true;
 }
 
