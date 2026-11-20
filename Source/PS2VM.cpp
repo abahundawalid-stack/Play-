@@ -1109,32 +1109,40 @@ void CPS2VM::EmuThread()
 	m_frameLimiter.BeginFrame();
 	while(1)
 	{
-		while(m_mailBox.IsPending())
-		{
-			m_mailBox.ReceiveCall();
-		}
-		if(m_nEnd) break;
-		if(m_nStatus.load(std::memory_order_acquire) == PAUSED)
-		{
-			std::this_thread::sleep_for(std::chrono::milliseconds(100));
-		}
-		if(m_nStatus.load(std::memory_order_acquire) == RUNNING)
-		{
-			if(m_spuUpdateTicks <= 0)
-			{
-				UpdateSpu();
-				m_spuUpdateTicks += m_spuUpdateTicksTotal;
-			}
+		
+    while(m_mailBox.IsPending())
+    {
+        m_mailBox.ReceiveCall();
+    }
 
-			{
-				if(m_hblankTicks <= 0)
-				{
-					m_hblankTicks += m_hblankTicksTotal;
-					if(m_ee->m_gs)
-					{
-						m_ee->m_gs->SetHBlank();
-					}
-				}
+    if(m_nEnd)
+    {
+        break;
+    }
+
+    if(m_nStatus.load(std::memory_order_acquire) == PAUSED)
+    {
+        m_mailBox.WaitForCall();
+        continue;
+    }
+
+    if(m_nStatus.load(std::memory_order_acquire) == RUNNING)
+    {
+
+	if(m_spuUpdateTicks <= 0)
+	{			
+	    UpdateSpu();
+		m_spuUpdateTicks += m_spuUpdateTicksTotal;
+	}
+
+	if(m_hblankTicks <= 0)
+	{
+		m_hblankTicks += m_hblankTicksTotal;
+		if(m_ee->m_gs)
+		{
+			m_ee->m_gs->SetHBlank();
+		}
+	}
 
 				//Check vblank stuff
 				if(m_vblankTicks <= 0)
