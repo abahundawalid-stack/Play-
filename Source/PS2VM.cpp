@@ -347,9 +347,30 @@ void CPS2VM::StepVu1()
 
 void CPS2VM::Resume()
 {
-	if(m_nStatus == RUNNING) return;
-	m_mailBox.SendCall(std::bind(&CPS2VM::ResumeImpl, this), true);
-	OnRunningStateChange();
+    if(m_nStatus == RUNNING)
+    {
+        CLog::GetInstance().Print(
+            LOG_NAME,
+            "[ORBIT2SX_VM] Resume ignored: already RUNNING.\r\n");
+
+        return;
+    }
+
+    CLog::GetInstance().Print(
+        LOG_NAME,
+        "[ORBIT2SX_VM] Resume requested; currentStatus=%d.\r\n",
+        static_cast<int>(m_nStatus));
+
+    m_mailBox.SendCall(
+        std::bind(&CPS2VM::ResumeImpl, this),
+        true);
+
+    CLog::GetInstance().Print(
+        LOG_NAME,
+        "[ORBIT2SX_VM] Resume mailbox call returned; status=%d.\r\n",
+        static_cast<int>(m_nStatus));
+
+    OnRunningStateChange();
 }
 
 void CPS2VM::Pause()
