@@ -293,6 +293,8 @@ uint32 CGIF::ProcessImage(const uint8* memory, uint32 memorySize, uint32 address
 	return (totalLoops * 0x10);
 }
 
+++m_totalGifPackets;
+
 uint32 CGIF::ProcessSinglePacket(const uint8* memory, uint32 memorySize, uint32 address, uint32 end, const CGsPacketMetadata& packetMetadata)
 {
 #ifdef PROFILE
@@ -448,6 +450,8 @@ uint32 CGIF::ProcessMultiplePackets(const uint8* memory, uint32 memorySize, uint
 	return address - start;
 }
 
+++m_totalFifoWrites;
+
 void CGIF::ProcessFifoWrite(uint32 address, uint32 value)
 {
 	static constexpr uint32 qwSize = 0x10;
@@ -487,6 +491,13 @@ void CGIF::DrainFifo()
 uint32 CGIF::ReceiveDMA(uint32 address, uint32 qwc, uint32 unused, bool tagIncluded)
 {
 	uint32 size = qwc * 0x10;
+
+	uint32 receivedQwc =
+        (address - start) / 0x10;
+
+    m_totalDmaQwcReceived += receivedQwc;
+
+    return receivedQwc;
 
 	uint8* memory = nullptr;
 	uint32 memorySize = 0;
@@ -597,7 +608,6 @@ void CGIF::SetRegister(uint32 address, uint32 value)
 {
 	if(address >= GIF_FIFO_START && address < GIF_FIFO_END)
 	{
-		++m_totalFifoWrites;
 		ProcessFifoWrite(address, value);
 	}
 	else
