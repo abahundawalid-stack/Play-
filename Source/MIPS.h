@@ -46,6 +46,7 @@ enum
 	MIPS_EXCEPTION_VU_TBIT,
 	MIPS_EXCEPTION_VU_EBIT,
 	MIPS_EXCEPTION_MAX, //Used to make sure we don't conflict with the QUOTADONE status
+    MIPS_EXCEPTION_MEMORY_STALL,
 };
 static_assert(MIPS_EXCEPTION_MAX <= 0x80);
 
