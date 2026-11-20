@@ -143,7 +143,11 @@ void CGSH_OpenGLAndroid::InitializeImpl()
 
     if(!SetupContext())
     {
-        eglDestroyContext(m_display, m_context);
+		CLog::GetInstance().Print(
+            "glesandroid",
+            "[ORBIT2SX_EGL] SetupContext failed during initialization.\r\n");
+    
+		eglDestroyContext(m_display, m_context);
         m_context = EGL_NO_CONTEXT;
 
         eglTerminate(m_display);
