@@ -440,6 +440,11 @@ Java_com_virtualapplications_play_NativeInterop_setupGsHandler(
 
         g_currentGsHandlerId = gsHandlerId;
 
+        CLog::GetInstance().Print(
+            "nativeinterop",
+            "[ORBIT2SX_BOOT] GS handler creation requested id=%d\r\n",
+            gsHandlerId);
+
         g_OnGsNewFrameConnection =
             g_virtualMachine->m_ee->m_gs->OnNewFrame.Connect(
                 std::bind(
