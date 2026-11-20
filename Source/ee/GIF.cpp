@@ -628,34 +628,30 @@ uint32 CGIF::GetRegister(uint32 address)
 	return result;
 }
 
-void CGIF::SetRegister(uint32 address, uint32 value)
+uint32 CGIF::SetRegister(uint32 address, uint32 value)
 {
-	if(address >= GIF_FIFO_START && address < GIF_FIFO_END)
-	{
-		ProcessFifoWrite(address, value);
-	}
-	else
-	{
-		switch(address)
-		{
-		case GIF_MODE:
-			m_MODE = value;
-			break;
-		}
-	}
+    if(address >= GIF_FIFO_START && address < GIF_FIFO_END)
+    {
+        // 0 = accepted
+        // 1 = FIFO full; retry this store later
+        return ProcessFifoWrite(address, value) ? 0 : 1;
+    }
+
+    switch(address)
+    {
+    case GIF_MODE:
+        m_MODE = value;
+        break;
+
+    default:
+        break;
+    }
+
 #if LOGGING_ENABLED
-	DisassembleSet(address, value);
+    DisassembleSet(address, value);
 #endif
-}
 
-CGSHandler* CGIF::GetGsHandler()
-{
-	return m_gs;
-}
-
-uint32 CGIF::GetActivePath() const
-{
-	return m_activePath;
+    return 0;
 }
 
 void CGIF::SetPath3Masked(bool masked)
