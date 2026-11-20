@@ -172,11 +172,17 @@ void CGSH_OpenGLAndroid::InitializeImpl()
 
 bool CGSH_OpenGLAndroid::SetupContext()
 {
+    auto failRecovery = [this]() -> bool
+    {
+        m_surfaceRecoveryPending = true;
+        return false;
+    };
+	
     if(m_display == EGL_NO_DISPLAY ||
        m_context == EGL_NO_CONTEXT ||
        m_window == nullptr)
     {
-        return false;
+        return failRecovery();
     }
 
     // Buat surface baru terlebih dahulu.
@@ -198,7 +204,7 @@ bool CGSH_OpenGLAndroid::SetupContext()
             error,
             m_window);
 
-        return false;
+        return failRecovery();
     }
 
     // Aktifkan surface baru menggunakan context yang sama.
@@ -217,7 +223,7 @@ bool CGSH_OpenGLAndroid::SetupContext()
             error);
 
         eglDestroySurface(m_display, newSurface);
-        return false;
+        return failRecovery();
     }
 
     EGLint width = 0;
@@ -259,7 +265,7 @@ bool CGSH_OpenGLAndroid::SetupContext()
         }
 
         eglDestroySurface(m_display, newSurface);
-        return false;
+        return failRecovery();
     }
 
     EGLSurface previousSurface = m_surface;
@@ -322,7 +328,9 @@ bool CGSH_OpenGLAndroid::SetupContext()
         m_context,
         m_surface);
 
-    return true;
+	m_surfaceRecoveryPending = false;
+
+    return failRecovery();
 }
 
 void CGSH_OpenGLAndroid::ReleaseImpl()
