@@ -105,11 +105,18 @@ void CGSH_OpenGLAndroid::InitializeImpl()
         return;
     }
 
-    EGLint numConfigs = 0;
     if(eglChooseConfig(
            m_display, configAttribs, &m_config, 1, &numConfigs) != EGL_TRUE ||
        numConfigs == 0)
     {
+        EGLint error = eglGetError();
+
+        CLog::GetInstance().Print(
+            "glesandroid",
+            "[ORBIT2SX_EGL] eglChooseConfig failed count=%d error=0x%04X\r\n",
+            numConfigs,
+            error);
+
         eglTerminate(m_display);
         m_display = EGL_NO_DISPLAY;
         m_config = nullptr;
