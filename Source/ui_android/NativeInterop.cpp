@@ -460,6 +460,11 @@ Java_com_virtualapplications_play_NativeInterop_setupGsHandler(
 
         if(windowUpdateListener != nullptr)
         {
+            CLog::GetInstance().Print(
+                "nativeinterop",
+                "[ORBIT2SX_BOOT] updating existing GS window=%p\r\n",
+                nativeWindow);
+            
             // SetWindow mengambil ownership reference,
             // termasuk ketika window bernilai nullptr.
             windowUpdateListener->SetWindow(nativeWindow);
