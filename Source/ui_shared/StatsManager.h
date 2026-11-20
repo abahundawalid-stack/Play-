@@ -21,6 +21,11 @@ public:
     void RecordGsBufferFlush();
     void RecordGsDrawSubmission();
 
+    void RecordGifFifoWrite();
+    void RecordGifPacket();
+    void RecordGifDmaQwc(uint32 qwc);
+    void RecordGifFifoStall();
+
     std::string GetGsPipelineDiagnostics() const;
 
     // Runtime CPU diagnostics.
@@ -79,6 +84,11 @@ private:
     std::atomic<uint64> m_gsBufferedVertices{0};
     std::atomic<uint64> m_gsBufferFlushes{0};
     std::atomic<uint64> m_gsDrawSubmissions{0};
+
+    std::atomic<uint64> m_gifFifoWrites{0};
+    std::atomic<uint64> m_gifPackets{0};
+    std::atomic<uint64> m_gifDmaQwc{0};
+    std::atomic<uint64> m_gifFifoStalls{0};
 
     // EE / IOP execution diagnostics.
     std::atomic<uint64> m_eeExecutionTicks{0};
