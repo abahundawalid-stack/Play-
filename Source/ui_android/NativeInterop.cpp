@@ -25,6 +25,7 @@
 #include "../gs/GSH_Null.h"
 
 #include "NativeShared.h"
+#include "Log.h"
 #include "NativeWindowUpdateListener.h"
 #include "GSH_OpenGLAndroid.h"
 #include "GSH_VulkanAndroid.h"
