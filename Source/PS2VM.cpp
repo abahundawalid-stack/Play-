@@ -1094,128 +1094,169 @@ void CPS2VM::OnCrtModeChange()
 
 void CPS2VM::EmuThread()
 {
-	CreateVM();
-	fesetround(FE_TOWARDZERO);
-	FpUtils::SetDenormalHandlingMode();
-	CProfiler::GetInstance().SetWorkThread();
+    CreateVM();
+
+    fesetround(FE_TOWARDZERO);
+    FpUtils::SetDenormalHandlingMode();
+    CProfiler::GetInstance().SetWorkThread();
+
 #ifdef __ANDROID__
-	JNIEnv* env = nullptr;
-	Framework::CJavaVM::AttachCurrentThread(&env, THREAD_NAME);
+    JNIEnv* env = nullptr;
+    Framework::CJavaVM::AttachCurrentThread(&env, THREAD_NAME);
 #endif
+
 #ifdef PROFILE
-	CProfilerZone profilerZone(m_otherProfilerZone);
+    CProfilerZone profilerZone(m_otherProfilerZone);
 #endif
-	static_cast<CEeExecutor*>(m_ee->m_EE.m_executor.get())->AddExceptionHandler();
-	m_frameLimiter.BeginFrame();
-	while(1)
-	{
-		
-    while(m_mailBox.IsPending())
+
+    static_cast<CEeExecutor*>(
+        m_ee->m_EE.m_executor.get()
+    )->AddExceptionHandler();
+
+    m_frameLimiter.BeginFrame();
+
+    while(1)
     {
-        m_mailBox.ReceiveCall();
-    }
+        // Process all pending commands from the mailbox.
+        while(m_mailBox.IsPending())
+        {
+            m_mailBox.ReceiveCall();
+        }
 
-    if(m_nEnd)
-    {
-        break;
-    }
+        // Stop the emulation thread when requested.
+        if(m_nEnd)
+        {
+            break;
+        }
 
-    if(m_nStatus.load(std::memory_order_acquire) == PAUSED)
-    {
-        m_mailBox.WaitForCall();
-        continue;
-    }
+        // Wait for a command instead of continuously polling
+        // while the virtual machine is paused.
+        if(m_nStatus.load(std::memory_order_acquire) == PAUSED)
+        {
+            m_mailBox.WaitForCall();
+            continue;
+        }
 
-    if(m_nStatus.load(std::memory_order_acquire) == RUNNING)
-    {
+        // Execute emulation only while the VM is running.
+        if(m_nStatus.load(std::memory_order_acquire) == RUNNING)
+        {
+            // SPU2 update.
+            if(m_spuUpdateTicks <= 0)
+            {
+                UpdateSpu();
+                m_spuUpdateTicks += m_spuUpdateTicksTotal;
+            }
 
-	if(m_spuUpdateTicks <= 0)
-	{			
-	    UpdateSpu();
-		m_spuUpdateTicks += m_spuUpdateTicksTotal;
-	}
+            // Horizontal blank update.
+            if(m_hblankTicks <= 0)
+            {
+                m_hblankTicks += m_hblankTicksTotal;
 
-	if(m_hblankTicks <= 0)
-	{
-		m_hblankTicks += m_hblankTicksTotal;
-		if(m_ee->m_gs)
-		{
-			m_ee->m_gs->SetHBlank();
-		}
-	}
+                if(m_ee->m_gs)
+                {
+                    m_ee->m_gs->SetHBlank();
+                }
+            }
 
-				//Check vblank stuff
-				if(m_vblankTicks <= 0)
-				{
-					m_inVblank = !m_inVblank;
-					if(m_inVblank)
-					{
-						m_vblankTicks += m_vblankTicksTotal;
-						m_ee->NotifyVBlankStart();
-						m_iop->NotifyVBlankStart();
+            // Vertical blank update.
+            if(m_vblankTicks <= 0)
+            {
+                m_inVblank = !m_inVblank;
 
-						if(m_ee->m_gs != NULL)
-						{
+                if(m_inVblank)
+                {
+                    // Start of VBlank.
+                    m_vblankTicks += m_vblankTicksTotal;
+
+                    m_ee->NotifyVBlankStart();
+                    m_iop->NotifyVBlankStart();
+
+                    if(m_ee->m_gs != NULL)
+                    {
 #ifdef PROFILE
-							CProfilerZone profilerZone(m_gsSyncProfilerZone);
+                        CProfilerZone profilerZone(m_gsSyncProfilerZone);
 #endif
-							m_ee->m_gs->SetVBlank();
-						}
+                        m_ee->m_gs->SetVBlank();
+                    }
 
-						if(m_pad != NULL)
-						{
-							m_pad->Update(m_ee->m_ram);
-						}
+                    if(m_pad != NULL)
+                    {
+                        m_pad->Update(m_ee->m_ram);
+                    }
+
 #ifdef PROFILE
-						//Finish up profile
-						CProfiler::GetInstance().CountCurrentZone();
+                    CProfiler::GetInstance().CountCurrentZone();
 #endif
-						OnNewFrame();
+
+                    OnNewFrame();
+
 #ifdef PROFILE
-						CProfiler::GetInstance().Reset();
+                    CProfiler::GetInstance().Reset();
 #endif
-						m_cpuUtilisation = CPU_UTILISATION_INFO();
-					}
-					else
-					{
-						m_vblankTicks += m_onScreenTicksTotal;
-						m_ee->NotifyVBlankEnd();
-						m_iop->NotifyVBlankEnd();
-						if(m_ee->m_gs != NULL)
-						{
-							m_ee->m_gs->ResetVBlank();
-						}
-						m_frameLimiter.EndFrame();
-						m_frameLimiter.BeginFrame();
-					}
-				}
 
-				m_eeExecutionTicks += m_eeTickStep;
-				m_iopExecutionTicks += m_iopTickStep;
+                    m_cpuUtilisation = CPU_UTILISATION_INFO();
+                }
+                else
+                {
+                    // End of VBlank.
+                    m_vblankTicks += m_onScreenTicksTotal;
 
-				UpdateEe();
-				UpdateIop();
-			}
+                    m_ee->NotifyVBlankEnd();
+                    m_iop->NotifyVBlankEnd();
+
+                    if(m_ee->m_gs != NULL)
+                    {
+                        m_ee->m_gs->ResetVBlank();
+                    }
+
+                    m_frameLimiter.EndFrame();
+                    m_frameLimiter.BeginFrame();
+                }
+            }
+
+            // Advance EE and IOP execution counters.
+            m_eeExecutionTicks += m_eeTickStep;
+            m_iopExecutionTicks += m_iopTickStep;
+
+            // Execute EE and IOP processors.
+            UpdateEe();
+            UpdateIop();
+        }
+
 #ifdef DEBUGGER_INCLUDED
-			if(
-			    m_ee->m_EE.m_executor->MustBreak() ||
-			    m_iop->m_cpu.m_executor->MustBreak() ||
-			    m_ee->m_VU1.m_executor->MustBreak() ||
-			    m_singleStepEe || m_singleStepIop || m_singleStepVu0 || m_singleStepVu1)
-			{
-				m_nStatus.store(PAUSED, std::memory_order_release);
-				m_singleStepEe = false;
-				m_singleStepIop = false;
-				m_singleStepVu0 = false;
-				m_singleStepVu1 = false;
-				OnRunningStateChange();
-				OnMachineStateChange();
-			}
+        // Handle debugger breakpoints and single-step execution.
+        if(
+            m_ee->m_EE.m_executor->MustBreak() ||
+            m_iop->m_cpu.m_executor->MustBreak() ||
+            m_ee->m_VU1.m_executor->MustBreak() ||
+            m_singleStepEe ||
+            m_singleStepIop ||
+            m_singleStepVu0 ||
+            m_singleStepVu1)
+        {
+            m_nStatus.store(
+                PAUSED,
+                std::memory_order_release
+            );
+
+            m_singleStepEe = false;
+            m_singleStepIop = false;
+            m_singleStepVu0 = false;
+            m_singleStepVu1 = false;
+
+            OnRunningStateChange();
+            OnMachineStateChange();
+        }
 #endif
-		}
-	}
-	static_cast<CEeExecutor*>(m_ee->m_EE.m_executor.get())->RemoveExceptionHandler();
+    }
+
+    // Remove EE exception handler before terminating the thread.
+    static_cast<CEeExecutor*>(
+        m_ee->m_EE.m_executor.get()
+    )->RemoveExceptionHandler();
+
 #ifdef __ANDROID__
-	Framework::CJavaVM::DetachCurrentThread();
+    Framework::CJavaVM::DetachCurrentThread();
 #endif
 }
+
