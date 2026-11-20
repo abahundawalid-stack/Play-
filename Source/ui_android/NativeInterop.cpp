@@ -373,10 +373,12 @@ Java_com_virtualapplications_play_NativeInterop_bootDiskImage(
 
 extern "C" JNIEXPORT void JNICALL
 Java_com_virtualapplications_play_NativeInterop_setupGsHandler(
+    JNIEnv* env,
+    jclass clazz,
     jobject surface,
     jint width,
     jint height,
-    jfloat refreshRate
+    jfloat refreshRate)
 {
     ANativeWindow* nativeWindow = nullptr;
 
