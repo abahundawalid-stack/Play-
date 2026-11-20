@@ -179,18 +179,8 @@ bool CGSH_OpenGLAndroid::SetupContext()
         return false;
     }
 
-    if(m_surface != EGL_NO_SURFACE)
-    {
-        eglMakeCurrent(
-            m_display,
-            EGL_NO_SURFACE,
-            EGL_NO_SURFACE,
-            EGL_NO_CONTEXT);
-
-        eglDestroySurface(m_display, m_surface);
-        m_surface = EGL_NO_SURFACE;
-    }
-
+    // Buat surface baru terlebih dahulu.
+    // Jangan hancurkan surface lama sebelum surface baru valid.
     EGLSurface newSurface = eglCreateWindowSurface(
         m_display,
         m_config,
@@ -203,13 +193,15 @@ bool CGSH_OpenGLAndroid::SetupContext()
 
         CLog::GetInstance().Print(
             "glesandroid",
-            "[ORBIT2SX_EGL] eglCreateWindowSurface failed error=0x%04X window=%p\r\n",
+            "[ORBIT2SX_EGL] create replacement surface failed "
+            "error=0x%04X window=%p\r\n",
             error,
             m_window);
 
         return false;
     }
 
+    // Aktifkan surface baru menggunakan context yang sama.
     if(eglMakeCurrent(
            m_display,
            newSurface,
@@ -220,54 +212,86 @@ bool CGSH_OpenGLAndroid::SetupContext()
 
         CLog::GetInstance().Print(
             "glesandroid",
-            "[ORBIT2SX_EGL] eglMakeCurrent failed error=0x%04X\r\n",
+            "[ORBIT2SX_EGL] make replacement surface current failed "
+            "error=0x%04X\r\n",
             error);
 
         eglDestroySurface(m_display, newSurface);
         return false;
     }
+
     EGLint width = 0;
     EGLint height = 0;
 
-    if(eglQuerySurface(m_display, newSurface, EGL_WIDTH, &width) != EGL_TRUE ||
-       eglQuerySurface(m_display, newSurface, EGL_HEIGHT, &height) != EGL_TRUE ||
-       width <= 0 || height <= 0)
+    if(eglQuerySurface(
+           m_display, newSurface, EGL_WIDTH, &width) != EGL_TRUE ||
+       eglQuerySurface(
+           m_display, newSurface, EGL_HEIGHT, &height) != EGL_TRUE ||
+       width <= 0 ||
+       height <= 0)
     {
-        eglMakeCurrent(
-            m_display,
-            EGL_NO_SURFACE,
-            EGL_NO_SURFACE,
-            EGL_NO_CONTEXT);
+        EGLint error = eglGetError();
+
+        CLog::GetInstance().Print(
+            "glesandroid",
+            "[ORBIT2SX_EGL] replacement surface dimensions invalid "
+            "width=%d height=%d error=0x%04X\r\n",
+            width,
+            height,
+            error);
+
+        // Kembalikan context ke surface lama jika masih tersedia.
+        if(m_surface != EGL_NO_SURFACE)
+        {
+            eglMakeCurrent(
+                m_display,
+                m_surface,
+                m_surface,
+                m_context);
+        }
+        else
+        {
+            eglMakeCurrent(
+                m_display,
+                EGL_NO_SURFACE,
+                EGL_NO_SURFACE,
+                EGL_NO_CONTEXT);
+        }
 
         eglDestroySurface(m_display, newSurface);
         return false;
     }
 
+    EGLSurface previousSurface = m_surface;
     m_surface = newSurface;
 
-	    // Query the active OpenGL ES context on the GS thread.
-        // This function is called only after eglMakeCurrent succeeds.
+    // Surface baru sudah aktif. Sekarang surface lama aman dihancurkan.
+    if(previousSurface != EGL_NO_SURFACE &&
+       previousSurface != newSurface)
+    {
+        eglDestroySurface(m_display, previousSurface);
+    }
 
-        auto readGlString = [](GLenum name) -> std::string
+    auto readGlString = [](GLenum name) -> std::string
+    {
+        const GLubyte* value = glGetString(name);
+
+        if(value == nullptr)
         {
-            const GLubyte* value = glGetString(name);
+            return {};
+        }
 
-            if(value == nullptr)
-            {
-                return {};
-            }
+        return reinterpret_cast<const char*>(value);
+    };
 
-            return reinterpret_cast<const char*>(value);
-        };
-
-        SetGraphicsDiagnostics(
-            readGlString(GL_VENDOR),
-            readGlString(GL_RENDERER),
-            readGlString(GL_VERSION),
-			
-    readGlString(GL_SHADING_LANGUAGE_VERSION));
+    SetGraphicsDiagnostics(
+        readGlString(GL_VENDOR),
+        readGlString(GL_RENDERER),
+        readGlString(GL_VERSION),
+        readGlString(GL_SHADING_LANGUAGE_VERSION));
 
     PRESENTATION_PARAMS presentationParams;
+
     presentationParams.mode =
         static_cast<CGSHandler::PRESENTATION_MODE>(
             CAppConfig::GetInstance().GetPreferenceInteger(
@@ -278,13 +302,25 @@ bool CGSH_OpenGLAndroid::SetupContext()
 
     SetPresentationParams(presentationParams);
 
-    eglSwapInterval(m_display, 0);
+    if(eglSwapInterval(m_display, 0) != EGL_TRUE)
+    {
+        EGLint error = eglGetError();
+
+        CLog::GetInstance().Print(
+            "glesandroid",
+            "[ORBIT2SX_EGL] swap interval configuration failed "
+            "error=0x%04X\r\n",
+            error);
+    }
 
     CLog::GetInstance().Print(
         "glesandroid",
-        "[ORBIT2SX_EGL] window surface ready width=%d height=%d\r\n",
+        "[ORBIT2SX_EGL] replacement surface ready "
+        "width=%d height=%d context=%p surface=%p\r\n",
         width,
-        height);
+        height,
+        m_context,
+        m_surface);
 
     return true;
 }
@@ -328,12 +364,57 @@ void CGSH_OpenGLAndroid::ReleaseImpl()
 
 void CGSH_OpenGLAndroid::PresentBackbuffer()
 {
-	if(m_display == EGL_NO_DISPLAY || m_surface == EGL_NO_SURFACE)
-	{
-		return;
-	}
+    if(m_display == EGL_NO_DISPLAY ||
+       m_context == EGL_NO_CONTEXT ||
+       m_surface == EGL_NO_SURFACE)
+    {
+        return;
+    }
 
-	eglSwapBuffers(m_display, m_surface);
+    if(eglSwapBuffers(m_display, m_surface) == EGL_TRUE)
+    {
+        return;
+    }
+
+    EGLint error = eglGetError();
+
+    CLog::GetInstance().Print(
+        "glesandroid",
+        "[ORBIT2SX_EGL] eglSwapBuffers failed error=0x%04X "
+        "display=%p context=%p surface=%p window=%p\r\n",
+        error,
+        m_display,
+        m_context,
+        m_surface,
+        m_window);
+
+    switch(error)
+    {
+    case EGL_BAD_SURFACE:
+    case EGL_BAD_NATIVE_WINDOW:
+    {
+        // Context masih dipertahankan.
+        // Hanya surface yang dibuat ulang.
+        if(m_window != nullptr)
+        {
+            SetupContext();
+        }
+        break;
+    }
+
+    case EGL_CONTEXT_LOST:
+    {
+        // Jangan meneruskan rendering menggunakan context yang hilang.
+        // Resource OpenGL perlu dibangun ulang melalui siklus renderer.
+        CLog::GetInstance().Print(
+            "glesandroid",
+            "[ORBIT2SX_EGL] context lost; renderer recreation required.\r\n");
+        break;
+    }
+
+    default:
+        break;
+    }
 }
 
 void CGSH_OpenGLAndroid::SetWindow(NativeWindowType window)
