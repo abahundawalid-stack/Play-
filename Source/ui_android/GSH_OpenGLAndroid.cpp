@@ -79,8 +79,16 @@ void CGSH_OpenGLAndroid::InitializeImpl()
     };
 
     m_display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+
     if(m_display == EGL_NO_DISPLAY)
     {
+        EGLint error = eglGetError();
+
+        CLog::GetInstance().Print(
+            "glesandroid",
+            "[ORBIT2SX_EGL] eglGetDisplay failed error=0x%04X\r\n",
+            error);
+
         return;
     }
 
