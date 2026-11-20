@@ -918,6 +918,7 @@ void CPS2VM::UpdateEe()
 
 void CPS2VM::UpdateIop()
 {
+	static bool firstIopExecutionLogged = false;
 #ifdef PROFILE
 	CProfilerZone profilerZone(m_iopProfilerZone);
 #endif
@@ -925,6 +926,17 @@ void CPS2VM::UpdateIop()
 	while(m_iopExecutionTicks > 0)
 	{
 		int executed = m_iop->ExecuteCpu(m_singleStepIop ? 1 : m_iopExecutionTicks);
+		if(!firstIopExecutionLogged)
+        {
+            firstIopExecutionLogged = true;
+
+            CLog::GetInstance().Print(
+                LOG_NAME,
+                "[ORBIT2SX_VM] FIRST_IOP_EXECUTION PC=%08X executed=%d idle=%u\r\n",
+                m_iop->m_cpu.m_State.nPC,
+                executed,
+                m_iop->IsCpuIdle() ? 1 : 0);
+        }
 		if(m_iop->IsCpuIdle())
 		{
 			m_cpuUtilisation.iopIdleTicks += (m_iopExecutionTicks - executed);
