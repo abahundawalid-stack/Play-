@@ -9,6 +9,7 @@
 #include "../states/MemoryStateFile.h"
 #include "GIF.h"
 #include "DMAC.h"
+#include "../ui_shared/StatsManager.h"
 
 #define QTEMP_INIT (0x3F800000)
 
@@ -308,7 +309,10 @@ uint32 CGIF::ProcessSinglePacket(const uint8* memory, uint32 memorySize, uint32 
 	m_signalState = SIGNAL_STATE_NONE;
 
 	uint32 start = address;
+	
 	++m_totalGifPackets;
+	CStatsManager::GetInstance().RecordGifPacket();
+	
 	while(address < end)
 	{
 		if(m_loops == 0)
@@ -452,6 +456,7 @@ uint32 CGIF::ProcessMultiplePackets(const uint8* memory, uint32 memorySize, uint
 void CGIF::ProcessFifoWrite(uint32 address, uint32 value)
 {
 	++m_totalFifoWrites;
+	CStatsManager::GetInstance().RecordGifFifoWrite();
 	
 	static constexpr uint32 qwSize = 0x10;
 
@@ -563,6 +568,7 @@ uint32 CGIF::ReceiveDMA(uint32 address, uint32 qwc, uint32 unused, bool tagInclu
     assert(address <= end);
 
     uint32 receivedQwc = (address - start) / 0x10;
+	CStatsManager::GetInstance().RecordGifDmaQwc(receivedQwc);
     m_totalDmaQwcReceived += receivedQwc;
 
     return receivedQwc;
