@@ -536,12 +536,15 @@ void CChannel::ExecuteSourceChainTransfer(bool isMfifo)
 	}
 
 	if(qwc != 0)
-	{
-		uint32 nRecv = m_receive(m_nMADR, qwc, CHCR_DIR_FROM, false);
+    {
+        const uint32 receivedQwc =
+            m_receive(m_nMADR, qwc, CHCR_DIR_FROM, false);
 
-		m_nMADR += nRecv * 0x10;
-		m_nQWC -= nRecv;
-	}
+        assert(receivedQwc <= qwc);
+
+        m_nMADR += receivedQwc * 0x10;
+        m_nQWC -= receivedQwc;
+    }
 
 	if(isMfifo)
 	{
