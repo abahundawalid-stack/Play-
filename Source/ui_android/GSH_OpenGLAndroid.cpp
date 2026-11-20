@@ -8,6 +8,7 @@
 #include "GSH_OpenGLAndroid.h"
 #include "AppConfig.h"
 #include "NativeShared.h"
+#include "Log.h"
 
 CGSH_OpenGLAndroid::CGSH_OpenGLAndroid(NativeWindowType window)
     : m_window(window)
