@@ -592,6 +592,8 @@ uint32 CSubSystem::IOPortReadHandler(uint32 nAddress)
 
 uint32 CSubSystem::IOPortWriteHandler(uint32 nAddress, uint32 nData)
 {
+	uint32 writeStatus = 0;
+	
 	if(nAddress >= 0x10000000 && nAddress <= 0x1000183F)
 	{
 		m_timer.SetRegister(nAddress, nData);
@@ -602,9 +604,9 @@ uint32 CSubSystem::IOPortWriteHandler(uint32 nAddress, uint32 nData)
 		ExecuteIpu();
 	}
 	else if(nAddress >= CGIF::REGS_START && nAddress < CGIF::REGS_END)
-	{
-		m_gif.SetRegister(nAddress, nData);
-	}
+    {
+        writeStatus = m_gif.SetRegister(nAddress, nData);
+    }
 	else if(nAddress >= CVif::REGS0_START && nAddress < CVif::REGS0_END)
 	{
 		m_vpu0->GetVif().SetRegister(nAddress, nData);
@@ -622,9 +624,9 @@ uint32 CSubSystem::IOPortWriteHandler(uint32 nAddress, uint32 nData)
 		m_vpu1->GetVif().SetRegister(nAddress, nData);
 	}
 	else if(nAddress >= CGIF::GIF_FIFO_START && nAddress < CGIF::GIF_FIFO_END)
-	{
-		m_gif.SetRegister(nAddress, nData);
-	}
+    {
+        writeStatus = m_gif.SetRegister(nAddress, nData);
+    }
 	else if(nAddress >= 0x10007000 && nAddress <= 0x1000702F)
 	{
 		m_ipu.SetRegister(nAddress, nData);
@@ -687,7 +689,7 @@ uint32 CSubSystem::IOPortWriteHandler(uint32 nAddress, uint32 nData)
 		m_EE.m_State.nHasException = MIPS_EXCEPTION_CHECKPENDINGINT;
 	}
 
-	return 0;
+	return writeStatus;
 }
 
 uint32 CSubSystem::Vu0MicroMemWriteHandler(uint32 address, uint32 value)
