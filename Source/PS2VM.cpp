@@ -758,12 +758,20 @@ void CPS2VM::PauseImpl()
 
 void CPS2VM::ResumeImpl()
 {
+	CLog::GetInstance().Print(
+        LOG_NAME,
+        "[ORBIT2SX_VM] ResumeImpl executing on VM thread.\r\n");
+	
 #ifdef DEBUGGER_INCLUDED
 	m_ee->m_EE.m_executor->DisableBreakpointsOnce();
 	m_iop->m_cpu.m_executor->DisableBreakpointsOnce();
 	m_ee->m_VU1.m_executor->DisableBreakpointsOnce();
 #endif
 	m_nStatus = RUNNING;
+
+	CLog::GetInstance().Print(
+        LOG_NAME,
+        "[ORBIT2SX_VM] VM status changed to RUNNING.\r\n");
 }
 
 void CPS2VM::DestroyImpl()
