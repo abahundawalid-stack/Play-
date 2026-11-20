@@ -753,7 +753,7 @@ void CPS2VM::LoadVmTimingState(Framework::CZipArchiveReader& archive)
 
 void CPS2VM::PauseImpl()
 {
-	m_nStatus = PAUSED;
+	m_nStatus.store(PAUSED, std::memory_order_release);
 }
 
 void CPS2VM::ResumeImpl()
@@ -767,7 +767,7 @@ void CPS2VM::ResumeImpl()
 	m_iop->m_cpu.m_executor->DisableBreakpointsOnce();
 	m_ee->m_VU1.m_executor->DisableBreakpointsOnce();
 #endif
-	m_nStatus = RUNNING;
+	m_nStatus.store(RUNNING, std::memory_order_release);
 
 	CLog::GetInstance().Print(
         LOG_NAME,
@@ -1109,11 +1109,11 @@ void CPS2VM::EmuThread()
 			m_mailBox.ReceiveCall();
 		}
 		if(m_nEnd) break;
-		if(m_nStatus == PAUSED)
+		if(m_nStatus.load(std::memory_order_acquire) == PAUSED)
 		{
 			std::this_thread::sleep_for(std::chrono::milliseconds(100));
 		}
-		if(m_nStatus == RUNNING)
+		if(m_nStatus.load(std::memory_order_acquire) == RUNNING)
 		{
 			if(m_spuUpdateTicks <= 0)
 			{
