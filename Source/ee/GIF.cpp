@@ -597,6 +597,7 @@ void CGIF::SetRegister(uint32 address, uint32 value)
 {
 	if(address >= GIF_FIFO_START && address < GIF_FIFO_END)
 	{
+		++m_totalFifoWrites;
 		ProcessFifoWrite(address, value);
 	}
 	else
