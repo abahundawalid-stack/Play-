@@ -293,8 +293,6 @@ uint32 CGIF::ProcessImage(const uint8* memory, uint32 memorySize, uint32 address
 	return (totalLoops * 0x10);
 }
 
-++m_totalGifPackets;
-
 uint32 CGIF::ProcessSinglePacket(const uint8* memory, uint32 memorySize, uint32 address, uint32 end, const CGsPacketMetadata& packetMetadata)
 {
 #ifdef PROFILE
@@ -310,6 +308,7 @@ uint32 CGIF::ProcessSinglePacket(const uint8* memory, uint32 memorySize, uint32 
 	m_signalState = SIGNAL_STATE_NONE;
 
 	uint32 start = address;
+	++m_totalGifPackets;
 	while(address < end)
 	{
 		if(m_loops == 0)
@@ -450,10 +449,10 @@ uint32 CGIF::ProcessMultiplePackets(const uint8* memory, uint32 memorySize, uint
 	return address - start;
 }
 
-++m_totalFifoWrites;
-
 void CGIF::ProcessFifoWrite(uint32 address, uint32 value)
 {
+	++m_totalFifoWrites;
+	
 	static constexpr uint32 qwSize = 0x10;
 
 	if(m_fifoIndex + sizeof(value) > FIFO_SIZE)
@@ -465,7 +464,7 @@ void CGIF::ProcessFifoWrite(uint32 address, uint32 value)
 		if(m_fifoIndex + sizeof(value) > FIFO_SIZE)
 		{
 			CLog::GetInstance().Warn(LOG_NAME,
-			                         "GIF FIFO is full; write requires EE backpressure.\r\n");
+			    "GIF FIFO is full; write requires EE backpressure.\r\n");
 			return;
 		}
 	}
@@ -490,8 +489,6 @@ void CGIF::DrainFifo()
 
 uint32 CGIF::ReceiveDMA(uint32 address, uint32 qwc, uint32 unused, bool tagIncluded)
 {
-	uint32 size = qwc * 0x10;
-
 	uint32 receivedQwc =
         (address - start) / 0x10;
 
@@ -557,6 +554,9 @@ uint32 CGIF::ReceiveDMA(uint32 address, uint32 qwc, uint32 unused, bool tagInclu
 
 	address += ProcessMultiplePackets(memory, memorySize, address, end, CGsPacketMetadata(3));
 	assert(address <= end);
+
+	uint32 receivedQwc = (address - start) / 0x10;
+    m_totalDmaQwcReceived += receivedQwc;
 
 	return (address - start) / 0x10;
 }
