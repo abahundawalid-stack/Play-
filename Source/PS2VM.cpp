@@ -314,7 +314,7 @@ void CPS2VM::ReloadFrameRateLimit()
 
 CVirtualMachine::STATUS CPS2VM::GetStatus() const
 {
-	return m_nStatus;
+    return m_nStatus.load(std::memory_order_acquire);
 }
 
 void CPS2VM::StepEe()
@@ -347,7 +347,7 @@ void CPS2VM::StepVu1()
 
 void CPS2VM::Resume()
 {
-    if(m_nStatus == RUNNING)
+    if(m_nStatus.load(std::memory_order_acquire) == RUNNING)
     {
         CLog::GetInstance().Print(
             LOG_NAME,
@@ -359,7 +359,7 @@ void CPS2VM::Resume()
     CLog::GetInstance().Print(
         LOG_NAME,
         "[ORBIT2SX_VM] Resume requested; currentStatus=%d.\r\n",
-        static_cast<int>(m_nStatus));
+        static_cast<int>(m_nStatus.load(std::memory_order_acquire))
 
     m_mailBox.SendCall(
         std::bind(&CPS2VM::ResumeImpl, this),
@@ -368,14 +368,14 @@ void CPS2VM::Resume()
     CLog::GetInstance().Print(
         LOG_NAME,
         "[ORBIT2SX_VM] Resume mailbox call returned; status=%d.\r\n",
-        static_cast<int>(m_nStatus));
+        static_cast<int>(m_nStatus.load(std::memory_order_acquire))
 
     OnRunningStateChange();
 }
 
 void CPS2VM::Pause()
 {
-	if(m_nStatus == PAUSED) return;
+	if(m_nStatus.load(std::memory_order_acquire) == PAUSED) return;
 	m_mailBox.SendCall(std::bind(&CPS2VM::PauseImpl, this), true);
 	OnMachineStateChange();
 	OnRunningStateChange();
@@ -393,7 +393,7 @@ void CPS2VM::PauseAsync()
 
 void CPS2VM::Reset(uint32 eeRamSize, uint32 iopRamSize)
 {
-	assert(m_nStatus == PAUSED);
+	assert(m_nStatus.load(std::memory_order_acquire) == PAUSED);
 	BeforeExecutableReloaded = ExecutableReloadedHandler();
 	AfterExecutableReloaded = ExecutableReloadedHandler();
 	m_eeRamSize = eeRamSize;
