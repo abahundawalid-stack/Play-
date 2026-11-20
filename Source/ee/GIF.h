@@ -61,11 +61,17 @@ public:
 	uint32 GetRegister(uint32);
 	uint32 SetRegister(uint32, uint32);
 
-	CGSHandler* GetGsHandler();
+	CGSHandler* GetGsHandler()
+    {
+        return m_gs;
+    }
 
-	uint32 GetActivePath() const;
+    uint32 GetActivePath() const
+    {
+        return m_activePath;
+    }
+
 	void SetPath3Masked(bool);
-
 	void LoadState(Framework::CZipArchiveReader&);
 	void SaveState(Framework::CZipArchiveWriter&);
 
