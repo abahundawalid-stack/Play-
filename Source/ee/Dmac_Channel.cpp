@@ -190,17 +190,24 @@ void CChannel::ExecuteNormal()
 		qwc = std::min<int32>(qwc, (ringBufferSize - ringBufferAddr) / 0x10);
 	}
 
-	uint32 nRecv = m_receive(m_nMADR, qwc, m_CHCR.nDIR, false);
+	const uint32 requestedQwc = qwc;
+    const uint32 receivedQwc =
+        m_receive(m_nMADR, requestedQwc, m_CHCR.nDIR, false);
 
-	m_nMADR += nRecv * 0x10;
-	m_nQWC -= nRecv;
+    assert(receivedQwc <= requestedQwc);
 
-	m_nQWC &= CDMAC::QWC_WRITE_MASK;
+    // Hanya majukan MADR/QWC sebanyak data yang benar-benar diterima GIF.
+    // Jika GIF menerima sebagian atau nol QWC, transfer tetap aktif.
+    // Execute() berikutnya akan melanjutkan dari alamat yang belum diterima.
+    m_nMADR += receivedQwc * 0x10;
+    m_nQWC -= receivedQwc;
 
-	if(m_nQWC == 0)
-	{
-		ClearSTR();
-	}
+    m_nQWC &= CDMAC::QWC_WRITE_MASK;
+
+    if(m_nQWC == 0)
+    {
+        ClearSTR();
+    }
 
 	if(isMfifo)
 	{
