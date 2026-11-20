@@ -197,6 +197,14 @@ bool CGSH_OpenGLAndroid::SetupContext()
 
     if(newSurface == EGL_NO_SURFACE)
     {
+        EGLint error = eglGetError();
+
+        CLog::GetInstance().Print(
+            "glesandroid",
+            "[ORBIT2SX_EGL] eglCreateWindowSurface failed error=0x%04X window=%p\r\n",
+            error,
+            m_window);
+
         return false;
     }
 
