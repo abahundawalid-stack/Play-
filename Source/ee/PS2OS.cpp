@@ -17,6 +17,7 @@
 #include "../uint128.h"
 #include "Log.h"
 #include "../iop/IopBios.h"
+#include "../iop/Ioman_ScopedFile.h"
 #include "DMAC.h"
 #include "INTC.h"
 #include "Timer.h"
@@ -303,41 +304,68 @@ void CPS2OS::BootFromFile(const fs::path& execPath)
 	LoadELF(stream.get(), virtualExecutablePath.c_str(), ArgumentList());
 }
 
-void CPS2OS::BootFromVirtualPath(const char* executablePath, const ArgumentList& arguments)
+void CPS2OS::BootFromVirtualPath(
+    const char* executablePath,
+    const ArgumentList& arguments)
 {
-	auto ioman = m_iopBios.GetIoman();
+    auto ioman = m_iopBios.GetIoman();
+
+    if(!ioman || !executablePath)
+    {
+        throw std::runtime_error(
+            "Invalid IOMAN or executable path.");
+    }
 
     CLog::GetInstance().Print(
         LOG_NAME,
         "[JPOG_BOOT] OPEN_EXECUTABLE: %s\r\n",
         executablePath);
 
-	uint32 handle = ioman->Open(Iop::Ioman::CDevice::OPEN_FLAG_RDONLY, executablePath);
-	if(static_cast<int32>(handle) < 0)
-	{
+    uint32 handle = ioman->Open(
+        Iop::Ioman::CDevice::OPEN_FLAG_RDONLY,
+        executablePath);
+
+    if(static_cast<int32>(handle) < 0)
+    {
         CLog::GetInstance().Warn(
             LOG_NAME,
             "[JPOG_BOOT] FAILED: EXECUTABLE NOT FOUND: %s\r\n",
             executablePath);
-		
-		throw std::runtime_error("Couldn't open executable specified by virtual path.");
-	}
+
+        throw std::runtime_error(
+            "Couldn't open executable specified by virtual path.");
+    }
+
+    // Handle otomatis ditutup ketika fungsi keluar,
+    // termasuk jika LoadELF melempar exception.
+    Iop::Ioman::CScopedFile scopedFile(
+        handle,
+        *ioman);
 
     CLog::GetInstance().Print(
         LOG_NAME,
         "[JPOG_BOOT] EXECUTABLE_OPENED: handle=%u\r\n",
         handle);
-	
-	try
-	{
-		Framework::CStream* file(ioman->GetFileStream(handle));
-		LoadELF(file, executablePath, arguments);
-	}
-	catch(...)
-	{
-		throw std::runtime_error("Error occured while reading ELF executable from virtual path.");
-	}
-	ioman->Close(handle);
+
+    Framework::CStream* file =
+        ioman->GetFileStream(handle);
+
+    if(file == nullptr)
+    {
+        throw std::runtime_error(
+            "Failed to obtain executable stream from IOMAN.");
+    }
+
+    CLog::GetInstance().Print(
+        LOG_NAME,
+        "[JPOG_BOOT] ELF_STREAM_READY: %s\r\n",
+        executablePath);
+
+    // Pertahankan exception asli dari LoadELF.
+    LoadELF(
+        file,
+        executablePath,
+        arguments);
 }
 
 void CPS2OS::BootFromCDROM()
@@ -348,6 +376,12 @@ void CPS2OS::BootFromCDROM()
 
     std::string executablePath;
     auto ioman = m_iopBios.GetIoman();
+
+    if(!ioman)
+    {
+        throw std::runtime_error(
+            "IOMAN is not available.");
+    }
 
     CLog::GetInstance().Print(
         LOG_NAME,
@@ -373,7 +407,19 @@ void CPS2OS::BootFromCDROM()
         handle);
 
     {
-        Framework::CStream* file(ioman->GetFileStream(handle));
+        // Handle SYSTEM.CNF otomatis ditutup saat scope berakhir.
+        Iop::Ioman::CScopedFile scopedFile(
+            handle,
+            *ioman);
+
+        Framework::CStream* file =
+            ioman->GetFileStream(handle);
+
+        if(file == nullptr)
+        {
+            throw std::runtime_error(
+                "Failed to obtain SYSTEM.CNF stream.");
+        }
 
         CLog::GetInstance().Print(
             LOG_NAME,
@@ -390,8 +436,6 @@ void CPS2OS::BootFromCDROM()
             executablePath = bootItemIterator->second;
         }
     }
-
-    ioman->Close(handle);
 
     if(executablePath.empty())
     {
