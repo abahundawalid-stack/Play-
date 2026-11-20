@@ -206,7 +206,7 @@ void CChannel::ExecuteNormal()
     // Never advance the DMA channel beyond accepted data.
     if(receivedQwc > requestedQwc)
     {
-        CLog::GetInstance().Error(
+        CLog::GetInstance().Warn(
             LOG_NAME,
             "DMA receiver over-accepted data: channel=%u requested=%u received=%u.\r\n",
             m_number,
@@ -577,7 +577,7 @@ void CChannel::ExecuteSourceChainTransfer(bool isMfifo)
 
         if(receivedQwc > requestedQwc)
         {
-            CLog::GetInstance().Error(
+            CLog::GetInstance().Warn(
                 LOG_NAME,
                 "Source-chain DMA over-accepted data: channel=%u requested=%u received=%u.\r\n",
                 m_number,
