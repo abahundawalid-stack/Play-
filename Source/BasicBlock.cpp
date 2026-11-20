@@ -257,75 +257,175 @@ void CBasicBlock::CompileProlog(CMipsJitter* jitter)
 
 void CBasicBlock::CompileEpilog(CMipsJitter* jitter, bool loopsOnItself)
 {
-	//Update cycle quota
-	jitter->PushRel(offsetof(CMIPS, m_State.cycleQuota));
-	jitter->PushCst(((m_end - m_begin) / 4) + 1);
-	jitter->Sub();
-	jitter->PullRel(offsetof(CMIPS, m_State.cycleQuota));
+    // A stalled memory instruction has not completed.
+    // Charge only the instructions before the stalled instruction,
+    // plus one cycle for the attempted store, instead of charging
+    // the entire basic block.
+    jitter->PushRel(
+        offsetof(CMIPS, m_State.nHasException));
 
-	jitter->PushRel(offsetof(CMIPS, m_State.cycleQuota));
-	jitter->PushCst(0);
-	jitter->BeginIf(Jitter::CONDITION_LE);
-	{
-		jitter->PushRel(offsetof(CMIPS, m_State.nHasException));
-		jitter->PushCst(MIPS_EXCEPTION_STATUS_QUOTADONE);
-		jitter->Or();
-		jitter->PullRel(offsetof(CMIPS, m_State.nHasException));
-	}
-	jitter->EndIf();
+    jitter->PushCst(
+        static_cast<uint32>(~MIPS_EXCEPTION_STATUS_QUOTADONE));
 
-	//We probably don't need to pay for this since we know in advance if there's a branch
-	jitter->PushCst(MIPS_INVALID_PC);
-	jitter->PushRel(offsetof(CMIPS, m_State.nDelayedJumpAddr));
-	jitter->BeginIf(Jitter::CONDITION_NE);
-	{
-		jitter->PushRel(offsetof(CMIPS, m_State.nDelayedJumpAddr));
-		jitter->PullRel(offsetof(CMIPS, m_State.nPC));
+    jitter->And();
 
-		jitter->PushCst(MIPS_INVALID_PC);
-		jitter->PullRel(offsetof(CMIPS, m_State.nDelayedJumpAddr));
+    jitter->PushCst(MIPS_EXCEPTION_MEMORY_STALL);
 
-		if(loopsOnItself)
-		{
-			jitter->PushRel(offsetof(CMIPS, m_State.nHasException));
-			jitter->PushCst(0);
-			jitter->BeginIf(Jitter::CONDITION_EQ);
-			{
-				jitter->Goto(jitter->GetFirstBlockLabel());
-			}
-			jitter->EndIf();
-		}
-		else
-		{
+    jitter->BeginIf(Jitter::CONDITION_EQ);
+    {
+        jitter->PushRel(
+            offsetof(CMIPS, m_State.cycleQuota));
+
+        // executed = ((PC - blockBegin) / 4) + 1
+        // The +1 accounts for the attempted store.
+        jitter->PushRel(
+            offsetof(CMIPS, m_State.nPC));
+
+        jitter->PushCst(m_begin);
+        jitter->Sub();
+
+        jitter->PushCst(4);
+        jitter->Div();
+
+        jitter->PushCst(1);
+        jitter->Add();
+
+        jitter->Sub();
+
+        jitter->PullRel(
+            offsetof(CMIPS, m_State.cycleQuota));
+    }
+    jitter->Else();
+    {
+        // Normal basic-block cycle accounting.
+        jitter->PushRel(
+            offsetof(CMIPS, m_State.cycleQuota));
+
+        jitter->PushCst(
+            ((m_end - m_begin) / 4) + 1);
+
+        jitter->Sub();
+
+        jitter->PullRel(
+            offsetof(CMIPS, m_State.cycleQuota));
+    }
+    jitter->EndIf();
+
+    // Mark quota exhaustion as usual.
+    jitter->PushRel(
+        offsetof(CMIPS, m_State.cycleQuota));
+
+    jitter->PushCst(0);
+
+    jitter->BeginIf(Jitter::CONDITION_LE);
+    {
+        jitter->PushRel(
+            offsetof(CMIPS, m_State.nHasException));
+
+        jitter->PushCst(
+            MIPS_EXCEPTION_STATUS_QUOTADONE);
+
+        jitter->Or();
+
+        jitter->PullRel(
+            offsetof(CMIPS, m_State.nHasException));
+    }
+    jitter->EndIf();
+
+    // Do not consume a pending branch target while a memory
+    // instruction is stalled. This is especially important when
+    // SW is located in a branch delay slot.
+    jitter->PushRel(
+        offsetof(CMIPS, m_State.nHasException));
+
+    jitter->PushCst(
+        static_cast<uint32>(~MIPS_EXCEPTION_STATUS_QUOTADONE));
+
+    jitter->And();
+
+    jitter->PushCst(MIPS_EXCEPTION_MEMORY_STALL);
+
+    jitter->BeginIf(Jitter::CONDITION_NE);
+    {
+        // Normal PC / delayed-branch handling.
+        jitter->PushCst(MIPS_INVALID_PC);
+
+        jitter->PushRel(
+            offsetof(CMIPS, m_State.nDelayedJumpAddr));
+
+        jitter->BeginIf(Jitter::CONDITION_NE);
+        {
+            jitter->PushRel(
+                offsetof(CMIPS, m_State.nDelayedJumpAddr));
+
+            jitter->PullRel(
+                offsetof(CMIPS, m_State.nPC));
+
+            jitter->PushCst(MIPS_INVALID_PC);
+
+            jitter->PullRel(
+                offsetof(CMIPS, m_State.nDelayedJumpAddr));
+
+            if(loopsOnItself)
+            {
+                jitter->PushRel(
+                    offsetof(CMIPS, m_State.nHasException));
+
+                jitter->PushCst(0);
+
+                jitter->BeginIf(Jitter::CONDITION_EQ);
+                {
+                    jitter->Goto(
+                        jitter->GetFirstBlockLabel());
+                }
+                jitter->EndIf();
+            }
+            else
+            {
 #if !defined(AOT_BUILD_CACHE) && !defined(__EMSCRIPTEN__)
-			jitter->PushRel(offsetof(CMIPS, m_State.nHasException));
-			jitter->PushCst(0);
-			jitter->BeginIf(Jitter::CONDITION_EQ);
-			{
-				jitter->JumpToDynamic(reinterpret_cast<void*>(&BranchBlockTrampoline));
-			}
-			jitter->EndIf();
+                jitter->PushRel(
+                    offsetof(CMIPS, m_State.nHasException));
+
+                jitter->PushCst(0);
+
+                jitter->BeginIf(Jitter::CONDITION_EQ);
+                {
+                    jitter->JumpToDynamic(
+                        reinterpret_cast<void*>(&BranchBlockTrampoline));
+                }
+                jitter->EndIf();
 #endif
-		}
-	}
-	jitter->Else();
-	{
-		jitter->PushRel(offsetof(CMIPS, m_State.nPC));
-		jitter->PushCst(m_end - m_begin + 4);
-		jitter->Add();
-		jitter->PullRel(offsetof(CMIPS, m_State.nPC));
+            }
+        }
+        jitter->Else();
+        {
+            jitter->PushRel(
+                offsetof(CMIPS, m_State.nPC));
+
+            jitter->PushCst(m_end - m_begin + 4);
+
+            jitter->Add();
+
+            jitter->PullRel(
+                offsetof(CMIPS, m_State.nPC));
 
 #if !defined(AOT_BUILD_CACHE) && !defined(__EMSCRIPTEN__)
-		jitter->PushRel(offsetof(CMIPS, m_State.nHasException));
-		jitter->PushCst(0);
-		jitter->BeginIf(Jitter::CONDITION_EQ);
-		{
-			jitter->JumpToDynamic(reinterpret_cast<void*>(&NextBlockTrampoline));
-		}
-		jitter->EndIf();
+            jitter->PushRel(
+                offsetof(CMIPS, m_State.nHasException));
+
+            jitter->PushCst(0);
+
+            jitter->BeginIf(Jitter::CONDITION_EQ);
+            {
+                jitter->JumpToDynamic(
+                    reinterpret_cast<void*>(&NextBlockTrampoline));
+            }
+            jitter->EndIf();
 #endif
-	}
-	jitter->EndIf();
+        }
+        jitter->EndIf();
+    }
+    jitter->EndIf();
 }
 
 void CBasicBlock::Execute()
