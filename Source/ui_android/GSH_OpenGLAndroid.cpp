@@ -94,6 +94,13 @@ void CGSH_OpenGLAndroid::InitializeImpl()
 
     if(eglInitialize(m_display, nullptr, nullptr) != EGL_TRUE)
     {
+        EGLint error = eglGetError();
+
+        CLog::GetInstance().Print(
+            "glesandroid",
+            "[ORBIT2SX_EGL] eglInitialize failed error=0x%04X\r\n",
+            error);
+
         m_display = EGL_NO_DISPLAY;
         return;
     }
