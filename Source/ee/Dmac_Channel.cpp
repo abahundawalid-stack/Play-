@@ -147,61 +147,87 @@ void CChannel::Execute()
 
 void CChannel::ExecuteNormal()
 {
-	bool isMfifo = false;
-	switch(m_dmac.m_D_CTRL.mfd)
-	{
-	case 0:
-		isMfifo = false;
-		break;
-	case 1:
-		//Invalid
-		assert(false);
-		break;
-	case 2:
-	case 3:
-		isMfifo = (m_number == CDMAC::CHANNEL_ID_FROM_SPR);
-		break;
-	}
+    bool isMfifo = false;
 
-	// When starting a normal transfer, always at least one
-	// QW is send, regardless of the value of the QWC register.
-	// In case of a QWC of 0, this causes the QWC register to
-	// underflow down the line, which is intentional (actually
-	// happens on real hardware).
-	// Games that do exhibit a normal transfer with 0 QWC
-	// (Enter the Matrix, Star Wars Racer Revenge) mitigate
-	// this by setting the QWC register each frame.
-	uint32 qwc = m_nQWC;
-	if(qwc == 0)
-	{
-		qwc = 1;
-	}
+    switch(m_dmac.m_D_CTRL.mfd)
+    {
+    case 0:
+        isMfifo = false;
+        break;
 
-	if(isMfifo)
-	{
-		m_nMADR &= m_dmac.m_D_RBSR;
-		m_nMADR |= m_dmac.m_D_RBOR;
+    case 1:
+        // Invalid MFIFO mode.
+        assert(false);
+        return;
 
-		//Adjust QWC if we're in MFIFO mode
-		uint32 ringBufferAddr = m_nMADR - m_dmac.m_D_RBOR;
-		uint32 ringBufferSize = m_dmac.m_D_RBSR + 0x10;
-		assert(ringBufferAddr < ringBufferSize);
+    case 2:
+    case 3:
+        isMfifo = (m_number == CDMAC::CHANNEL_ID_FROM_SPR);
+        break;
 
-		qwc = std::min<int32>(qwc, (ringBufferSize - ringBufferAddr) / 0x10);
-	}
+    default:
+        assert(false);
+        return;
+    }
 
-	const uint32 requestedQwc = qwc;
+    // Hardware behavior: a normal transfer started with QWC=0
+    // still requests one Qword. If accepted, QWC underflows.
+    uint32 requestedQwc = (m_nQWC == 0) ? 1 : m_nQWC;
+
+    if(isMfifo)
+    {
+        m_nMADR &= m_dmac.m_D_RBSR;
+        m_nMADR |= m_dmac.m_D_RBOR;
+
+        const uint32 ringBufferAddr =
+            m_nMADR - m_dmac.m_D_RBOR;
+
+        const uint32 ringBufferSize =
+            m_dmac.m_D_RBSR + 0x10;
+
+        assert(ringBufferAddr < ringBufferSize);
+
+        const uint32 availableQwc =
+            (ringBufferSize - ringBufferAddr) / 0x10;
+
+        requestedQwc = std::min(requestedQwc, availableQwc);
+
+        // No space in the MFIFO ring: preserve channel state.
+        if(requestedQwc == 0)
+        {
+            return;
+        }
+    }
+
+    // The receiver reports how many Qwords it actually consumed.
     const uint32 receivedQwc =
         m_receive(m_nMADR, requestedQwc, m_CHCR.nDIR, false);
 
-    assert(receivedQwc <= requestedQwc);
+    // Never advance the DMA channel beyond accepted data.
+    if(receivedQwc > requestedQwc)
+    {
+        CLog::GetInstance().Error(
+            LOG_NAME,
+            "DMA receiver over-accepted data: channel=%u requested=%u received=%u.\r\n",
+            m_number,
+            requestedQwc,
+            receivedQwc);
 
-    // Hanya majukan MADR/QWC sebanyak data yang benar-benar diterima GIF.
-    // Jika GIF menerima sebagian atau nol QWC, transfer tetap aktif.
-    // Execute() berikutnya akan melanjutkan dari alamat yang belum diterima.
+        assert(receivedQwc <= requestedQwc);
+        return;
+    }
+
+    // Zero accepted Qwords means the receiver is applying backpressure.
+    // Preserve MADR, QWC and STR so the transfer can resume later.
+    if(receivedQwc == 0)
+    {
+        return;
+    }
+
     m_nMADR += receivedQwc * 0x10;
-    m_nQWC -= receivedQwc;
 
+    // Preserve the PS2 QWC=0 underflow behavior.
+    m_nQWC -= receivedQwc;
     m_nQWC &= CDMAC::QWC_WRITE_MASK;
 
     if(m_nQWC == 0)
@@ -209,15 +235,16 @@ void CChannel::ExecuteNormal()
         ClearSTR();
     }
 
-	if(isMfifo)
-	{
-		//Loop MADR if needed
-		uint32 ringBufferSize = m_dmac.m_D_RBSR + 0x10;
-		if(m_nMADR == (m_dmac.m_D_RBOR + ringBufferSize))
-		{
-			m_nMADR = m_dmac.m_D_RBOR;
-		}
-	}
+    if(isMfifo)
+    {
+        const uint32 ringBufferSize =
+            m_dmac.m_D_RBSR + 0x10;
+
+        if(m_nMADR == (m_dmac.m_D_RBOR + ringBufferSize))
+        {
+            m_nMADR = m_dmac.m_D_RBOR;
+        }
+    }
 }
 
 void CChannel::ExecuteInterleave()
@@ -522,53 +549,87 @@ void CChannel::SetReceiveHandler(const DmaReceiveHandler& handler)
 
 void CChannel::ExecuteSourceChainTransfer(bool isMfifo)
 {
-	uint32 nID = m_CHCR.nTAG >> 12;
+    const uint32 tagId = m_CHCR.nTAG >> 12;
 
-	uint32 qwc = m_nQWC;
-	if(isMfifo && ((nID == DMATAG_SRC_CNT) || (nID == DMATAG_SRC_END)))
-	{
-		//Adjust QWC in MFIFO mode
-		uint32 ringBufferAddr = m_nMADR - m_dmac.m_D_RBOR;
-		uint32 ringBufferSize = m_dmac.m_D_RBSR + 0x10;
-		assert(ringBufferAddr <= ringBufferSize);
+    uint32 requestedQwc = m_nQWC;
 
-		qwc = std::min<int32>(m_nQWC, (ringBufferSize - ringBufferAddr) / 0x10);
-	}
+    if(isMfifo &&
+       ((tagId == DMATAG_SRC_CNT) || (tagId == DMATAG_SRC_END)))
+    {
+        const uint32 ringBufferAddr =
+            m_nMADR - m_dmac.m_D_RBOR;
 
-	if(qwc != 0)
+        const uint32 ringBufferSize =
+            m_dmac.m_D_RBSR + 0x10;
+
+        assert(ringBufferAddr <= ringBufferSize);
+
+        const uint32 availableQwc =
+            (ringBufferSize - ringBufferAddr) / 0x10;
+
+        requestedQwc = std::min(m_nQWC, availableQwc);
+    }
+
+    if(requestedQwc != 0)
     {
         const uint32 receivedQwc =
-            m_receive(m_nMADR, qwc, CHCR_DIR_FROM, false);
+            m_receive(m_nMADR, requestedQwc, CHCR_DIR_FROM, false);
 
-        assert(receivedQwc <= qwc);
+        if(receivedQwc > requestedQwc)
+        {
+            CLog::GetInstance().Error(
+                LOG_NAME,
+                "Source-chain DMA over-accepted data: channel=%u requested=%u received=%u.\r\n",
+                m_number,
+                requestedQwc,
+                receivedQwc);
+
+            assert(receivedQwc <= requestedQwc);
+            return;
+        }
+
+        // Keep the unaccepted portion pending.
+        if(receivedQwc == 0)
+        {
+            return;
+        }
 
         m_nMADR += receivedQwc * 0x10;
         m_nQWC -= receivedQwc;
+
+        // A partial transfer must be resumed before fetching
+        // the next DMA tag.
+        if(m_nQWC != 0)
+        {
+            return;
+        }
     }
 
-	if(isMfifo)
-	{
-		if(((nID == DMATAG_SRC_CNT) || (nID == DMATAG_SRC_END)))
-		{
-			//Loop MADR if needed
-			uint32 ringBufferSize = m_dmac.m_D_RBSR + 0x10;
-			if(m_nMADR == (m_dmac.m_D_RBOR + ringBufferSize))
-			{
-				m_nMADR = m_dmac.m_D_RBOR;
-			}
-		}
+    if(isMfifo)
+    {
+        if((tagId == DMATAG_SRC_CNT) ||
+           (tagId == DMATAG_SRC_END))
+        {
+            const uint32 ringBufferSize =
+                m_dmac.m_D_RBSR + 0x10;
 
-		//Mask TADR because it's in the ring buffer zone
-		m_nTADR -= m_dmac.m_D_RBOR;
-		m_nTADR &= m_dmac.m_D_RBSR;
-		m_nTADR += m_dmac.m_D_RBOR;
+            if(m_nMADR == (m_dmac.m_D_RBOR + ringBufferSize))
+            {
+                m_nMADR = m_dmac.m_D_RBOR;
+            }
+        }
 
-		//Check MFIFO empty
-		if(m_nTADR == m_dmac.m_D8.m_nMADR)
-		{
-			m_dmac.m_D_STAT |= CDMAC::D_STAT_MEIS;
-		}
-	}
+        // Keep TADR inside the MFIFO ring.
+        m_nTADR -= m_dmac.m_D_RBOR;
+        m_nTADR &= m_dmac.m_D_RBSR;
+        m_nTADR += m_dmac.m_D_RBOR;
+
+        // Update MFIFO empty status.
+        if(m_nTADR == m_dmac.m_D8.m_nMADR)
+        {
+            m_dmac.m_D_STAT |= CDMAC::D_STAT_MEIS;
+        }
+    }
 }
 
 void CChannel::ClearSTR()
