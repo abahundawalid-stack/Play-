@@ -418,13 +418,34 @@ void CGSH_OpenGLAndroid::PresentBackbuffer()
 
     case EGL_BAD_NATIVE_WINDOW:
     {
-        // Native window sudah tidak valid.
-        // Jangan membuat surface berulang kali dengan window yang sama.
-        // Tunggu callback SetWindow() dari lifecycle Android.
         CLog::GetInstance().Print(
             "glesandroid",
             "[ORBIT2SX_EGL] native window invalid; "
-            "waiting for replacement window.\r\n");
+            "invalidating surface and waiting for replacement.\r\n");
+
+        if(m_display != EGL_NO_DISPLAY &&
+           m_surface != EGL_NO_SURFACE)
+        {
+            // Detach the invalid surface from the current context.
+            eglMakeCurrent(
+                m_display,
+                EGL_NO_SURFACE,
+                EGL_NO_SURFACE,
+                EGL_NO_CONTEXT);
+
+            EGLSurface invalidSurface = m_surface;
+
+            // Clear the handle before attempting destruction.
+            // This prevents subsequent frames from reusing it.
+            m_surface = EGL_NO_SURFACE;
+
+            eglDestroySurface(
+                m_display,
+                invalidSurface);
+        }
+
+        m_surfaceRecoveryPending = true;
+
         break;
     }
 
@@ -517,16 +538,18 @@ void CGSH_OpenGLAndroid::SetWindow(NativeWindowType window)
                     {
                         InitializeImpl();
                     }
-                    else if(m_surface == EGL_NO_SURFACE)
+                    else if(
+                        m_surface == EGL_NO_SURFACE ||
+                        m_surfaceRecoveryPending)
                     {
                         SetupContext();
                     }
 
                     ANativeWindow_release(window);
                 }
-                return;
-            }
 
+                return;
+			}
             NativeWindowType previousWindow = m_window;
             m_window = window;
 
@@ -539,7 +562,15 @@ void CGSH_OpenGLAndroid::SetWindow(NativeWindowType window)
             }
             else if(m_window != nullptr)
             {
-                SetupContext();
+                if(!SetupContext())
+                {
+                    m_surfaceRecoveryPending = true;
+
+                    CLog::GetInstance().Print(
+                        "glesandroid",
+                        "[ORBIT2SX_EGL] replacement window setup failed; "
+                        "recovery remains pending.\r\n");
+                }
             }
             else if(m_surface != EGL_NO_SURFACE)
             {
@@ -560,5 +591,3 @@ void CGSH_OpenGLAndroid::SetWindow(NativeWindowType window)
         },
         true);
 }
-
-
