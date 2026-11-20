@@ -728,16 +728,32 @@ public class EmulatorActivity extends Activity
         {
             Surface surface = holder.getSurface();
 
-            NativeInterop.setupGsHandler(surface);
+            boolean validSurface =
+                surface != null && surface.isValid();
 
-            _surfaceCreated = true;
+            Log.i(Constants.TAG,
+                "[ORBIT2SX_BOOT] surfaceChanged width=" + width +
+                " height=" + height +
+                " valid=" + validSurface);
 
             DiagnosticsManager.recordLaunchStage(
                 EmulatorActivity.this,
-                "GS_SURFACE_READY");
+                validSurface
+                    ? "ANDROID_SURFACE_VALID"
+                    : "ANDROID_SURFACE_INVALID");
+
+            NativeInterop.setupGsHandler(surface);
+
+            _surfaceCreated = validSurface;
+
+            DiagnosticsManager.recordLaunchStage(
+                EmulatorActivity.this,
+                validSurface
+                    ? "GS_SURFACE_SETUP_REQUESTED"
+                    : "GS_SURFACE_SETUP_REJECTED");
 
             updateVirtualMachineState();
-            
+
             promptAutosaveRecovery();
         }
 
