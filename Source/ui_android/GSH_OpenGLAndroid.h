@@ -25,8 +25,11 @@ private:
     bool m_rendererInitialized = false;
     bool m_contextRecoveryInProgress = false;
 
+    // Indicates that the current EGL surface needs replacement.
+    bool m_surfaceRecoveryPending = false;
+
 	// Owns the transferred ANativeWindow reference. nullptr means detached.
-NativeWindowType m_window = nullptr;
+    NativeWindowType m_window = nullptr;
 
 	EGLConfig m_config = 0;
 	EGLDisplay m_display = EGL_NO_DISPLAY;
