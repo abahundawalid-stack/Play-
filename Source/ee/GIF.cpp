@@ -489,76 +489,83 @@ void CGIF::DrainFifo()
 
 uint32 CGIF::ReceiveDMA(uint32 address, uint32 qwc, uint32 unused, bool tagIncluded)
 {
-	uint32 receivedQwc =
-        (address - start) / 0x10;
+    uint32 size = qwc * 0x10;
 
+    uint8* memory = nullptr;
+    uint32 memorySize = 0;
+
+    if(address & 0x80000000)
+    {
+        memory = m_spr;
+        memorySize = PS2::EE_SPR_SIZE;
+    }
+    else
+    {
+        memory = m_ram;
+        memorySize = PS2::EE_RAM_SIZE;
+    }
+
+    address &= (memorySize - 1);
+    assert((address + size) <= memorySize);
+
+    uint32 start = address;
+    uint32 end = address + size;
+
+    if(tagIncluded)
+    {
+        assert(qwc >= 0);
+        address += 0x10;
+    }
+
+    bool canProcessPath3 =
+        (m_activePath == 0) || (m_activePath == 3);
+
+    if(canProcessPath3 && (m_fifoIndex != 0))
+    {
+        DrainFifo();
+    }
+
+    if(m_fifoIndex != 0)
+    {
+        return 0;
+    }
+
+    if(!canProcessPath3)
+    {
+        assert(end >= address);
+
+        uint32 dataSize = end - address;
+        assert((dataSize & 0x0F) == 0);
+
+        if((dataSize + m_fifoIndex) <= FIFO_SIZE)
+        {
+            memcpy(
+                m_fifoBuffer + m_fifoIndex,
+                memory + address,
+                dataSize);
+
+            m_fifoIndex += dataSize;
+            m_totalDmaQwcReceived += qwc;
+
+            return qwc;
+        }
+
+        return 0;
+    }
+
+    address += ProcessMultiplePackets(
+        memory,
+        memorySize,
+        address,
+        end,
+        CGsPacketMetadata(3));
+
+    assert(address <= end);
+
+    uint32 receivedQwc = (address - start) / 0x10;
     m_totalDmaQwcReceived += receivedQwc;
 
     return receivedQwc;
-
-	uint8* memory = nullptr;
-	uint32 memorySize = 0;
-	if(address & 0x80000000)
-	{
-		memory = m_spr;
-		memorySize = PS2::EE_SPR_SIZE;
-	}
-	else
-	{
-		memory = m_ram;
-		memorySize = PS2::EE_RAM_SIZE;
-	}
-
-	address &= (memorySize - 1);
-	assert((address + size) <= memorySize);
-
-	uint32 start = address;
-	uint32 end = address + size;
-
-	if(tagIncluded)
-	{
-		assert(qwc >= 0);
-		address += 0x10;
-	}
-
-	bool canProcessPath3 = (m_activePath == 0) || (m_activePath == 3);
-
-	//If the transfer is allowed to go through, make sure we've drained FIFO first.
-	if(canProcessPath3 && (m_fifoIndex != 0))
-	{
-		DrainFifo();
-	}
-
-	//If we haven't drained the FIFO here for some reason, stop processing.
-	if(m_fifoIndex != 0)
-	{
-		return 0;
-	}
-
-	//If transfer can't go through because GIF is busy, check if we can hold transfer in FIFO
-	if(!canProcessPath3)
-	{
-		assert(end >= address);
-		uint32 dataSize = end - address;
-		assert((dataSize & 0x0F) == 0);
-		//Check that we have enough space to write the contents of transfer to FIFO
-		if((dataSize + m_fifoIndex) <= FIFO_SIZE)
-		{
-			memcpy(m_fifoBuffer + m_fifoIndex, memory + address, dataSize);
-			m_fifoIndex += dataSize;
-			return qwc;
-		}
-
-		return 0;
-	}
-
-	address += ProcessMultiplePackets(memory, memorySize, address, end, CGsPacketMetadata(3));
-	assert(address <= end);
-
-	uint32 receivedQwc = (address - start) / 0x10;
-    m_totalDmaQwcReceived += receivedQwc;
-
-	return (address - start) / 0x10;
 }
 
 void CGIF::CountTicks(uint32 cycles)
