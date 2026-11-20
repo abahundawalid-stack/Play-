@@ -19,8 +19,11 @@ public:
 	void PresentBackbuffer() override;
 
 private:
-	bool SetupContext();
+    bool SetupContext();
+
+    // Mencegah pemulihan EGL berulang ketika context sedang dibuat ulang.
     bool m_rendererInitialized = false;
+    bool m_contextRecoveryInProgress = false;
 
 	// Owns the transferred ANativeWindow reference. nullptr means detached.
 NativeWindowType m_window = nullptr;
