@@ -861,11 +861,11 @@ void CPS2VM::UpdateEe()
         // Ini penting agar PC pertama benar-benar menunjukkan
         // alamat instruksi yang akan dieksekusi.
         const uint32 pcBefore =
-            m_ee->m_EE.m_State.nPC;
+            m_ee->m_EE.m_State.nPC;       
 
-        const int executed =
+        int executed =
             m_ee->ExecuteCpu(
-                m_singleStepEe ? 1 : m_eeExecutionTicks);
+            m_singleStepEe ? 1 : m_eeExecutionTicks);
 
         const uint32 pcAfter =
             m_ee->m_EE.m_State.nPC;
