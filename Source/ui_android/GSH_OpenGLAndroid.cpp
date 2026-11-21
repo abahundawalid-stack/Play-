@@ -374,22 +374,21 @@ void CGSH_OpenGLAndroid::InitializeImpl()
 
         if(m_context != EGL_NO_CONTEXT)
         {
-            if(eglDestroyContext(m_display, m_context) != EGL_TRUE)
-            {
-                const EGLint error = eglGetError();
+            EGLint destroyError = EGL_SUCCESS;
 
+            if(!CEglContextManager::Destroy(
+                   m_display,
+                   &m_context,
+                   &destroyError))
+            {
                 CLog::GetInstance().Print(
                     "glesandroid",
-                    "[ORBIT2SX_EGL] eglDestroyContext after "
-                    "initialization failure failed "
+                    "[ORBIT2SX_EGL] context cleanup failed "
                     "error=0x%04X context=%p\r\n",
-                    error,
+                    destroyError,
                     m_context);
             }
-
-            m_context = EGL_NO_CONTEXT;
         }
-
         m_config = nullptr;
         ReleaseEglDisplay();
 
@@ -616,21 +615,20 @@ void CGSH_OpenGLAndroid::DestroySurface()
     }
 
     // Unbind only when this renderer's context is current.
-    if(eglGetCurrentContext() == m_context)
+    if(CEglContextManager::IsCurrent(m_context))
     {
-        if(eglMakeCurrent(
-               m_display,
-               EGL_NO_SURFACE,
-               EGL_NO_SURFACE,
-               EGL_NO_CONTEXT) != EGL_TRUE)
-        {
-            const EGLint error = eglGetError();
+        EGLint detachError = EGL_SUCCESS;
 
+        if(!CEglContextManager::ClearCurrent(
+               m_display,
+               &detachError))
+        {
             CLog::GetInstance().Print(
                 "glesandroid",
-                "[ORBIT2SX_EGL] surface detach failed "
-                "error=0x%04X\r\n",
-                error);
+                "[ORBIT2SX_EGL] context detach failed "
+                "error=0x%04X context=%p\r\n",
+                detachError,
+                m_context);
         }
     }
 
@@ -673,25 +671,27 @@ void CGSH_OpenGLAndroid::ReleaseImpl()
         DestroySurface();
 
         // -----------------------------------------------------
-        // 4. RELEASE EGL CONTEXT
+        // DESTROY EGL CONTEXT THROUGH CONTEXT MANAGER
         // -----------------------------------------------------
+
         if(m_context != EGL_NO_CONTEXT)
         {
-            if(eglDestroyContext(m_display, m_context) != EGL_TRUE)
-            {
-                const EGLint error = eglGetError();
+            EGLint destroyError = EGL_SUCCESS;
 
+            if(!CEglContextManager::Destroy(
+                   m_display,
+                   &m_context,
+                   &destroyError))
+            {
                 CLog::GetInstance().Print(
                     "glesandroid",
-                    "[ORBIT2SX_EGL] eglDestroyContext failed "
+                    "[ORBIT2SX_EGL] context destruction failed "
                     "error=0x%04X context=%p\r\n",
-                    error,
+                    destroyError,
                     m_context);
             }
-
-            m_context = EGL_NO_CONTEXT;
-        }
-
+		}
+		
         // -----------------------------------------------------
         // 5. RELEASE ONE SHARED DISPLAY LEASE
         // -----------------------------------------------------
@@ -702,14 +702,20 @@ void CGSH_OpenGLAndroid::ReleaseImpl()
         // remains initialized.
         //
         // Only the final Release() terminates the display.
-        ReleaseEglDisplay();
-    }
-    else
-    {
-        // No display lease exists. Clear stale local handles.
-        m_surface = EGL_NO_SURFACE;
-        m_context = EGL_NO_CONTEXT;
-    }
+        if(m_context == EGL_NO_CONTEXT)
+        {
+            ReleaseEglDisplay();
+        }
+        else
+        {
+            CLog::GetInstance().Print(
+                "glesandroid",
+                "[ORBIT2SX_EGL] display lease retained because "
+                "context destruction did not complete. "
+                "context=%p display=%p\r\n",
+                m_context,
+                m_display);
+        }
 
     // ---------------------------------------------------------
     // 6. RESET LOCAL EGL CONFIGURATION
