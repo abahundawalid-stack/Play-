@@ -1058,6 +1058,20 @@ void CGSH_OpenGLAndroid::ReleaseImpl()
             m_surface,
             static_cast<unsigned int>(m_retiredSurfaces.size()));
 
+        if(!DeferOutstandingEglResources())
+        {
+            CLog::GetInstance().Print(
+                "glesandroid",
+                "[ORBIT2SX_EGL] failed to transfer resources "
+                "while EGL display is unavailable. "
+                "context=%p surface=%p "
+                "retiredSurfaces=%u\r\n",
+                m_context,
+                m_surface,
+                static_cast<unsigned int>(
+                    m_retiredSurfaces.size()));
+        }
+		
         return;
     }
 
