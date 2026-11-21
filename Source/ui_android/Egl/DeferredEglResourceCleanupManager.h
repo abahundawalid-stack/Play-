@@ -58,6 +58,14 @@ public:
         std::size_t bundlesDeferred = 0;
     };
 
+    struct LifecycleStatus
+    {
+        std::size_t activeRenderers = 0;
+        std::size_t pendingBundles = 0;
+        bool shutdownRequested = false;
+        bool shutdownComplete = false;
+    };
+
     CDeferredEglResourceCleanupManager() = delete;
     ~CDeferredEglResourceCleanupManager() = delete;
 
@@ -90,4 +98,15 @@ public:
      * @brief Number of pending resource bundles.
      */
     static std::size_t GetPendingBundleCount();
+
+    // Called once when an Android GS renderer is constructed.
+    // Does not perform EGL operations.
+    static void RegisterRenderer();
+
+    // Called once after the renderer has completed Release().
+    // Does not perform EGL operations.
+    static void UnregisterRenderer();
+
+    // Thread-safe lifecycle diagnostics.
+    static LifecycleStatus GetLifecycleStatus();
 };
