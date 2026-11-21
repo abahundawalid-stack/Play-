@@ -36,41 +36,33 @@ CGSH_OpenGLAndroid::~CGSH_OpenGLAndroid()
     // This is a last-resort lifetime safeguard. It intentionally
     // retains unresolved native-window references rather than risking
     // a use-after-free inside the EGL driver.
-    const bool unresolvedSurfaceOwnership =
-        m_surface != EGL_NO_SURFACE ||
-        m_surfaceWindow != nullptr ||
-        !m_retiredSurfaces.empty();
-
-    if(unresolvedSurfaceOwnership)
+    // Last-chance ownership transfer.
+    // This function performs no EGL operation.
+    if(!DeferOutstandingEglResources())
     {
         CLog::GetInstance().Print(
             "glesandroid",
-            "[ORBIT2SX_EGL] CRITICAL: renderer destroyed with "
-            "unresolved EGL surface ownership. Native-window "
-            "references are intentionally not released. "
-            "display=%p context=%p surface=%p surfaceWindow=%p "
-            "retiredSurfaces=%u\r\n",
+            "[ORBIT2SX_EGL] CRITICAL: unable to transfer "
+            "unresolved EGL ownership. "
+            "Resources will be intentionally retained. "
+            "display=%p context=%p surface=%p "
+            "surfaceWindow=%p retiredSurfaces=%u\r\n",
             m_display,
             m_context,
             m_surface,
             m_surfaceWindow,
-            static_cast<unsigned int>(m_retiredSurfaces.size()));
+            static_cast<unsigned int>(
+                m_retiredSurfaces.size()));
 
-        // Do not call ANativeWindow_release() for m_surfaceWindow
-        // or any retired record's window here.
-        //
-        // The outstanding native references are deliberately left
-        // acquired as a safety fallback if EGL still uses them.
+        // Do not release references that may still be backing
+        // EGL surfaces. This is an emergency safety fallback.
+        m_surface = EGL_NO_SURFACE;
         m_surfaceWindow = nullptr;
-
-        for(auto& retired : m_retiredSurfaces)
-        {
-            retired.window = nullptr;
-        }
+        m_context = EGL_NO_CONTEXT;
+        m_display = EGL_NO_DISPLAY;
 
         m_retiredSurfaces.clear();
     }
-
     // Release the renderer's ordinary window reference.
     // Surface-specific references are independent.
     NativeWindowType windowToRelease = m_window;
