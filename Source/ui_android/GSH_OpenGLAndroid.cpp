@@ -159,34 +159,56 @@ void CGSH_OpenGLAndroid::ReleaseEglDisplay()
         return;
     }
 
-    // Preserve the exact handle associated with this lease.
-    const EGLDisplay displayToRelease = m_display;
-
-    // Clear the renderer's handle before releasing the lease.
-    // This prevents accidental duplicate Release() calls.
-    m_display = EGL_NO_DISPLAY;
-
-    EGLint error = EGL_SUCCESS;
-
-    if(!CEglDisplayManager::Release(displayToRelease, &error))
+    // Do not release the display while any EGL resource
+    // owned by this renderer is still alive.
+    if(m_context != EGL_NO_CONTEXT ||
+       m_surface != EGL_NO_SURFACE ||
+       !m_retiredSurfaces.empty())
     {
         CLog::GetInstance().Print(
             "glesandroid",
-            "[ORBIT2SX_EGL] shared display release failed "
+            "[ORBIT2SX_EGL] display release blocked: "
+            "EGL resources remain alive. "
+            "context=%p surface=%p retiredSurfaces=%u "
+            "display=%p\r\n",
+            m_context,
+            m_surface,
+            static_cast<unsigned int>(m_retiredSurfaces.size()),
+            m_display);
+
+        return;
+    }
+
+    const EGLDisplay displayToRelease = m_display;
+
+    EGLint error = EGL_SUCCESS;
+
+    if(!CEglDisplayManager::Release(
+           displayToRelease,
+           &error))
+    {
+        // Preserve m_display so the same lease can be retried.
+        CLog::GetInstance().Print(
+            "glesandroid",
+            "[ORBIT2SX_EGL] shared display release failed; "
+            "display handle retained. "
             "error=0x%04X display=%p references=%u\r\n",
             error,
             displayToRelease,
             CEglDisplayManager::GetReferenceCount());
+
+        return;
     }
-    else
-    {
-        CLog::GetInstance().Print(
-            "glesandroid",
-            "[ORBIT2SX_EGL] shared display lease released "
-            "display=%p remainingReferences=%u\r\n",
-            displayToRelease,
-            CEglDisplayManager::GetReferenceCount());
-    }
+
+    // Clear the local handle only after successful lease release.
+    m_display = EGL_NO_DISPLAY;
+
+    CLog::GetInstance().Print(
+        "glesandroid",
+        "[ORBIT2SX_EGL] shared display lease released "
+        "display=%p remainingReferences=%u\r\n",
+        displayToRelease,
+        CEglDisplayManager::GetReferenceCount());
 }
 
 void CGSH_OpenGLAndroid::InitializeImpl()
