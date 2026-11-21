@@ -45,6 +45,8 @@ endif()
 list(APPEND UI_ANDROID_PROJECT_LIBS ui_shared)
 
 set(ANDROID_SRC_FILES
+    Egl/CEglConfig.cpp
+    Egl/CEglConfig.h
 	Egl/EglDisplayManager.cpp
 	Egl/EglDisplayManager.h
 	BootablesInterop.cpp
