@@ -1,5 +1,7 @@
 #include "CEglConfig.h"
 
+#include <EGL/eglext.h>
+
 #include <algorithm>
 #include <limits>
 #include <vector>
