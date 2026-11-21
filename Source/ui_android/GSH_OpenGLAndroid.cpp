@@ -447,50 +447,192 @@ void CGSH_OpenGLAndroid::ReleaseImpl()
 
 void CGSH_OpenGLAndroid::RecoverEglSession()
 {
+    // ---------------------------------------------------------
+    // 1. REENTRANCY GUARD
+    // ---------------------------------------------------------
+    // Jangan izinkan proses recovery berjalan bersamaan atau
+    // dipanggil kembali ketika recovery sebelumnya belum selesai.
     if(m_contextRecoveryInProgress)
     {
         CLog::GetInstance().Print(
             "glesandroid",
-            "[ORBIT2SX_EGL] recovery already in progress.\r\n");
+            "[ORBIT2SX_EGL] recovery skipped: "
+            "another recovery is already in progress.\r\n");
+
         return;
     }
 
+    // Aktifkan guard sebelum operasi EGL atau OpenGL dilakukan.
     m_contextRecoveryInProgress = true;
+
+    // Pastikan guard selalu dilepas, termasuk jika terjadi
+    // exception selama proses recovery.
+    struct RecoveryGuard
+    {
+        bool& recoveryFlag;
+
+        explicit RecoveryGuard(bool& flag)
+            : recoveryFlag(flag)
+        {
+        }
+
+        ~RecoveryGuard()
+        {
+            recoveryFlag = false;
+        }
+    };
+
+    RecoveryGuard recoveryGuard(m_contextRecoveryInProgress);
+
+    // ---------------------------------------------------------
+    // 2. CAPTURE INITIAL STATE
+    // ---------------------------------------------------------
+    const bool hadNativeWindow = (m_window != nullptr);
+    const bool hadRenderer = m_rendererInitialized;
 
     CLog::GetInstance().Print(
         "glesandroid",
-        "[ORBIT2SX_EGL] rebuilding EGL session.\r\n");
+        "[ORBIT2SX_EGL] recovery started "
+        "renderer=%u display=%p context=%p "
+        "surface=%p window=%p\r\n",
+        hadRenderer ? 1 : 0,
+        m_display,
+        m_context,
+        m_surface,
+        m_window);
 
-    // Reset renderer wrappers and destroy the old EGL session.
+    // Selama recovery, presentation harus dihentikan.
+    m_surfaceRecoveryPending = true;
+
+    // ---------------------------------------------------------
+    // 3. RELEASE OLD EGL SESSION
+    // ---------------------------------------------------------
+    // ReleaseImpl melakukan:
+    // - membersihkan diagnostics;
+    // - melepas resource OpenGL;
+    // - menghancurkan EGL surface;
+    // - menghancurkan EGL context;
+    // - menghentikan EGL display.
+    //
+    // ANativeWindow tidak dilepas oleh ReleaseImpl.
+    // Referensi window tetap dimiliki oleh objek ini.
     ReleaseImpl();
 
-    // A destroyed Android surface cannot be recreated until
-    // NativeInterop supplies a new ANativeWindow reference.
-    if(m_window != nullptr)
+    // ---------------------------------------------------------
+    // 4. VERIFY OLD SESSION WAS RELEASED
+    // ---------------------------------------------------------
+    const bool oldSessionReleased =
+        m_display == EGL_NO_DISPLAY &&
+        m_context == EGL_NO_CONTEXT &&
+        m_surface == EGL_NO_SURFACE &&
+        m_config == nullptr &&
+        !m_rendererInitialized;
+
+    if(!oldSessionReleased)
     {
-        InitializeImpl();
-    }
-    else
-    {
+        CLog::GetInstance().Print(
+            "glesandroid",
+            "[ORBIT2SX_EGL] recovery aborted: "
+            "old EGL session was not fully released. "
+            "display=%p context=%p surface=%p "
+            "config=%p renderer=%u\r\n",
+            m_display,
+            m_context,
+            m_surface,
+            m_config,
+            m_rendererInitialized ? 1 : 0);
+
         m_surfaceRecoveryPending = true;
+        return;
     }
 
+    // ---------------------------------------------------------
+    // 5. VALIDATE NATIVE WINDOW
+    // ---------------------------------------------------------
+    // EGL session dapat dibuat ulang hanya jika Android masih
+    // menyediakan ANativeWindow yang valid dan dimiliki objek.
+    if(!hadNativeWindow || m_window == nullptr)
+    {
+        CLog::GetInstance().Print(
+            "glesandroid",
+            "[ORBIT2SX_EGL] recovery deferred: "
+            "native window is unavailable. "
+            "Waiting for SetWindow().\r\n");
+
+        m_surfaceRecoveryPending = true;
+        return;
+    }
+
+    // ---------------------------------------------------------
+    // 6. REINITIALIZE EGL AND OPENGL
+    // ---------------------------------------------------------
+    CLog::GetInstance().Print(
+        "glesandroid",
+        "[ORBIT2SX_EGL] creating replacement EGL session.\r\n");
+
+    InitializeImpl();
+
+    // ---------------------------------------------------------
+    // 7. VALIDATE RECOVERED SESSION
+    // ---------------------------------------------------------
     const bool recovered =
         m_rendererInitialized &&
         m_display != EGL_NO_DISPLAY &&
         m_context != EGL_NO_CONTEXT &&
-        m_surface != EGL_NO_SURFACE;
+        m_surface != EGL_NO_SURFACE &&
+        m_config != nullptr &&
+        m_window != nullptr &&
+        !m_surfaceRecoveryPending;
 
-    m_contextRecoveryInProgress = false;
+    // ---------------------------------------------------------
+    // 8. FAILED RECOVERY CLEANUP
+    // ---------------------------------------------------------
+    if(!recovered)
+    {
+        CLog::GetInstance().Print(
+            "glesandroid",
+            "[ORBIT2SX_EGL] replacement session validation failed. "
+            "Cleaning up incomplete EGL state.\r\n");
+
+        // Hanya membersihkan state EGL yang mungkin masih tersisa.
+        // ReleaseImpl juga memastikan flag surface recovery aktif.
+        ReleaseImpl();
+
+        m_surfaceRecoveryPending = true;
+
+        CLog::GetInstance().Print(
+            "glesandroid",
+            "[ORBIT2SX_EGL] recovery failed. "
+            "display=%p context=%p surface=%p "
+            "config=%p renderer=%u window=%p\r\n",
+            m_display,
+            m_context,
+            m_surface,
+            m_config,
+            m_rendererInitialized ? 1 : 0,
+            m_window);
+
+        return;
+    }
+
+    // ---------------------------------------------------------
+    // 9. RECOVERY SUCCESS
+    // ---------------------------------------------------------
+    // SetupContext() sudah mengaktifkan surface dan memperbarui
+    // presentation parameters. Jangan mengubahnya lagi di sini.
+    m_surfaceRecoveryPending = false;
 
     CLog::GetInstance().Print(
         "glesandroid",
-        "[ORBIT2SX_EGL] EGL recovery %s "
-        "display=%p context=%p surface=%p window=%p\r\n",
-        recovered ? "successful" : "failed",
+        "[ORBIT2SX_EGL] recovery successful. "
+        "previousRenderer=%u "
+        "display=%p context=%p surface=%p "
+        "config=%p window=%p\r\n",
+        hadRenderer ? 1 : 0,
         m_display,
         m_context,
         m_surface,
+        m_config,
         m_window);
 }
 
