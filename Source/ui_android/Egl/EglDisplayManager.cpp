@@ -187,8 +187,9 @@ bool CEglDisplayManager::Release(
     std::lock_guard<std::mutex> lock(state.mutex);
 
     // ---------------------------------------------------------
-    // 1. VALIDATE THE LEASE
+    // 1. VALIDATE DISPLAY LEASE
     // ---------------------------------------------------------
+
     if(state.referenceCount == 0 ||
        state.display == EGL_NO_DISPLAY ||
        state.display != display)
@@ -198,8 +199,9 @@ bool CEglDisplayManager::Release(
     }
 
     // ---------------------------------------------------------
-    // 2. OTHER RENDERERS STILL USE THE DISPLAY
+    // 2. RELEASE NON-FINAL LEASE
     // ---------------------------------------------------------
+
     if(state.referenceCount > 1)
     {
         --state.referenceCount;
@@ -207,46 +209,37 @@ bool CEglDisplayManager::Release(
     }
 
     // ---------------------------------------------------------
-    // 3. THIS IS THE FINAL DISPLAY LEASE
+    // 3. FINAL LEASE: TERMINATE EGL
     // ---------------------------------------------------------
-    // No other renderer managed by this class should still
-    // own a display lease at this point.
-    //
-    // The caller must already have destroyed its EGL surfaces
-    // and contexts before releasing this final lease.
 
     const EGLDisplay displayToTerminate = state.display;
 
-    const EGLBoolean terminateResult =
-        eglTerminate(displayToTerminate);
-
-    EGLint eglError = EGL_SUCCESS;
-
-    if(terminateResult != EGL_TRUE)
+    if(eglTerminate(displayToTerminate) != EGL_TRUE)
     {
-        // eglGetError must be read immediately after the failed
-        // EGL operation.
-        eglError = eglGetError();
+        const EGLint eglError = eglGetError();
+
+        // IMPORTANT:
+        // Keep the display and its final reference alive.
+        // The caller must retain its handle and may retry Release().
+        //
+        // Do not reset:
+        // - state.display
+        // - state.referenceCount
+        // - state.majorVersion
+        // - state.minorVersion
+
+        SetError(error, eglError);
+        return false;
     }
 
     // ---------------------------------------------------------
-    // 4. RESET MANAGER STATE
+    // 4. RESET STATE ONLY AFTER SUCCESS
     // ---------------------------------------------------------
-    // Even if eglTerminate fails, this manager must not retain
-    // a stale display handle or an unreleasable reference count.
-    //
-    // The caller receives the failure through the error output.
 
     state.display = EGL_NO_DISPLAY;
     state.referenceCount = 0;
     state.majorVersion = 0;
     state.minorVersion = 0;
-
-    if(terminateResult != EGL_TRUE)
-    {
-        SetError(error, eglError);
-        return false;
-    }
 
     return true;
 }
