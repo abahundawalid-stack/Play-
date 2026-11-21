@@ -77,6 +77,22 @@ CGSH_OpenGLAndroid::~CGSH_OpenGLAndroid()
         windowToRelease = nullptr;
     }
 }
+// This only updates manager lifecycle bookkeeping. 
+// It must not perform EGL cleanup on the destructor thread.
+CDeferredEglResourceCleanupManager::UnregisterRenderer();
+
+const auto lifecycle =
+    CDeferredEglResourceCleanupManager::GetLifecycleStatus();
+
+CLog::GetInstance().Print(
+    "glesandroid",
+    "[ORBIT2SX_EGL] renderer unregistered. "
+    "activeRenderers=%u pendingBundles=%u "
+    "shutdownRequested=%u shutdownComplete=%u\r\n",
+    static_cast<unsigned int>(lifecycle.activeRenderers),
+    static_cast<unsigned int>(lifecycle.pendingBundles),
+    lifecycle.shutdownRequested ? 1 : 0,
+    lifecycle.shutdownComplete ? 1 : 0);
 
 bool CGSH_OpenGLAndroid::DeferOutstandingEglResources()
 {
