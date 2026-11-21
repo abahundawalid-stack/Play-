@@ -40,62 +40,6 @@ namespace
         return *state;
     }
 
-    void CDeferredEglResourceCleanupManager::RegisterRenderer()
-    {
-        DeferredEglState& state = GetState();
-
-        std::lock_guard<std::mutex> lock(state.mutex);
-
-        ++state.activeRenderers;
-
-        // A new renderer means the process-wide EGL cleanup manager
-        // is active again. Pending bundles from older renderers remain.
-        state.shutdownRequested = false;
-        state.shutdownComplete = false;
-    }
- 
-    void CDeferredEglResourceCleanupManager::UnregisterRenderer()
-    {
-        DeferredEglState& state = GetState();
-
-        std::lock_guard<std::mutex> lock(state.mutex);
-
-        if(state.activeRenderers == 0)
-        {
-            // Protect against duplicate unregister calls.
-            return;
-        }
-
-        --state.activeRenderers;
-
-        if(state.activeRenderers == 0)
-        {
-            // This is a bookkeeping operation only.
-            // Never call EGL from a renderer destructor or UI thread.
-            state.shutdownRequested = true;
-
-            // If resources remain, the manager must keep them.
-            state.shutdownComplete = state.pending.empty();
-        }
-    }
-
-    CDeferredEglResourceCleanupManager::LifecycleStatus
-    CDeferredEglResourceCleanupManager::GetLifecycleStatus()
-    {
-        DeferredEglState& state = GetState();
-
-        std::lock_guard<std::mutex> lock(state.mutex);
-
-        LifecycleStatus status;
-
-        status.activeRenderers = state.activeRenderers;
-        status.pendingBundles = state.pending.size();
-        status.shutdownRequested = state.shutdownRequested;
-        status.shutdownComplete = state.shutdownComplete;
-
-        return status;
-    }
-
     bool HasSurface(
         const CDeferredEglResourceCleanupManager::ResourceBundle& bundle)
     {
