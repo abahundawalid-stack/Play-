@@ -163,16 +163,19 @@ void CGSH_OpenGLAndroid::ReleaseEglDisplay()
     // owned by this renderer is still alive.
     if(m_context != EGL_NO_CONTEXT ||
        m_surface != EGL_NO_SURFACE ||
+       m_surfaceWindow != nullptr ||
        !m_retiredSurfaces.empty())
+
     {
         CLog::GetInstance().Print(
             "glesandroid",
             "[ORBIT2SX_EGL] display release blocked: "
             "EGL resources remain alive. "
-            "context=%p surface=%p retiredSurfaces=%u "
+            "context=%p surface=%p surfaceWindow=%p retiredSurfaces=%u "
             "display=%p\r\n",
             m_context,
             m_surface,
+            m_surfaceWindow,
             static_cast<unsigned int>(m_retiredSurfaces.size()),
             m_display);
 
