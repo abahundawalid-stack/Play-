@@ -276,10 +276,7 @@ void CGSH_OpenGLAndroid::ReleaseEglDisplay()
 
 void CGSH_OpenGLAndroid::InitializeImpl()
 { 
-        const auto cleanupResult =
-    CDeferredEglResourceCleanupManager::Drain();
-
-    FRAMEWORK_MAYBE_UNUSED cleanupResult;
+    (void)CDeferredEglResourceCleanupManager::Drain();
 	
     if(m_window == nullptr)
     {
@@ -1035,10 +1032,7 @@ void CGSH_OpenGLAndroid::DestroySurface()
 
 void CGSH_OpenGLAndroid::ReleaseImpl()
 {
-        const auto cleanupResult =
-    CDeferredEglResourceCleanupManager::Drain();
-
-    FRAMEWORK_MAYBE_UNUSED cleanupResult;
+    (void)CDeferredEglResourceCleanupManager::Drain();
 	
     // ---------------------------------------------------------
     // 1. CLEAR GRAPHICS DIAGNOSTICS
@@ -1433,10 +1427,7 @@ void CGSH_OpenGLAndroid::RecoverEglSession()
 
 void CGSH_OpenGLAndroid::PresentBackbuffer()
 {
-	    const auto cleanupResult =
-    CDeferredEglResourceCleanupManager::Drain();
-
-    FRAMEWORK_MAYBE_UNUSED cleanupResult;
+	(void)CDeferredEglResourceCleanupManager::Drain(); 
 	
     if(m_contextRecoveryInProgress ||
        m_display == EGL_NO_DISPLAY ||
@@ -1536,13 +1527,9 @@ void CGSH_OpenGLAndroid::SetWindow(NativeWindowType window)
 {
     SendGSCall(
         [this, window]() {
-			    const auto cleanupResult =
-            CDeferredEglResourceCleanupManager::Drain();
-
-            FRAMEWORK_MAYBE_UNUSED cleanupResult;
+		    (void)CDeferredEglResourceCleanupManager::Drain();
             // Every non-null call transfers exactly one ANativeWindow
             // reference to this listener.
-
             if(window == m_window)
             {
                 // The incoming reference is additional, even when
