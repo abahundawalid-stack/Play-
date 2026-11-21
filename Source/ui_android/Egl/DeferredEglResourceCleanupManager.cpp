@@ -19,6 +19,16 @@ namespace
         std::vector<
             CDeferredEglResourceCleanupManager::ResourceBundle
         > pending;
+
+        // Number of renderer instances currently registered.
+        std::size_t activeRenderers = 0;
+
+        // True when the final renderer has been unregistered.
+        bool shutdownRequested = false;
+
+        // True only when shutdown was requested and no deferred
+        // EGL resources remain.
+        bool shutdownComplete = false;
     };
 
     DeferredEglState& GetState()
