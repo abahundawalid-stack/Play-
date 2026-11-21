@@ -59,8 +59,21 @@ private:
     EGLDisplay m_display = EGL_NO_DISPLAY;
 	EGLContext m_context = EGL_NO_CONTEXT;
 	EGLSurface m_surface = EGL_NO_SURFACE;
+    
+    // One retained native-window reference belongs to each EGL surface.
+    // The reference must not be released until eglDestroySurface succeeds.
+    struct RetiredSurface
+    {
+        EGLSurface surface = EGL_NO_SURFACE;
+        NativeWindowType window = nullptr;
+    };
 
-    // EGL surfaces whose destruction previously failed.
-    // They must remain tracked until cleanup succeeds.
-    std::vector<EGLSurface> m_retiredSurfaces;
+    // Native-window reference associated with the active EGL surface.
+    // This is independent from m_window.
+    NativeWindowType m_surfaceWindow = nullptr;
+
+    // EGL surfaces that could not be destroyed.
+    // Each record retains the native window used to create that surface.
+    std::vector<RetiredSurface> m_retiredSurfaces;
+
 };
