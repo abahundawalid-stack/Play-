@@ -50,8 +50,7 @@ CGSHandler::FactoryFunction CGSH_OpenGLAndroid::GetFactoryFunction(
 }
 
 void CGSH_OpenGLAndroid::InitializeImpl()
-{
-    m_surfaceRecoveryPending = true;
+{ 
     if(m_window == nullptr)
     {
         CLog::GetInstance().Print(
@@ -65,6 +64,8 @@ void CGSH_OpenGLAndroid::InitializeImpl()
     {
         return;
     }
+
+	m_surfaceRecoveryPending = true;
 
     static const EGLint configAttribs[] = {
         EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
@@ -493,6 +494,15 @@ void CGSH_OpenGLAndroid::RecoverEglSession()
 
 void CGSH_OpenGLAndroid::PresentBackbuffer()
 {
+    if(m_contextRecoveryInProgress ||
+       m_display == EGL_NO_DISPLAY ||
+       m_context == EGL_NO_CONTEXT ||
+       m_surface == EGL_NO_SURFACE ||
+       m_surfaceRecoveryPending)
+    {
+       return;
+    }
+	
     if(m_display == EGL_NO_DISPLAY ||
        m_context == EGL_NO_CONTEXT ||
        m_surface == EGL_NO_SURFACE ||
