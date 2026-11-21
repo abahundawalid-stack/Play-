@@ -264,6 +264,11 @@ void CGSH_OpenGLAndroid::ReleaseEglDisplay()
 
 void CGSH_OpenGLAndroid::InitializeImpl()
 { 
+    const auto cleanupResult =
+    CDeferredEglResourceCleanupManager::Drain();
+
+    FRAMEWORK_MAYBE_UNUSED cleanupResult;
+	
     if(m_window == nullptr)
     {
         m_surfaceRecoveryPending = true;
