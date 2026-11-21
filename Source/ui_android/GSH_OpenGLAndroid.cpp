@@ -150,6 +150,43 @@ CGSHandler::FactoryFunction CGSH_OpenGLAndroid::GetFactoryFunction(
     };
 }
 
+void CGSH_OpenGLAndroid::ReleaseEglDisplay()
+{
+    if(m_display == EGL_NO_DISPLAY)
+    {
+        return;
+    }
+
+    // Preserve the exact handle associated with this lease.
+    const EGLDisplay displayToRelease = m_display;
+
+    // Clear the renderer's handle before releasing the lease.
+    // This prevents accidental duplicate Release() calls.
+    m_display = EGL_NO_DISPLAY;
+
+    EGLint error = EGL_SUCCESS;
+
+    if(!CEglDisplayManager::Release(displayToRelease, &error))
+    {
+        CLog::GetInstance().Print(
+            "glesandroid",
+            "[ORBIT2SX_EGL] shared display release failed "
+            "error=0x%04X display=%p references=%u\r\n",
+            error,
+            displayToRelease,
+            CEglDisplayManager::GetReferenceCount());
+    }
+    else
+    {
+        CLog::GetInstance().Print(
+            "glesandroid",
+            "[ORBIT2SX_EGL] shared display lease released "
+            "display=%p remainingReferences=%u\r\n",
+            displayToRelease,
+            CEglDisplayManager::GetReferenceCount());
+    }
+}
+
 void CGSH_OpenGLAndroid::InitializeImpl()
 { 
     if(m_window == nullptr)
@@ -183,36 +220,41 @@ void CGSH_OpenGLAndroid::InitializeImpl()
         EGL_CONTEXT_CLIENT_VERSION, 3,
         EGL_NONE
     };
+    
+    // ---------------------------------------------------------
+    // ACQUIRE SHARED EGL DISPLAY
+    // ---------------------------------------------------------
+    EGLint eglMajorVersion = 0;
+    EGLint eglMinorVersion = 0;
+    EGLint eglError = EGL_SUCCESS;
 
-    m_display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
-
-    if(m_display == EGL_NO_DISPLAY)
+    if(!CEglDisplayManager::Acquire(
+           &m_display,
+           &eglMajorVersion,
+           &eglMinorVersion,
+           &eglError))
     {
-        EGLint error = eglGetError();
-
-        CLog::GetInstance().Print(
-            "glesandroid",
-            "[ORBIT2SX_EGL] eglGetDisplay failed error=0x%04X\r\n",
-            error);
-
-        return;
-    }
-
-    if(eglInitialize(m_display, nullptr, nullptr) != EGL_TRUE)
-    {
-        EGLint error = eglGetError();
-
-        CLog::GetInstance().Print(
-            "glesandroid",
-            "[ORBIT2SX_EGL] eglInitialize failed error=0x%04X\r\n",
-            error);
-
         m_display = EGL_NO_DISPLAY;
+
+        CLog::GetInstance().Print(
+            "glesandroid",
+            "[ORBIT2SX_EGL] shared display acquisition failed "
+            "error=0x%04X\r\n",
+            eglError);
+
+        m_surfaceRecoveryPending = true;
         return;
     }
 
-    EGLint numConfigs = 0;
-	
+    CLog::GetInstance().Print(
+        "glesandroid",
+        "[ORBIT2SX_EGL] shared display acquired "
+        "display=%p EGL=%d.%d references=%u\r\n",
+        m_display,
+        eglMajorVersion,
+        eglMinorVersion,
+        CEglDisplayManager::GetReferenceCount());
+
     if(eglChooseConfig(
            m_display, configAttribs, &m_config, 1, &numConfigs) != EGL_TRUE ||
        numConfigs == 0)
@@ -225,9 +267,9 @@ void CGSH_OpenGLAndroid::InitializeImpl()
             numConfigs,
             error);
 
-        eglTerminate(m_display);
-        m_display = EGL_NO_DISPLAY;
         m_config = nullptr;
+        ReleaseEglDisplay();
+        m_surfaceRecoveryPending = true;
         return;
     }
 
@@ -243,24 +285,40 @@ void CGSH_OpenGLAndroid::InitializeImpl()
             "[ORBIT2SX_EGL] eglCreateContext failed error=0x%04X\r\n",
             error);
 
-        eglTerminate(m_display);
-        m_display = EGL_NO_DISPLAY;
         m_config = nullptr;
+        ReleaseEglDisplay();
+        m_surfaceRecoveryPending = true;
         return;
     }
 
     if(!SetupContext())
     {
-		CLog::GetInstance().Print(
+        CLog::GetInstance().Print(
             "glesandroid",
             "[ORBIT2SX_EGL] SetupContext failed during initialization.\r\n");
-    
-		eglDestroyContext(m_display, m_context);
-        m_context = EGL_NO_CONTEXT;
 
-        eglTerminate(m_display);
-        m_display = EGL_NO_DISPLAY;
+        if(m_context != EGL_NO_CONTEXT)
+        {
+            if(eglDestroyContext(m_display, m_context) != EGL_TRUE)
+            {
+                const EGLint error = eglGetError();
+
+                CLog::GetInstance().Print(
+                    "glesandroid",
+                    "[ORBIT2SX_EGL] eglDestroyContext after "
+                    "initialization failure failed "
+                    "error=0x%04X context=%p\r\n",
+                    error,
+                    m_context);
+            }
+
+            m_context = EGL_NO_CONTEXT;
+        }
+
         m_config = nullptr;
+        ReleaseEglDisplay();
+
+        m_surfaceRecoveryPending = true;
         return;
     }
 
@@ -490,21 +548,32 @@ void CGSH_OpenGLAndroid::DestroySurface()
 
 void CGSH_OpenGLAndroid::ReleaseImpl()
 {
+    // ---------------------------------------------------------
+    // 1. CLEAR GRAPHICS DIAGNOSTICS
+    // ---------------------------------------------------------
     ClearGraphicsDiagnostics();
 
-    // Release OpenGL renderer resources while the renderer still owns
-    // its EGL session. This resets GL wrapper objects and caches.
+    // ---------------------------------------------------------
+    // 2. RELEASE OPENGL RESOURCES FIRST
+    // ---------------------------------------------------------
+    // The EGL context must remain valid while CGSH_OpenGL
+    // releases its GL objects, caches, shaders and buffers.
     if(m_rendererInitialized)
     {
         CGSH_OpenGL::ReleaseImpl();
         m_rendererInitialized = false;
     }
 
+    // ---------------------------------------------------------
+    // 3. RELEASE EGL SURFACE
+    // ---------------------------------------------------------
     if(m_display != EGL_NO_DISPLAY)
     {
-        // DestroySurface unbinds this context when it is current.
         DestroySurface();
 
+        // -----------------------------------------------------
+        // 4. RELEASE EGL CONTEXT
+        // -----------------------------------------------------
         if(m_context != EGL_NO_CONTEXT)
         {
             if(eglDestroyContext(m_display, m_context) != EGL_TRUE)
@@ -522,28 +591,44 @@ void CGSH_OpenGLAndroid::ReleaseImpl()
             m_context = EGL_NO_CONTEXT;
         }
 
-        if(eglTerminate(m_display) != EGL_TRUE)
-        {
-            const EGLint error = eglGetError();
-
-            CLog::GetInstance().Print(
-                "glesandroid",
-                "[ORBIT2SX_EGL] eglTerminate failed "
-                "error=0x%04X display=%p\r\n",
-                error,
-                m_display);
-        }
-
-        m_display = EGL_NO_DISPLAY;
+        // -----------------------------------------------------
+        // 5. RELEASE ONE SHARED DISPLAY LEASE
+        // -----------------------------------------------------
+        // eglTerminate() is now owned exclusively by
+        // CEglDisplayManager.
+        //
+        // If another renderer still holds a lease, the display
+        // remains initialized.
+        //
+        // Only the final Release() terminates the display.
+        ReleaseEglDisplay();
     }
     else
     {
+        // No display lease exists. Clear stale local handles.
         m_surface = EGL_NO_SURFACE;
         m_context = EGL_NO_CONTEXT;
     }
 
+    // ---------------------------------------------------------
+    // 6. RESET LOCAL EGL CONFIGURATION
+    // ---------------------------------------------------------
     m_config = nullptr;
+
+    // ---------------------------------------------------------
+    // 7. MARK SURFACE AS REQUIRING REINITIALIZATION
+    // ---------------------------------------------------------
     m_surfaceRecoveryPending = true;
+
+    CLog::GetInstance().Print(
+        "glesandroid",
+        "[ORBIT2SX_EGL] renderer EGL resources released "
+        "display=%p context=%p surface=%p "
+        "remainingDisplayReferences=%u\r\n",
+        m_display,
+        m_context,
+        m_surface,
+        CEglDisplayManager::GetReferenceCount());
 }
 
 void CGSH_OpenGLAndroid::RecoverEglSession()
