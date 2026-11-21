@@ -5,6 +5,7 @@
 #include <memory>
 #include <string>
 #include <utility>
+#include <exception>
 
 #include "opengl/OpenGlDef.h"
 #include "GSH_OpenGLAndroid.h"
