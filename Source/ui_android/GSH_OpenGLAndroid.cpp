@@ -501,15 +501,7 @@ void CGSH_OpenGLAndroid::PresentBackbuffer()
        m_surfaceRecoveryPending)
     {
        return;
-    }
-	
-    if(m_display == EGL_NO_DISPLAY ||
-       m_context == EGL_NO_CONTEXT ||
-       m_surface == EGL_NO_SURFACE ||
-       m_surfaceRecoveryPending)
-    {
-        return;
-    }
+	}    
 
     if(eglSwapBuffers(m_display, m_surface) == EGL_TRUE)
     {
