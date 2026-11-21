@@ -37,6 +37,10 @@ private:
     // Retries destruction of surfaces that previously failed cleanup.
     void CleanupRetiredSurfaces();
 
+    // Transfer unresolved EGL resources to the process-wide
+    // deferred cleanup manager without invoking EGL from this method.
+    bool DeferOutstandingEglResources();
+
     // Recreate the EGL display/context and OpenGL renderer.
     void RecoverEglSession();
 
