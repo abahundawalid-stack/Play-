@@ -1377,6 +1377,11 @@ void CGSH_OpenGLAndroid::RecoverEglSession()
 
 void CGSH_OpenGLAndroid::PresentBackbuffer()
 {
+	    const auto cleanupResult =
+    CDeferredEglResourceCleanupManager::Drain();
+
+    FRAMEWORK_MAYBE_UNUSED cleanupResult;
+	
     if(m_contextRecoveryInProgress ||
        m_display == EGL_NO_DISPLAY ||
        m_context == EGL_NO_CONTEXT ||
