@@ -20,6 +20,11 @@ namespace
         return display != EGL_NO_DISPLAY;
     }
 
+    bool IsValidConfig(EGLConfig config)
+    {
+        return config != nullptr;
+    }
+
     bool IsValidContext(EGLContext context)
     {
         return context != EGL_NO_CONTEXT;
@@ -32,8 +37,6 @@ namespace
 
     EGLint ConsumeEglError()
     {
-        // Return the actual EGL error.
-        // Do not manufacture an EGL error when EGL reports success.
         return eglGetError();
     }
 }
@@ -46,31 +49,33 @@ bool CEglContextManager::Create(
     EGLContext* context,
     EGLint* error)
 {
-    if(context != nullptr)
-    {
-        *context = EGL_NO_CONTEXT;
-    }
-
     ClearError(error);
 
-    // ---------------------------------------------------------
-    // 1. VALIDATE INPUT
-    // ---------------------------------------------------------
-
-    if(eglGetCurrentContext() == contextToDestroy)
+    if(context == nullptr)
     {
-        if(!ClearCurrent(
-               display,
-               contextToDestroy,
-               error))
-        {
-            return false;
-        }
+        SetError(error, EGL_BAD_PARAMETER);
+        return false;
     }
 
-    // ---------------------------------------------------------
-    // 2. DESTROY CONTEXT
-    // ---------------------------------------------------------
+    *context = EGL_NO_CONTEXT;
+
+    if(!IsValidDisplay(display))
+    {
+        SetError(error, EGL_BAD_DISPLAY);
+        return false;
+    }
+
+    if(!IsValidConfig(config))
+    {
+        SetError(error, EGL_BAD_CONFIG);
+        return false;
+    }
+
+    if(clientVersion != 2 && clientVersion != 3)
+    {
+        SetError(error, EGL_BAD_ATTRIBUTE);
+        return false;
+    }
 
     if(eglBindAPI(EGL_OPENGL_ES_API) != EGL_TRUE)
     {
@@ -78,20 +83,12 @@ bool CEglContextManager::Create(
         return false;
     }
 
-    // ---------------------------------------------------------
-    // 3. BUILD CONTEXT ATTRIBUTES
-    // ---------------------------------------------------------
-
     const EGLint contextAttributes[] =
     {
         EGL_CONTEXT_CLIENT_VERSION,
         clientVersion,
         EGL_NONE
     };
-
-    // ---------------------------------------------------------
-    // 4. CREATE CONTEXT
-    // ---------------------------------------------------------
 
     EGLContext newContext = eglCreateContext(
         display,
@@ -105,12 +102,7 @@ bool CEglContextManager::Create(
         return false;
     }
 
-    // ---------------------------------------------------------
-    // 5. COMMIT OUTPUT ONLY AFTER SUCCESS
-    // ---------------------------------------------------------
-
     *context = newContext;
-
     return true;
 }
 
@@ -123,32 +115,30 @@ bool CEglContextManager::MakeCurrent(
 {
     ClearError(error);
 
-    // ---------------------------------------------------------
-    // 1. VALIDATE INPUT
-    // ---------------------------------------------------------
-
-    if(!IsValidDisplay(display) ||
-       !IsValidSurface(drawSurface) ||
-       !IsValidSurface(readSurface) ||
-       !IsValidContext(context))
+    if(!IsValidDisplay(display))
     {
-        SetError(error, EGL_BAD_PARAMETER);
+        SetError(error, EGL_BAD_DISPLAY);
         return false;
     }
 
-    // ---------------------------------------------------------
-    // 2. ENSURE OPENGL ES API IS SELECTED ON THIS THREAD
-    // ---------------------------------------------------------
+    if(!IsValidSurface(drawSurface) ||
+       !IsValidSurface(readSurface))
+    {
+        SetError(error, EGL_BAD_SURFACE);
+        return false;
+    }
+
+    if(!IsValidContext(context))
+    {
+        SetError(error, EGL_BAD_CONTEXT);
+        return false;
+    }
 
     if(eglBindAPI(EGL_OPENGL_ES_API) != EGL_TRUE)
     {
         SetError(error, ConsumeEglError());
         return false;
     }
-
-    // ---------------------------------------------------------
-    // 3. BIND CONTEXT AND SURFACES
-    // ---------------------------------------------------------
 
     if(eglMakeCurrent(
            display,
@@ -160,13 +150,12 @@ bool CEglContextManager::MakeCurrent(
         return false;
     }
 
-    // ---------------------------------------------------------
-    // 4. VERIFY CURRENT CONTEXT
-    // ---------------------------------------------------------
-
-    if(eglGetCurrentContext() != context)
+    if(eglGetCurrentContext() != context ||
+       eglGetCurrentDisplay() != display ||
+       eglGetCurrentSurface(EGL_DRAW) != drawSurface ||
+       eglGetCurrentSurface(EGL_READ) != readSurface)
     {
-        SetError(error, EGL_BAD_CONTEXT);
+        SetError(error, EGL_BAD_MATCH);
         return false;
     }
 
@@ -194,40 +183,33 @@ bool CEglContextManager::ClearCurrent(
 
     const EGLContext currentContext = eglGetCurrentContext();
 
-    // Tidak ada context yang aktif pada thread ini.
     if(currentContext == EGL_NO_CONTEXT)
     {
         return true;
     }
 
-    // Jangan pernah melepas context milik renderer lain.
     if(currentContext != expectedContext)
     {
         SetError(error, EGL_BAD_CONTEXT);
         return false;
     }
 
-    // Pastikan context aktif memang berasal dari display ini.
-    const EGLDisplay currentDisplay = eglGetCurrentDisplay();
-
-    if(currentDisplay != display)
+    if(eglGetCurrentDisplay() != display)
     {
         SetError(error, EGL_BAD_DISPLAY);
         return false;
     }
 
-    // Lepaskan hanya context yang sudah diverifikasi.
     if(eglMakeCurrent(
            display,
            EGL_NO_SURFACE,
            EGL_NO_SURFACE,
            EGL_NO_CONTEXT) != EGL_TRUE)
     {
-        SetError(error, eglGetError());
+        SetError(error, ConsumeEglError());
         return false;
     }
 
-    // Verifikasi bahwa context benar-benar sudah dilepas.
     if(eglGetCurrentContext() != EGL_NO_CONTEXT)
     {
         SetError(error, EGL_BAD_CONTEXT);
@@ -263,10 +245,6 @@ bool CEglContextManager::Destroy(
 
     const EGLContext contextToDestroy = *context;
 
-    // ---------------------------------------------------------
-    // 1. DETACH IF CURRENT ON THIS THREAD
-    // ---------------------------------------------------------
-
     if(eglGetCurrentContext() == contextToDestroy)
     {
         if(!ClearCurrent(
@@ -276,10 +254,7 @@ bool CEglContextManager::Destroy(
         {
             return false;
         }
-
-    // ---------------------------------------------------------
-    // 2. DESTROY CONTEXT
-    // ---------------------------------------------------------
+    }
 
     if(eglDestroyContext(display, contextToDestroy) != EGL_TRUE)
     {
@@ -287,12 +262,7 @@ bool CEglContextManager::Destroy(
         return false;
     }
 
-    // ---------------------------------------------------------
-    // 3. CLEAR HANDLE ONLY AFTER SUCCESS
-    // ---------------------------------------------------------
-
     *context = EGL_NO_CONTEXT;
-
     return true;
 }
 
