@@ -463,13 +463,10 @@ bool CGSH_OpenGLAndroid::SetupContext()
         return failRecovery();
     }
 
-    // Retry cleanup of previously retired EGL surfaces.
+    // Retry previously failed surface cleanup.
     CleanupRetiredSurfaces();
-	
-    // ---------------------------------------------------------
-    // MATCH ANDROID NATIVE WINDOW FORMAT WITH EGL CONFIG
-    // ---------------------------------------------------------
 
+    // Match the Android native-window format to the EGL config.
     EGLint nativeVisualError = EGL_SUCCESS;
 
     if(!CEglConfig::ApplyNativeVisual(
@@ -485,20 +482,26 @@ bool CGSH_OpenGLAndroid::SetupContext()
             m_nativeVisualId,
             m_window);
 
-        m_surfaceRecoveryPending = true;
-        return false;
+        return failRecovery();
     }
-	
-    // Create a replacement surface without destroying the old one.
+
+    // Acquire an independent reference for the new EGL surface.
+    // This reference is not the same ownership as m_window.
+    ANativeWindow_acquire(m_window);
+    NativeWindowType newSurfaceWindow = m_window;
+
     EGLSurface newSurface = eglCreateWindowSurface(
         m_display,
         m_config,
-        m_window,
+        newSurfaceWindow,
         nullptr);
 
     if(newSurface == EGL_NO_SURFACE)
     {
         const EGLint error = eglGetError();
+
+        ANativeWindow_release(newSurfaceWindow);
+        newSurfaceWindow = nullptr;
 
         CLog::GetInstance().Print(
             "glesandroid",
@@ -510,46 +513,84 @@ bool CGSH_OpenGLAndroid::SetupContext()
         return failRecovery();
     }
 
-    // Query dimensions before switching the current EGL surface.
+    // Query width and height separately so the EGL error is captured
+    // immediately after the failing operation.
     EGLint width = 0;
     EGLint height = 0;
+    EGLint queryError = EGL_SUCCESS;
 
-    if(eglQuerySurface(
-           m_display, newSurface, EGL_WIDTH, &width) != EGL_TRUE ||
-       eglQuerySurface(
-           m_display, newSurface, EGL_HEIGHT, &height) != EGL_TRUE ||
+    const EGLBoolean widthOk = eglQuerySurface(
+        m_display,
+        newSurface,
+        EGL_WIDTH,
+        &width);
+
+    if(widthOk != EGL_TRUE)
+    {
+        queryError = eglGetError();
+    }
+
+    EGLBoolean heightOk = EGL_FALSE;
+
+    if(widthOk == EGL_TRUE)
+    {
+        heightOk = eglQuerySurface(
+            m_display,
+            newSurface,
+            EGL_HEIGHT,
+            &height);
+
+        if(heightOk != EGL_TRUE)
+        {
+            queryError = eglGetError();
+        }
+    }
+
+    if(widthOk != EGL_TRUE ||
+       heightOk != EGL_TRUE ||
        width <= 0 ||
        height <= 0)
     {
-        const EGLint error = eglGetError();
-
         CLog::GetInstance().Print(
             "glesandroid",
-            "[ORBIT2SX_EGL] replacement surface has invalid dimensions "
-            "width=%d height=%d error=0x%04X\r\n",
+            "[ORBIT2SX_EGL] replacement surface dimensions invalid "
+            "width=%d height=%d error=0x%04X surface=%p\r\n",
             width,
             height,
-            error);
+            queryError,
+            newSurface);
 
         EGLint cleanupError = EGL_SUCCESS;
 
-        if(!DestroySurfaceHandle(newSurface, &cleanupError))
+        if(DestroySurfaceHandle(newSurface, &cleanupError))
         {
-            m_retiredSurfaces.push_back(newSurface);
+            ANativeWindow_release(newSurfaceWindow);
+            newSurfaceWindow = nullptr;
+        }
+        else
+        {
+            // Transfer both resources into the retired-surface list.
+            RetiredSurface retired;
+            retired.surface = newSurface;
+            retired.window = newSurfaceWindow;
+
+            m_retiredSurfaces.push_back(retired);
+            newSurfaceWindow = nullptr;
 
             CLog::GetInstance().Print(
                 "glesandroid",
                 "[ORBIT2SX_EGL] invalid replacement surface "
-                "could not be destroyed; handle retained. "
-                "error=0x%04X surface=%p\r\n",
+                "retained for cleanup. error=0x%04X surface=%p "
+                "window=%p\r\n",
                 cleanupError,
-                newSurface);
+                newSurface,
+                retired.window);
         }
 
         return failRecovery();
     }
 
-    // Switch to the new surface only after it has been created and queried.
+    // Activate the new surface before replacing the active handles.
     EGLint makeCurrentError = EGL_SUCCESS;
 
     if(!CEglContextManager::MakeCurrent(
@@ -567,47 +608,83 @@ bool CGSH_OpenGLAndroid::SetupContext()
             m_context,
             newSurface);
 
-        // The replacement surface did not become current.
-        // Keep its handle if EGL cannot destroy it.
         EGLint cleanupError = EGL_SUCCESS;
 
-        if(!DestroySurfaceHandle(newSurface, &cleanupError))
+        if(DestroySurfaceHandle(newSurface, &cleanupError))
         {
-            m_retiredSurfaces.push_back(newSurface);
+            ANativeWindow_release(newSurfaceWindow);
+            newSurfaceWindow = nullptr;
+        }
+        else
+        {
+            RetiredSurface retired;
+            retired.surface = newSurface;
+            retired.window = newSurfaceWindow;
+
+            m_retiredSurfaces.push_back(retired);
+            newSurfaceWindow = nullptr;
 
             CLog::GetInstance().Print(
                 "glesandroid",
-                "[ORBIT2SX_EGL] failed replacement surface cleanup; "
-                "handle retained. "
-                "error=0x%04X surface=%p\r\n",
+                "[ORBIT2SX_EGL] failed replacement surface "
+                "retained for cleanup. error=0x%04X surface=%p "
+                "window=%p\r\n",
                 cleanupError,
-                newSurface);
+                newSurface,
+                retired.window);
         }
 
         return failRecovery();
-	}    
+    }
 
+    // Preserve the previous surface and its native-window reference.
     EGLSurface previousSurface = m_surface;
-    m_surface = newSurface;
+    NativeWindowType previousSurfaceWindow = m_surfaceWindow;
 
-    // The new surface is now current. The old surface can be destroyed.
+    // Commit the replacement only after successful MakeCurrent().
+    m_surface = newSurface;
+    m_surfaceWindow = newSurfaceWindow;
+    newSurfaceWindow = nullptr;
+
+    // The new surface is current. The previous surface can now be retired.
     if(previousSurface != EGL_NO_SURFACE &&
        previousSurface != newSurface)
     {
         EGLint cleanupError = EGL_SUCCESS;
 
-        if(!DestroySurfaceHandle(previousSurface, &cleanupError))
+        if(DestroySurfaceHandle(previousSurface, &cleanupError))
         {
-            m_retiredSurfaces.push_back(previousSurface);
+            if(previousSurfaceWindow != nullptr)
+            {
+                ANativeWindow_release(previousSurfaceWindow);
+                previousSurfaceWindow = nullptr;
+            }
+        }
+        else
+        {
+            RetiredSurface retired;
+            retired.surface = previousSurface;
+            retired.window = previousSurfaceWindow;
+
+            m_retiredSurfaces.push_back(retired);
+            previousSurfaceWindow = nullptr;
 
             CLog::GetInstance().Print(
                 "glesandroid",
                 "[ORBIT2SX_EGL] old surface destruction failed; "
-                "handle retained for retry. "
-                "error=0x%04X old=%p\r\n",
+                "surface/window pair retained. error=0x%04X "
+                "surface=%p window=%p\r\n",
                 cleanupError,
-                previousSurface);
+                previousSurface,
+                retired.window);
         }
+    }
+    else if(previousSurface == EGL_NO_SURFACE &&
+            previousSurfaceWindow != nullptr)
+    {
+        // Defensive recovery from an inconsistent old state.
+        ANativeWindow_release(previousSurfaceWindow);
+        previousSurfaceWindow = nullptr;
     }
 
     auto readGlString = [](GLenum name) -> std::string
@@ -657,13 +734,16 @@ bool CGSH_OpenGLAndroid::SetupContext()
         "glesandroid",
         "[ORBIT2SX_EGL] surface ready "
         "display=%p context=%p surface=%p window=%p "
-        "width=%d height=%d\r\n",
+        "surfaceWindow=%p width=%d height=%d "
+        "retiredSurfaces=%u\r\n",
         m_display,
         m_context,
         m_surface,
         m_window,
+        m_surfaceWindow,
         width,
-        height);
+        height,
+        static_cast<unsigned int>(m_retiredSurfaces.size()));
 
     return true;
 }
