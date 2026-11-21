@@ -304,16 +304,29 @@ void CGSH_OpenGLAndroid::InitializeImpl()
         configInfo.eligibleConfigs,
         configInfo.enumeratedConfigs);
 
-	if(eglBindAPI(EGL_OPENGL_ES_API) != EGL_TRUE)
-    {
-        const EGLint error = eglGetError();
+    // ---------------------------------------------------------
+    // CREATE OPENGL ES 3 CONTEXT THROUGH CONTEXT MANAGER
+    // ---------------------------------------------------------
 
+    EGLint contextError = EGL_SUCCESS;
+
+    if(!CEglContextManager::Create(
+           m_display,
+           m_config,
+           3,
+           EGL_NO_CONTEXT,
+           &m_context,
+           &contextError))
+    {
         CLog::GetInstance().Print(
             "glesandroid",
-            "[ORBIT2SX_EGL] eglBindAPI failed "
-            "error=0x%04X\r\n",
-            error);
+            "[ORBIT2SX_EGL] context creation failed "
+            "error=0x%04X display=%p config=%p\r\n",
+            contextError,
+            m_display,
+            m_config);
 
+        m_context = EGL_NO_CONTEXT;
         m_config = nullptr;
         m_nativeVisualId = 0;
 
@@ -323,15 +336,13 @@ void CGSH_OpenGLAndroid::InitializeImpl()
         return;
     }
 
-    // ---------------------------------------------------------
-    // CREATE OPENGL ES 3 EGL CONTEXT
-    // ---------------------------------------------------------
-
-    m_context = eglCreateContext(
+    CLog::GetInstance().Print(
+        "glesandroid",
+        "[ORBIT2SX_EGL] OpenGL ES context created "
+        "context=%p display=%p config=%p version=3\r\n",
+        m_context,
         m_display,
-        m_config,
-        EGL_NO_CONTEXT,
-        contextAttribs);
+        m_config);
 
     if(m_context == EGL_NO_CONTEXT)
     {
@@ -484,25 +495,28 @@ bool CGSH_OpenGLAndroid::SetupContext()
     }
 
     // Switch to the new surface only after it has been created and queried.
-    if(eglMakeCurrent(
+    EGLint makeCurrentError = EGL_SUCCESS;
+
+    if(!CEglContextManager::MakeCurrent(
            m_display,
            newSurface,
            newSurface,
-           m_context) != EGL_TRUE)
+           m_context,
+           &makeCurrentError))
     {
-        const EGLint error = eglGetError();
-
         CLog::GetInstance().Print(
             "glesandroid",
-            "[ORBIT2SX_EGL] eglMakeCurrent replacement failed "
-            "error=0x%04X\r\n",
-            error);
+            "[ORBIT2SX_EGL] context activation failed "
+            "error=0x%04X context=%p surface=%p\r\n",
+            makeCurrentError,
+            m_context,
+            newSurface);
 
-        // The previous current surface remains the active one when
-        // eglMakeCurrent fails. Destroy only the unbound new surface.
+        // Surface baru belum menjadi surface aktif.
         eglDestroySurface(m_display, newSurface);
+
         return failRecovery();
-    }
+	}    
 
     EGLSurface previousSurface = m_surface;
     m_surface = newSurface;
