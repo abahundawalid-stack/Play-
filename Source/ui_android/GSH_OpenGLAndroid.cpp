@@ -61,24 +61,91 @@ CGSH_OpenGLAndroid::~CGSH_OpenGLAndroid()
 CGSHandler::FactoryFunction CGSH_OpenGLAndroid::GetFactoryFunction(
     NativeWindowType window)
 {
-    auto windowOwner = std::shared_ptr<ANativeWindow>(
-        window,
-        [](ANativeWindow* ownedWindow) {
-            if(ownedWindow != nullptr)
-            {
-                ANativeWindow_release(ownedWindow);
-            }
-        });
+    // ---------------------------------------------------------
+    // 1. DEFINE NATIVE WINDOW OWNERSHIP
+    // ---------------------------------------------------------
+    // The incoming reference is transferred to this factory.
+    //
+    // The shared_ptr owns that original reference and guarantees
+    // that it remains alive while any copy of the factory exists.
+    //
+    // Its custom deleter releases the reference exactly once,
+    // when the final shared owner is destroyed.
 
-    return [windowOwner]() {
-        ANativeWindow* handlerWindow = windowOwner.get();
-
-        if(handlerWindow != nullptr)
+    auto releaseNativeWindow = [](ANativeWindow* ownedWindow) noexcept
+    {
+        if(ownedWindow != nullptr)
         {
-            ANativeWindow_acquire(handlerWindow);
+            ANativeWindow_release(ownedWindow);
+        }
+    };
+
+    std::shared_ptr<ANativeWindow> windowOwner;
+
+    if(window != nullptr)
+    {
+        windowOwner = std::shared_ptr<ANativeWindow>(
+            window,
+            releaseNativeWindow);
+    }
+
+    // ---------------------------------------------------------
+    // 2. RETURN A COPYABLE, OWNERSHIP-SAFE FACTORY
+    // ---------------------------------------------------------
+    // Capturing shared_ptr makes the factory safe to copy and
+    // keeps the original native window reference alive until
+    // the factory and all its copies have released ownership.
+
+    return [windowOwner, releaseNativeWindow]() -> CGSHandler*
+    {
+        // -----------------------------------------------------
+        // 3. HANDLE DETACHED WINDOW
+        // -----------------------------------------------------
+        // A null window is valid. The renderer can be created
+        // without a surface and wait for SetWindow() later.
+
+        if(!windowOwner)
+        {
+            return new CGSH_OpenGLAndroid(nullptr);
         }
 
-        return new CGSH_OpenGLAndroid(handlerWindow);
+        ANativeWindow* handlerWindow = windowOwner.get();
+
+        // -----------------------------------------------------
+        // 4. ACQUIRE AN INDEPENDENT REFERENCE FOR THE RENDERER
+        // -----------------------------------------------------
+        // The renderer must own its own reference because its
+        // lifetime is independent from the factory's lifetime.
+
+        ANativeWindow_acquire(handlerWindow);
+
+        // Keep the acquired reference under temporary RAII
+        // ownership until renderer construction succeeds.
+        std::unique_ptr<ANativeWindow, decltype(releaseNativeWindow)>
+            handlerWindowOwner(
+                handlerWindow,
+                releaseNativeWindow);
+
+        // -----------------------------------------------------
+        // 5. CONSTRUCT RENDERER
+        // -----------------------------------------------------
+        // CGSH_OpenGLAndroid takes ownership of the transferred
+        // reference. If construction throws, unique_ptr releases
+        // the reference automatically.
+
+        auto* renderer = new CGSH_OpenGLAndroid(
+            handlerWindowOwner.get());
+
+        // -----------------------------------------------------
+        // 6. TRANSFER OWNERSHIP TO THE RENDERER
+        // -----------------------------------------------------
+        // The renderer destructor is now responsible for releasing
+        // this reference. Prevent the temporary unique_ptr from
+        // releasing it a second time.
+
+        handlerWindowOwner.release();
+
+        return renderer;
     };
 }
 
