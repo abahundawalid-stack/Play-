@@ -321,7 +321,39 @@ void CGSH_OpenGLAndroid::InitializeImpl()
         m_surfaceRecoveryPending = true;
         return;
     }
-	
+
+    // ---------------------------------------------------------
+    // CREATE OPENGL ES 3 EGL CONTEXT
+    // ---------------------------------------------------------
+
+    m_context = eglCreateContext(
+        m_display,
+        m_config,
+        EGL_NO_CONTEXT,
+        contextAttribs);
+
+    if(m_context == EGL_NO_CONTEXT)
+    {
+        const EGLint error = eglGetError();
+
+        CLog::GetInstance().Print(
+            "glesandroid",
+            "[ORBIT2SX_EGL] eglCreateContext failed "
+            "error=0x%04X display=%p config=%p\r\n",
+            error,
+            m_display,
+            m_config);
+
+        m_context = EGL_NO_CONTEXT;
+        m_config = nullptr;
+        m_nativeVisualId = 0;
+
+        ReleaseEglDisplay();
+
+        m_surfaceRecoveryPending = true;
+        return;
+    }
+
     if(!SetupContext())
     {
         CLog::GetInstance().Print(
