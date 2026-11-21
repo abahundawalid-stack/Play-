@@ -26,43 +26,6 @@ CGSH_OpenGLAndroid::CGSH_OpenGLAndroid(NativeWindowType window)
 
 CGSH_OpenGLAndroid::~CGSH_OpenGLAndroid()
 {
-    // ---------------------------------------------------------
-    // 1. RELEASE GRAPHICS RESOURCES ON THE GS EXECUTION THREAD
-    // ---------------------------------------------------------
-    // Release() dispatches ReleaseImpl() through the GS handler's
-    // synchronization mechanism and waits for completion.
-    //
-    // This ensures that OpenGL resources, EGL surface, EGL context,
-    // and EGL display are released before the native window reference.
-    //
-    // ReleaseImpl() is designed to tolerate an already released
-    // or partially initialized EGL session.
-    Release();
-
-    // ---------------------------------------------------------
-    // 2. DETACH THE OWNED NATIVE WINDOW REFERENCE
-    // ---------------------------------------------------------
-    NativeWindowType windowToRelease = m_window;
-
-    // Clear the member before releasing the reference.
-    // This prevents accidental reuse of a reference that is
-    // no longer owned by this renderer.
-    m_window = nullptr;
-
-    // ---------------------------------------------------------
-    // 3. RELEASE THE NATIVE WINDOW EXACTLY ONCE
-    // ---------------------------------------------------------
-    if(windowToRelease != nullptr)
-    {
-        ANativeWindow_release(windowToRelease);
-        windowToRelease = nullptr;
-    }
-
-    // No EGL or OpenGL operation should be performed after this point.
-}
-
-CGSH_OpenGLAndroid::~CGSH_OpenGLAndroid()
-{
     // Release graphics resources through the GS synchronization path.
     Release();
 
