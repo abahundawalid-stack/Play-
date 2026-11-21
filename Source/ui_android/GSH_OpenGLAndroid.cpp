@@ -53,6 +53,8 @@ void CGSH_OpenGLAndroid::InitializeImpl()
 { 
     if(m_window == nullptr)
     {
+        m_surfaceRecoveryPending = true;
+		
         CLog::GetInstance().Print(
             "glesandroid",
             "[ORBIT2SX_EGL] InitializeImpl aborted: native window is null.\r\n");
