@@ -303,6 +303,25 @@ void CGSH_OpenGLAndroid::InitializeImpl()
         configInfo.eligibleConfigs,
         configInfo.enumeratedConfigs);
 
+	if(eglBindAPI(EGL_OPENGL_ES_API) != EGL_TRUE)
+    {
+        const EGLint error = eglGetError();
+
+        CLog::GetInstance().Print(
+            "glesandroid",
+            "[ORBIT2SX_EGL] eglBindAPI failed "
+            "error=0x%04X\r\n",
+            error);
+
+        m_config = nullptr;
+        m_nativeVisualId = 0;
+
+        ReleaseEglDisplay();
+
+        m_surfaceRecoveryPending = true;
+        return;
+    }
+	
     if(!SetupContext())
     {
         CLog::GetInstance().Print(
