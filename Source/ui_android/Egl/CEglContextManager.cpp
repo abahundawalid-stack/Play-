@@ -32,9 +32,9 @@ namespace
 
     EGLint ConsumeEglError()
     {
-        const EGLint error = eglGetError();
-
-        return error == EGL_SUCCESS ? EGL_BAD_ACCESS : error;
+        // Return the actual EGL error.
+        // Do not manufacture an EGL error when EGL reports success.
+        return eglGetError();
     }
 }
 
