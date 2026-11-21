@@ -83,6 +83,123 @@ CGSH_OpenGLAndroid::~CGSH_OpenGLAndroid()
     }
 }
 
+bool CGSH_OpenGLAndroid::DeferOutstandingEglResources()
+{
+    using CleanupManager =
+        CDeferredEglResourceCleanupManager;
+
+    CleanupManager::ResourceBundle bundle;
+
+    bundle.display = m_display;
+    bundle.context = m_context;
+
+    // This renderer owns exactly one lease for every successful
+    // CEglDisplayManager::Acquire().
+    bundle.ownsDisplayLease =
+        (m_display != EGL_NO_DISPLAY);
+
+    // Reserve before transferring any ownership.
+    // If allocation fails, the renderer retains all its handles.
+    try
+    {
+        bundle.surfaces.reserve(
+            m_retiredSurfaces.size() + 1);
+
+        if(m_surface != EGL_NO_SURFACE ||
+           m_surfaceWindow != nullptr)
+        {
+            CleanupManager::SurfaceResource active;
+
+            active.surface = m_surface;
+            active.window = m_surfaceWindow;
+
+            bundle.surfaces.emplace_back(active);
+        }
+
+        for(const auto& retired : m_retiredSurfaces)
+        {
+            if(retired.surface == EGL_NO_SURFACE &&
+               retired.window == nullptr)
+            {
+                continue;
+            }
+
+            CleanupManager::SurfaceResource resource;
+
+            resource.surface = retired.surface;
+            resource.window = retired.window;
+
+            bundle.surfaces.emplace_back(resource);
+        }
+    }
+    catch(...)
+    {
+        CLog::GetInstance().Print(
+            "glesandroid",
+            "[ORBIT2SX_EGL] deferred cleanup bundle allocation failed. "
+            "Original renderer ownership retained. "
+            "display=%p context=%p surface=%p "
+            "retiredSurfaces=%u\r\n",
+            m_display,
+            m_context,
+            m_surface,
+            static_cast<unsigned int>(
+                m_retiredSurfaces.size()));
+
+        return false;
+    }
+
+    const bool hasResources =
+        bundle.display != EGL_NO_DISPLAY ||
+        bundle.context != EGL_NO_CONTEXT ||
+        bundle.ownsDisplayLease ||
+        !bundle.surfaces.empty();
+
+    if(!hasResources)
+    {
+        return true;
+    }
+
+    // Adopt() only moves ownership into the manager.
+    // It does not execute EGL calls on this thread.
+    if(!CleanupManager::Adopt(std::move(bundle)))
+    {
+        CLog::GetInstance().Print(
+            "glesandroid",
+            "[ORBIT2SX_EGL] deferred cleanup adoption failed. "
+            "Renderer retains original ownership. "
+            "display=%p context=%p surface=%p\r\n",
+            m_display,
+            m_context,
+            m_surface);
+
+        return false;
+    }
+
+    // Ownership has now transferred successfully.
+    // The renderer must never release these resources again.
+    m_display = EGL_NO_DISPLAY;
+    m_context = EGL_NO_CONTEXT;
+    m_surface = EGL_NO_SURFACE;
+
+    m_surfaceWindow = nullptr;
+
+    m_retiredSurfaces.clear();
+
+    m_config = nullptr;
+    m_nativeVisualId = 0;
+
+    CLog::GetInstance().Print(
+        "glesandroid",
+        "[ORBIT2SX_EGL] unresolved EGL resources transferred "
+        "to deferred cleanup manager. "
+        "pendingBundles=%u\r\n",
+        static_cast<unsigned int>(
+            CleanupManager::GetPendingBundleCount()));
+
+    return true;
+}
+
 void CGSH_OpenGLAndroid::ReleaseEglDisplay()
 {
     if(m_display == EGL_NO_DISPLAY)
