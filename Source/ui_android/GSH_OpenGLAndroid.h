@@ -21,6 +21,12 @@ public:
 private:
     bool SetupContext();
 
+    // Detach and destroy the current EGL surface safely.
+    void DestroySurface();
+
+    // Recreate the EGL display/context and OpenGL renderer.
+    void RecoverEglSession();
+
     // Mencegah pemulihan EGL berulang ketika context sedang dibuat ulang.
     bool m_rendererInitialized = false;
     bool m_contextRecoveryInProgress = false;
@@ -31,7 +37,7 @@ private:
 	// Owns the transferred ANativeWindow reference. nullptr means detached.
     NativeWindowType m_window = nullptr;
 
-	EGLConfig m_config = 0;
+	EGLConfig m_config = nullptr;
 	EGLDisplay m_display = EGL_NO_DISPLAY;
 	EGLContext m_context = EGL_NO_CONTEXT;
 	EGLSurface m_surface = EGL_NO_SURFACE;
