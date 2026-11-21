@@ -65,6 +65,7 @@ public:
      */
     static bool ClearCurrent(
         EGLDisplay display,
+        EGLContext expectedContext,
         EGLint* error = nullptr);
 
     /**
