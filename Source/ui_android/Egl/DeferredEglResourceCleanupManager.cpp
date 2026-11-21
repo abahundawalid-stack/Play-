@@ -342,7 +342,10 @@ bool CDeferredEglResourceCleanupManager::Adopt(
         // The caller retains ownership when adoption fails.
         return false;
     }
-
+        // A newly adopted resource bundle means shutdown cannot be
+        // considered complete until this bundle has been cleaned.
+        state.shutdownComplete = false;
+    
     return true;
 }
 
