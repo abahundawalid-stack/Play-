@@ -41,7 +41,12 @@ private:
     NativeWindowType m_window = nullptr;
 
 	EGLConfig m_config = nullptr;
-	EGLDisplay m_display = EGL_NO_DISPLAY;
+
+    // Native visual ID belonging to the selected EGLConfig.
+    // Used to match the Android ANativeWindow pixel format.
+    EGLint m_nativeVisualId = 0;
+
+    EGLDisplay m_display = EGL_NO_DISPLAY;
 	EGLContext m_context = EGL_NO_CONTEXT;
 	EGLSurface m_surface = EGL_NO_SURFACE;
 };
