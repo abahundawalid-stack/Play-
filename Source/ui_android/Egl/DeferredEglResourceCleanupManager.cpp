@@ -299,6 +299,29 @@ CDeferredEglResourceCleanupManager::Drain()
 
         ++result.bundlesVisited;
 
+        // Release orphaned window references only when their
+        // corresponding EGL surface handle is already absent.
+        for(auto& resource : bundle.surfaces)
+        {
+            if(resource.surface == EGL_NO_SURFACE &&
+               resource.window != nullptr)
+            {
+                ANativeWindow_release(resource.window);
+                resource.window = nullptr;
+            }
+        }
+
+        RemoveCompletedSurfaces(bundle);
+
+        // A bundle with no remaining EGL resource and no display
+        // lease can be removed without calling EGL.
+        if(IsBundleComplete(bundle))
+        {
+            ++result.bundlesCompleted;
+            iterator = state.pending.erase(iterator);
+            continue;
+        }
+
         if(bundle.display == EGL_NO_DISPLAY)
         {
             // Without a valid display, EGL handles must remain owned.
