@@ -1209,8 +1209,18 @@ void CGSH_OpenGLAndroid::ReleaseImpl()
                 static_cast<unsigned int>(
                     m_retiredSurfaces.size()));
         }
-    }
+	    const auto finalCleanupResult =
+            CDeferredEglResourceCleanupManager::Drain();
 
+        (void)finalCleanupResult;
+	}
+    // Retry the bundle that may have just been adopted above.
+    // ReleaseImpl executes through the GS renderer execution path.
+    const auto finalCleanupResult =
+        CDeferredEglResourceCleanupManager::Drain();
+
+    (void)finalCleanupResult;
+	
     CLog::GetInstance().Print(
         "glesandroid",
         "[ORBIT2SX_EGL] release completed "
