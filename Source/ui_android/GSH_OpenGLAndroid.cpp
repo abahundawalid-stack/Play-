@@ -245,9 +245,7 @@ void CGSH_OpenGLAndroid::InitializeImpl()
         m_display,
         eglMajorVersion,
         eglMinorVersion,
-        CEglDisplayManager::GetReferenceCount());
-
-    EGLint numConfigs = 0;
+        CEglDisplayManager::GetReferenceCount()); 
 	
     // ---------------------------------------------------------
     // SELECT THE BEST ANDROID EGL CONFIGURATION
