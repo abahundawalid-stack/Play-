@@ -905,6 +905,14 @@ void CGSH_OpenGLAndroid::DestroySurface()
 
     if(m_surface == EGL_NO_SURFACE)
     {
+        // No EGL surface means there must be no active surface-window
+        // ownership left behind.
+        if(m_surfaceWindow != nullptr)
+        {
+            ANativeWindow_release(m_surfaceWindow);
+            m_surfaceWindow = nullptr;
+        }
+
         return;
     }
 
@@ -913,15 +921,16 @@ void CGSH_OpenGLAndroid::DestroySurface()
         CLog::GetInstance().Print(
             "glesandroid",
             "[ORBIT2SX_EGL] cannot destroy surface: "
-            "display is unavailable. "
-            "surface=%p\r\n",
-            m_surface);
+            "display unavailable. surface=%p window=%p\r\n",
+            m_surface,
+            m_surfaceWindow);
 
-        // Preserve the surface handle.
+        // Keep both handles intact. They are still owned.
         return;
     }
 
     const EGLSurface surfaceToDestroy = m_surface;
+    NativeWindowType windowToRelease = m_surfaceWindow;
 
     EGLint error = EGL_SUCCESS;
 
@@ -930,26 +939,33 @@ void CGSH_OpenGLAndroid::DestroySurface()
         CLog::GetInstance().Print(
             "glesandroid",
             "[ORBIT2SX_EGL] surface destruction failed; "
-            "surface handle retained. "
-            "error=0x%04X surface=%p context=%p\r\n",
+            "surface/window ownership retained. "
+            "error=0x%04X surface=%p window=%p context=%p\r\n",
             error,
             surfaceToDestroy,
+            windowToRelease,
             m_context);
 
-        // Do not clear m_surface.
-        // A later cleanup attempt must still have this handle.
         return;
     }
 
-    // Clear the member only after EGL confirms success.
+    // Clear the EGL handle only after successful destruction.
     m_surface = EGL_NO_SURFACE;
+    m_surfaceWindow = nullptr;
+
+    // The EGL surface no longer uses this retained reference.
+    if(windowToRelease != nullptr)
+    {
+        ANativeWindow_release(windowToRelease);
+        windowToRelease = nullptr;
+    }
 
     CLog::GetInstance().Print(
         "glesandroid",
-        "[ORBIT2SX_EGL] surface destroyed successfully "
-        "surface=%p\r\n",
+        "[ORBIT2SX_EGL] surface and paired native-window "
+        "reference released successfully. surface=%p\r\n",
         surfaceToDestroy);
-}    
+}
 
 void CGSH_OpenGLAndroid::ReleaseImpl()
 {
@@ -1008,6 +1024,7 @@ void CGSH_OpenGLAndroid::ReleaseImpl()
 
     const bool allSurfacesDestroyed =
         m_surface == EGL_NO_SURFACE &&
+        m_surfaceWindow == nullptr &&
         m_retiredSurfaces.empty();
 
     if(!allSurfacesDestroyed)
@@ -1063,6 +1080,7 @@ void CGSH_OpenGLAndroid::ReleaseImpl()
 
     if(m_context == EGL_NO_CONTEXT &&
        m_surface == EGL_NO_SURFACE &&
+       m_surfaceWindow == nullptr &&
        m_retiredSurfaces.empty())
     {
         ReleaseEglDisplay();
@@ -1086,17 +1104,19 @@ void CGSH_OpenGLAndroid::ReleaseImpl()
         m_display != EGL_NO_DISPLAY ||
         m_context != EGL_NO_CONTEXT ||
         m_surface != EGL_NO_SURFACE ||
+        m_surfaceWindow != nullptr ||
         !m_retiredSurfaces.empty();
 
     CLog::GetInstance().Print(
         "glesandroid",
         "[ORBIT2SX_EGL] release completed "
-        "display=%p context=%p surface=%p "
+        "display=%p context=%p surface=%p surfaceWindow=%p "
         "retiredSurfaces=%u config=%p "
         "remainingDisplayReferences=%u recoveryPending=%u\r\n",
         m_display,
         m_context,
         m_surface,
+        m_surfaceWindow,
         static_cast<unsigned int>(m_retiredSurfaces.size()),
         m_config,
         CEglDisplayManager::GetReferenceCount(),
@@ -1183,6 +1203,8 @@ void CGSH_OpenGLAndroid::RecoverEglSession()
         m_display == EGL_NO_DISPLAY &&
         m_context == EGL_NO_CONTEXT &&
         m_surface == EGL_NO_SURFACE &&
+        m_surfaceWindow == nullptr &&
+        m_retiredSurfaces.empty() &&
         m_config == nullptr &&
         !m_rendererInitialized;
 
