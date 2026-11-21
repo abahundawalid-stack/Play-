@@ -21,6 +21,9 @@ public:
 private:
     bool SetupContext();
 
+    // Release exactly one shared EGL display lease.
+    void ReleaseEglDisplay();
+
     // Detach and destroy the current EGL surface safely.
     void DestroySurface();
 
