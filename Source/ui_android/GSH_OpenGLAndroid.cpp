@@ -8,6 +8,7 @@
 #include "opengl/OpenGlDef.h"
 #include "GSH_OpenGLAndroid.h"
 #include "Egl/EglDisplayManager.h"
+#include "Egl/CEglConfig.h"
 #include "AppConfig.h"
 #include "NativeShared.h"
 #include "Log.h"
@@ -207,15 +208,6 @@ void CGSH_OpenGLAndroid::InitializeImpl()
 
 	m_surfaceRecoveryPending = true;
 
-    static const EGLint configAttribs[] = {
-        EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
-        EGL_RENDERABLE_TYPE, EGL_OPENGL_ES3_BIT_KHR,
-        EGL_BLUE_SIZE, 8,
-        EGL_GREEN_SIZE, 8,
-        EGL_RED_SIZE, 8,
-        EGL_NONE
-    };
-
     static const EGLint contextAttribs[] = {
         EGL_CONTEXT_CLIENT_VERSION, 3,
         EGL_NONE
@@ -257,41 +249,61 @@ void CGSH_OpenGLAndroid::InitializeImpl()
 
     EGLint numConfigs = 0;
 	
-    if(eglChooseConfig(
-           m_display, configAttribs, &m_config, 1, &numConfigs) != EGL_TRUE ||
-       numConfigs == 0)
-    {
-        EGLint error = eglGetError();
+    // ---------------------------------------------------------
+    // SELECT THE BEST ANDROID EGL CONFIGURATION
+    // ---------------------------------------------------------
 
+    CEglConfig::SelectionInfo configInfo{};
+    EGLint configError = EGL_SUCCESS;
+
+    if(!CEglConfig::ChooseWindowConfig(
+           m_display,
+           m_window,
+           &m_config,
+           &configInfo,
+           &configError))
+    {
         CLog::GetInstance().Print(
             "glesandroid",
-            "[ORBIT2SX_EGL] eglChooseConfig failed count=%d error=0x%04X\r\n",
-            numConfigs,
-            error);
+            "[ORBIT2SX_EGL] EGL config selection failed "
+            "error=0x%04X window=%p\r\n",
+            configError,
+            m_window);
 
         m_config = nullptr;
+        m_nativeVisualId = 0;
+
         ReleaseEglDisplay();
+
         m_surfaceRecoveryPending = true;
         return;
     }
+ 
+    m_nativeVisualId = configInfo.nativeVisualId;
 
-    m_context = eglCreateContext(
-        m_display, m_config, EGL_NO_CONTEXT, contextAttribs);
-
-    if(m_context == EGL_NO_CONTEXT)
-    {
-        EGLint error = eglGetError();
-
-        CLog::GetInstance().Print(
-            "glesandroid",
-            "[ORBIT2SX_EGL] eglCreateContext failed error=0x%04X\r\n",
-            error);
-
-        m_config = nullptr;
-        ReleaseEglDisplay();
-        m_surfaceRecoveryPending = true;
-        return;
-    }
+    CLog::GetInstance().Print(
+        "glesandroid",
+        "[ORBIT2SX_EGL] EGL config selected "
+        "id=%d visual=%d nativeFormat=%d "
+        "RGBA=%d/%d/%d/%d "
+        "depth=%d stencil=%d "
+        "samples=%d sampleBuffers=%d "
+        "score=%lld "
+        "candidates=%d/%d\r\n",
+        configInfo.configId,
+        configInfo.nativeVisualId,
+        configInfo.nativeWindowFormat,
+        configInfo.redSize,
+        configInfo.greenSize,
+        configInfo.blueSize,
+        configInfo.alphaSize,
+        configInfo.depthSize,
+        configInfo.stencilSize,
+        configInfo.samples,
+        configInfo.sampleBuffers,
+        configInfo.score,
+        configInfo.eligibleConfigs,
+        configInfo.enumeratedConfigs);
 
     if(!SetupContext())
     {
@@ -352,6 +364,29 @@ bool CGSH_OpenGLAndroid::SetupContext()
         return failRecovery();
     }
 
+    // ---------------------------------------------------------
+    // MATCH ANDROID NATIVE WINDOW FORMAT WITH EGL CONFIG
+    // ---------------------------------------------------------
+
+    EGLint nativeVisualError = EGL_SUCCESS;
+
+    if(!CEglConfig::ApplyNativeVisual(
+           m_window,
+           m_nativeVisualId,
+           &nativeVisualError))
+    {
+        CLog::GetInstance().Print(
+            "glesandroid",
+            "[ORBIT2SX_EGL] native visual application failed "
+            "error=0x%04X visual=%d window=%p\r\n",
+            nativeVisualError,
+            m_nativeVisualId,
+            m_window);
+
+        m_surfaceRecoveryPending = true;
+        return false;
+    }
+	
     // Create a replacement surface without destroying the old one.
     EGLSurface newSurface = eglCreateWindowSurface(
         m_display,
@@ -616,6 +651,7 @@ void CGSH_OpenGLAndroid::ReleaseImpl()
     // 6. RESET LOCAL EGL CONFIGURATION
     // ---------------------------------------------------------
     m_config = nullptr;
+    m_nativeVisualId = 0;
 
     // ---------------------------------------------------------
     // 7. MARK SURFACE AS REQUIRING REINITIALIZATION
