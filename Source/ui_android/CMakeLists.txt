@@ -49,6 +49,8 @@ set(ANDROID_SRC_FILES
     Egl/CEglConfig.h
 	Egl/EglDisplayManager.cpp
 	Egl/EglDisplayManager.h
+	Egl/CEglContextManager.cpp
+    Egl/CEglContextManager.h
 	BootablesInterop.cpp
 	com_virtualapplications_play_Bootable.cpp
 	com_virtualapplications_play_Bootable.h
