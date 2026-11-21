@@ -8,6 +8,10 @@ include(Header)
 
 project(PlayUI)
 
+# Optimasi C++ untuk performa emulasi maksimal
+set(CMAKE_CXX_VISIBILITY_PRESET hidden)
+set(CMAKE_VISIBILITY_INLINES_HIDDEN ON)
+
 if(NOT TARGET PlayCore)
 	add_subdirectory(
 		${CMAKE_CURRENT_SOURCE_DIR}/../
@@ -57,7 +61,20 @@ set(ANDROID_SRC_FILES
 	StatsInterop.cpp
 )
 
-list(APPEND UI_ANDROID_PROJECT_LIBS android log OpenSLES)
+# Pastikan EGL dan GLESv3 ikut ditautkan secara eksplisit
+list(APPEND UI_ANDROID_PROJECT_LIBS android log OpenSLES EGL GLESv3)
 
 add_library(Play SHARED ${ANDROID_SRC_FILES})
-target_link_libraries(Play ${UI_ANDROID_PROJECT_LIBS})
+
+# Dukungan 16 KB Page Size (Wajib untuk Android 15+ / Google Play)
+target_link_options(Play PRIVATE "-Wl,-z,max-page-size=16384")
+
+# Optimasi agresif khusus build Release (LTO & Fast Math aman)
+target_compile_options(Play PRIVATE
+	$<$<CONFIG:Release>:-O3 -flto>
+)
+target_link_options(Play PRIVATE
+	$<$<CONFIG:Release>:-flto>
+)
+
+target_link_libraries(Play PRIVATE ${UI_ANDROID_PROJECT_LIBS})
