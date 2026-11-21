@@ -3,6 +3,7 @@
 
 #include "GSH_VulkanAndroid.h"
 #include "vulkan/StructDefs.h"
+#include "AppConfig.h"
 
 CGSH_VulkanAndroid::CGSH_VulkanAndroid(ANativeWindow* window)
     : m_window(window)
@@ -95,6 +96,12 @@ void CGSH_VulkanAndroid::ReleaseImpl()
 
         m_context->surface = VK_NULL_HANDLE;
     }
+
+    // Pastikan VkInstance dihancurkan agar tidak bocor saat restart emulasi
+    if(!m_instance.IsEmpty())
+    {
+        m_instance.Reset();
+    }
 }
 
 void CGSH_VulkanAndroid::PresentBackbuffer()
@@ -111,12 +118,26 @@ void CGSH_VulkanAndroid::SetWindow(ANativeWindow* window)
             {
                 if(window != nullptr)
                 {
+                    if(!m_rendererInitialized)
+                    {
+                        InitializeImpl();
+                    }
+                    else if(m_context != nullptr &&
+                            m_context->surface == VK_NULL_HANDLE)
+                    {
+                        CreateSurface();
+                        if(m_context->surface != VK_NULL_HANDLE)
+                        {
+                            OnSurfaceChanged();
+                            UpdateViewport();
+                        }
+                    }
+
                     ANativeWindow_release(window);
                 }
                 return;
             }
 
-            // Selesaikan pekerjaan GPU dan lepaskan objek presentasi lama.
             if(m_rendererInitialized)
             {
                 OnSurfaceChanging();
@@ -124,7 +145,6 @@ void CGSH_VulkanAndroid::SetWindow(ANativeWindow* window)
 
             m_window = window;
 
-            // Inisialisasi pertama atau inisialisasi tertunda.
             if(!m_rendererInitialized)
             {
                 if(m_window != nullptr)
@@ -139,7 +159,6 @@ void CGSH_VulkanAndroid::SetWindow(ANativeWindow* window)
                 return;
             }
 
-            // Renderer sudah aktif: ganti atau lepaskan surface.
             CreateSurface();
 
             if(m_context != nullptr &&
@@ -149,7 +168,6 @@ void CGSH_VulkanAndroid::SetWindow(ANativeWindow* window)
                 UpdateViewport();
             }
 
-            // Window lama dilepas setelah surface lamanya dihancurkan.
             if(previousWindow != nullptr)
             {
                 ANativeWindow_release(previousWindow);
@@ -213,7 +231,10 @@ void CGSH_VulkanAndroid::UpdateViewport()
     }
 
     PRESENTATION_PARAMS presentationParams;
-    presentationParams.mode = PRESENTATION_MODE_FIT;
+    presentationParams.mode =
+        static_cast<CGSHandler::PRESENTATION_MODE>(
+            CAppConfig::GetInstance().GetPreferenceInteger(
+                PREF_CGSHANDLER_PRESENTATION_MODE));
     presentationParams.windowWidth = width;
     presentationParams.windowHeight = height;
 
