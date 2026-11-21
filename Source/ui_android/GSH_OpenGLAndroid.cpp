@@ -1480,6 +1480,10 @@ void CGSH_OpenGLAndroid::SetWindow(NativeWindowType window)
 {
     SendGSCall(
         [this, window]() {
+			    const auto cleanupResult =
+            CDeferredEglResourceCleanupManager::Drain();
+
+            FRAMEWORK_MAYBE_UNUSED cleanupResult;
             // Every non-null call transfers exactly one ANativeWindow
             // reference to this listener.
 
