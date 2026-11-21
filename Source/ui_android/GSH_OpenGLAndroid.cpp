@@ -7,6 +7,7 @@
 
 #include "opengl/OpenGlDef.h"
 #include "GSH_OpenGLAndroid.h"
+#include "Egl/EglDisplayManager.h"
 #include "AppConfig.h"
 #include "NativeShared.h"
 #include "Log.h"
