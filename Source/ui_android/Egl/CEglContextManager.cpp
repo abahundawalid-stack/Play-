@@ -57,17 +57,19 @@ bool CEglContextManager::Create(
     // 1. VALIDATE INPUT
     // ---------------------------------------------------------
 
-    if(!IsValidDisplay(display) ||
-       config == nullptr ||
-       context == nullptr ||
-       (clientVersion != 2 && clientVersion != 3))
+    if(eglGetCurrentContext() == contextToDestroy)
     {
-        SetError(error, EGL_BAD_PARAMETER);
-        return false;
+        if(!ClearCurrent(
+               display,
+               contextToDestroy,
+               error))
+        {
+            return false;
+        }
     }
 
     // ---------------------------------------------------------
-    // 2. BIND OPENGL ES API TO THE CALLING THREAD
+    // 2. DESTROY CONTEXT
     // ---------------------------------------------------------
 
     if(eglBindAPI(EGL_OPENGL_ES_API) != EGL_TRUE)
