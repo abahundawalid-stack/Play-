@@ -836,94 +836,151 @@ void CGSH_OpenGLAndroid::ReleaseImpl()
     // ---------------------------------------------------------
     // 1. CLEAR GRAPHICS DIAGNOSTICS
     // ---------------------------------------------------------
+
     ClearGraphicsDiagnostics();
 
     // ---------------------------------------------------------
-    // 2. RELEASE OPENGL RESOURCES FIRST
+    // 2. RELEASE OPENGL RESOURCES
     // ---------------------------------------------------------
-    // The EGL context must remain valid while CGSH_OpenGL
-    // releases its GL objects, caches, shaders and buffers.
+
     if(m_rendererInitialized)
     {
+        // The EGL context must remain available while
+        // the OpenGL renderer releases its resources.
         CGSH_OpenGL::ReleaseImpl();
+
         m_rendererInitialized = false;
     }
 
     // ---------------------------------------------------------
-    // 3. RELEASE EGL SURFACE
+    // 3. VALIDATE DISPLAY
     // ---------------------------------------------------------
-    if(m_display != EGL_NO_DISPLAY)
+
+    if(m_display == EGL_NO_DISPLAY)
     {
-        DestroySurface();
+        // Without a valid display, EGL handles cannot be safely
+        // destroyed through the normal cleanup path.
+        m_surfaceRecoveryPending = true;
 
-        // -----------------------------------------------------
-        // DESTROY EGL CONTEXT THROUGH CONTEXT MANAGER
-        // -----------------------------------------------------
+        CLog::GetInstance().Print(
+            "glesandroid",
+            "[ORBIT2SX_EGL] release deferred: "
+            "EGL display is unavailable. "
+            "context=%p surface=%p retiredSurfaces=%u\r\n",
+            m_context,
+            m_surface,
+            static_cast<unsigned int>(m_retiredSurfaces.size()));
 
-        if(m_context != EGL_NO_CONTEXT)
-        {
-            EGLint destroyError = EGL_SUCCESS;
+        return;
+    }
 
-            if(!CEglContextManager::Destroy(
-                   m_display,
-                   &m_context,
-                   &destroyError))
-            {
-                CLog::GetInstance().Print(
-                    "glesandroid",
-                    "[ORBIT2SX_EGL] context destruction failed "
-                    "error=0x%04X context=%p\r\n",
-                    destroyError,
-                    m_context);
-            }
-		}
-		
-        // -----------------------------------------------------
-        // 5. RELEASE ONE SHARED DISPLAY LEASE
-        // -----------------------------------------------------
-        // eglTerminate() is now owned exclusively by
-        // CEglDisplayManager.
-        //
-        // If another renderer still holds a lease, the display
-        // remains initialized.
-        //
-        // Only the final Release() terminates the display.
-        if(m_context == EGL_NO_CONTEXT)
-        {
-            ReleaseEglDisplay();
-        }
-        else
+    // ---------------------------------------------------------
+    // 4. DESTROY ACTIVE SURFACE
+    // ---------------------------------------------------------
+
+    DestroySurface();
+
+    // ---------------------------------------------------------
+    // 5. RETRY RETIRED SURFACES
+    // ---------------------------------------------------------
+
+    CleanupRetiredSurfaces();
+
+    const bool allSurfacesDestroyed =
+        m_surface == EGL_NO_SURFACE &&
+        m_retiredSurfaces.empty();
+
+    if(!allSurfacesDestroyed)
+    {
+        // Do not destroy the context or release the display
+        // while surfaces remain uncleaned.
+        m_surfaceRecoveryPending = true;
+
+        CLog::GetInstance().Print(
+            "glesandroid",
+            "[ORBIT2SX_EGL] context cleanup deferred: "
+            "one or more EGL surfaces remain alive. "
+            "surface=%p retiredSurfaces=%u "
+            "context=%p display=%p\r\n",
+            m_surface,
+            static_cast<unsigned int>(m_retiredSurfaces.size()),
+            m_context,
+            m_display);
+
+        return;
+    }
+
+    // ---------------------------------------------------------
+    // 6. DESTROY EGL CONTEXT
+    // ---------------------------------------------------------
+
+    if(m_context != EGL_NO_CONTEXT)
+    {
+        EGLint destroyError = EGL_SUCCESS;
+
+        if(!CEglContextManager::Destroy(
+               m_display,
+               &m_context,
+               &destroyError))
         {
             CLog::GetInstance().Print(
                 "glesandroid",
-                "[ORBIT2SX_EGL] display lease retained because "
-                "context destruction did not complete. "
-                "context=%p display=%p\r\n",
+                "[ORBIT2SX_EGL] context destruction failed; "
+                "context handle retained. "
+                "error=0x%04X context=%p display=%p\r\n",
+                destroyError,
                 m_context,
                 m_display);
+
+            m_surfaceRecoveryPending = true;
+            return;
         }
     }
-	
-    // ---------------------------------------------------------
-    // 6. RESET LOCAL EGL CONFIGURATION
-    // ---------------------------------------------------------
-    m_config = nullptr;
-    m_nativeVisualId = 0;
 
     // ---------------------------------------------------------
-    // 7. MARK SURFACE AS REQUIRING REINITIALIZATION
+    // 7. RELEASE EGL DISPLAY LEASE
     // ---------------------------------------------------------
-    m_surfaceRecoveryPending = true;
+
+    if(m_context == EGL_NO_CONTEXT &&
+       m_surface == EGL_NO_SURFACE &&
+       m_retiredSurfaces.empty())
+    {
+        ReleaseEglDisplay();
+    }
+
+    // ---------------------------------------------------------
+    // 8. RESET CONFIGURATION ONLY AFTER DISPLAY RELEASE
+    // ---------------------------------------------------------
+
+    if(m_display == EGL_NO_DISPLAY)
+    {
+        m_config = nullptr;
+        m_nativeVisualId = 0;
+    }
+
+    // ---------------------------------------------------------
+    // 9. UPDATE RECOVERY STATE
+    // ---------------------------------------------------------
+
+    m_surfaceRecoveryPending =
+        m_display != EGL_NO_DISPLAY ||
+        m_context != EGL_NO_CONTEXT ||
+        m_surface != EGL_NO_SURFACE ||
+        !m_retiredSurfaces.empty();
 
     CLog::GetInstance().Print(
         "glesandroid",
-        "[ORBIT2SX_EGL] renderer EGL resources released "
+        "[ORBIT2SX_EGL] release completed "
         "display=%p context=%p surface=%p "
-        "remainingDisplayReferences=%u\r\n",
+        "retiredSurfaces=%u config=%p "
+        "remainingDisplayReferences=%u recoveryPending=%u\r\n",
         m_display,
         m_context,
         m_surface,
-        CEglDisplayManager::GetReferenceCount());
+        static_cast<unsigned int>(m_retiredSurfaces.size()),
+        m_config,
+        CEglDisplayManager::GetReferenceCount(),
+        m_surfaceRecoveryPending ? 1 : 0);
 }
 
 void CGSH_OpenGLAndroid::RecoverEglSession()
