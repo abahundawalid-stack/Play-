@@ -412,6 +412,9 @@ bool CGSH_OpenGLAndroid::SetupContext()
         return failRecovery();
     }
 
+    // Retry cleanup of previously retired EGL surfaces.
+    CleanupRetiredSurfaces();
+	
     // ---------------------------------------------------------
     // MATCH ANDROID NATIVE WINDOW FORMAT WITH EGL CONFIG
     // ---------------------------------------------------------
@@ -477,7 +480,21 @@ bool CGSH_OpenGLAndroid::SetupContext()
             height,
             error);
 
-        eglDestroySurface(m_display, newSurface);
+        EGLint cleanupError = EGL_SUCCESS;
+
+        if(!DestroySurfaceHandle(newSurface, &cleanupError))
+        {
+            m_retiredSurfaces.push_back(newSurface);
+
+            CLog::GetInstance().Print(
+                "glesandroid",
+                "[ORBIT2SX_EGL] invalid replacement surface "
+                "could not be destroyed; handle retained. "
+                "error=0x%04X surface=%p\r\n",
+                cleanupError,
+                newSurface);
+        }
+
         return failRecovery();
     }
 
@@ -499,8 +516,22 @@ bool CGSH_OpenGLAndroid::SetupContext()
             m_context,
             newSurface);
 
-        // Surface baru belum menjadi surface aktif.
-        eglDestroySurface(m_display, newSurface);
+        // The replacement surface did not become current.
+        // Keep its handle if EGL cannot destroy it.
+        EGLint cleanupError = EGL_SUCCESS;
+
+        if(!DestroySurfaceHandle(newSurface, &cleanupError))
+        {
+            m_retiredSurfaces.push_back(newSurface);
+
+            CLog::GetInstance().Print(
+                "glesandroid",
+                "[ORBIT2SX_EGL] failed replacement surface cleanup; "
+                "handle retained. "
+                "error=0x%04X surface=%p\r\n",
+                cleanupError,
+                newSurface);
+        }
 
         return failRecovery();
 	}    
@@ -512,15 +543,18 @@ bool CGSH_OpenGLAndroid::SetupContext()
     if(previousSurface != EGL_NO_SURFACE &&
        previousSurface != newSurface)
     {
-        if(eglDestroySurface(m_display, previousSurface) != EGL_TRUE)
+        EGLint cleanupError = EGL_SUCCESS;
+
+        if(!DestroySurfaceHandle(previousSurface, &cleanupError))
         {
-            const EGLint error = eglGetError();
+            m_retiredSurfaces.push_back(previousSurface);
 
             CLog::GetInstance().Print(
                 "glesandroid",
-                "[ORBIT2SX_EGL] old surface destruction failed "
+                "[ORBIT2SX_EGL] old surface destruction failed; "
+                "handle retained for retry. "
                 "error=0x%04X old=%p\r\n",
-                error,
+                cleanupError,
                 previousSurface);
         }
     }
@@ -583,6 +617,133 @@ bool CGSH_OpenGLAndroid::SetupContext()
     return true;
 }
 
+bool CGSH_OpenGLAndroid::DestroySurfaceHandle(
+    EGLSurface surface,
+    EGLint* error)
+{
+    if(error != nullptr)
+    {
+        *error = EGL_SUCCESS;
+    }
+
+    if(surface == EGL_NO_SURFACE)
+    {
+        return true;
+    }
+
+    if(m_display == EGL_NO_DISPLAY)
+    {
+        if(error != nullptr)
+        {
+            *error = EGL_BAD_DISPLAY;
+        }
+
+        return false;
+    }
+
+    const EGLContext currentContext = eglGetCurrentContext();
+    const EGLDisplay currentDisplay = eglGetCurrentDisplay();
+
+    const EGLSurface currentDraw =
+        eglGetCurrentSurface(EGL_DRAW);
+
+    const EGLSurface currentRead =
+        eglGetCurrentSurface(EGL_READ);
+
+    const bool surfaceIsCurrent =
+        currentDraw == surface ||
+        currentRead == surface;
+
+    // This surface is current on another context.
+    // Do not destroy it while that context is using it.
+    if(surfaceIsCurrent &&
+       currentContext != EGL_NO_CONTEXT &&
+       currentContext != m_context)
+    {
+        if(error != nullptr)
+        {
+            *error = EGL_BAD_ACCESS;
+        }
+
+        return false;
+    }
+
+    // Detach our own context only if the target surface
+    // is actually current on this thread.
+    if(surfaceIsCurrent &&
+       currentContext == m_context &&
+       m_context != EGL_NO_CONTEXT)
+    {
+        EGLint detachError = EGL_SUCCESS;
+
+        if(!CEglContextManager::ClearCurrent(
+               m_display,
+               m_context,
+               &detachError))
+        {
+            if(error != nullptr)
+            {
+                *error = detachError;
+            }
+
+            return false;
+        }
+    }
+
+    if(eglDestroySurface(m_display, surface) != EGL_TRUE)
+    {
+        const EGLint destroyError = eglGetError();
+
+        if(error != nullptr)
+        {
+            *error = destroyError;
+        }
+
+        return false;
+    }
+
+    return true;
+}
+
+void CGSH_OpenGLAndroid::CleanupRetiredSurfaces()
+{
+    if(m_display == EGL_NO_DISPLAY)
+    {
+        return;
+    }
+
+    auto iterator = m_retiredSurfaces.begin();
+
+    while(iterator != m_retiredSurfaces.end())
+    {
+        const EGLSurface surface = *iterator;
+
+        EGLint error = EGL_SUCCESS;
+
+        if(DestroySurfaceHandle(surface, &error))
+        {
+            CLog::GetInstance().Print(
+                "glesandroid",
+                "[ORBIT2SX_EGL] retired surface cleanup succeeded "
+                "surface=%p\r\n",
+                surface);
+
+            iterator = m_retiredSurfaces.erase(iterator);
+        }
+        else
+        {
+            CLog::GetInstance().Print(
+                "glesandroid",
+                "[ORBIT2SX_EGL] retired surface cleanup failed "
+                "error=0x%04X surface=%p\r\n",
+                error,
+                surface);
+
+            ++iterator;
+        }
+    }
+}
+
 void CGSH_OpenGLAndroid::DestroySurface()
 {
     m_surfaceRecoveryPending = true;
@@ -592,33 +753,48 @@ void CGSH_OpenGLAndroid::DestroySurface()
         return;
     }
 
-    EGLSurface surfaceToDestroy = m_surface;
-
-    // Clear the member first so no later frame can reuse this handle.
-    m_surface = EGL_NO_SURFACE;
-
     if(m_display == EGL_NO_DISPLAY)
     {
+        CLog::GetInstance().Print(
+            "glesandroid",
+            "[ORBIT2SX_EGL] cannot destroy surface: "
+            "display is unavailable. "
+            "surface=%p\r\n",
+            m_surface);
+
+        // Preserve the surface handle.
         return;
     }
 
-    // Unbind only when this renderer's context is current.
-    if(CEglContextManager::IsCurrent(m_context))
-    {
-        EGLint detachError = EGL_SUCCESS;
+    const EGLSurface surfaceToDestroy = m_surface;
 
-        if(!CEglContextManager::ClearCurrent(
-               m_display,
-               &detachError))
-        {
-            CLog::GetInstance().Print(
-                "glesandroid",
-                "[ORBIT2SX_EGL] context detach failed "
-                "error=0x%04X context=%p\r\n",
-                detachError,
-                m_context);
-        }
+    EGLint error = EGL_SUCCESS;
+
+    if(!DestroySurfaceHandle(surfaceToDestroy, &error))
+    {
+        CLog::GetInstance().Print(
+            "glesandroid",
+            "[ORBIT2SX_EGL] surface destruction failed; "
+            "surface handle retained. "
+            "error=0x%04X surface=%p context=%p\r\n",
+            error,
+            surfaceToDestroy,
+            m_context);
+
+        // Do not clear m_surface.
+        // A later cleanup attempt must still have this handle.
+        return;
     }
+
+    // Clear the member only after EGL confirms success.
+    m_surface = EGL_NO_SURFACE;
+
+    CLog::GetInstance().Print(
+        "glesandroid",
+        "[ORBIT2SX_EGL] surface destroyed successfully "
+        "surface=%p\r\n",
+        surfaceToDestroy);
+}
 
     if(eglDestroySurface(m_display, surfaceToDestroy) != EGL_TRUE)
     {
