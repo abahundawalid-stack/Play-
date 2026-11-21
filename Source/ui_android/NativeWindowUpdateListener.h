@@ -5,53 +5,93 @@
 /**
  * @brief Receives native-window updates for Android GS backends.
  *
- * Ownership contract:
+ * This interface defines the ownership and threading contract between
+ * Android JNI lifecycle code and Android GS renderer implementations.
  *
- * 1. A non-null window passed to SetWindow() represents exactly one
- *    owned ANativeWindow reference.
+ * OWNERSHIP CONTRACT
+ * ------------------
  *
- * 2. The caller transfers ownership of that reference to the listener.
- *    The caller must not release or reuse that transferred reference.
+ * 1. Every non-null ANativeWindow* passed to SetWindow() represents
+ *    exactly one acquired reference.
  *
- * 3. The listener must consume the transferred reference exactly once:
- *    - retain it while the window is in use, or
- *    - release it when it is no longer needed.
+ * 2. Ownership of that reference is transferred to the listener
+ *    when SetWindow() is called.
  *
- * 4. Passing nullptr requests detachment of the current native window.
- *    nullptr does not represent an owned reference.
+ * 3. The caller MUST NOT release the transferred reference after
+ *    calling SetWindow().
  *
- * 5. If the incoming pointer is identical to the currently retained
- *    pointer, the incoming reference is still a separate reference.
- *    The listener must release that extra reference while preserving
- *    the previously retained reference.
+ * 4. The implementation MUST consume the transferred reference
+ *    exactly once:
  *
- * Threading contract:
+ *       - retain it while the renderer uses the window;
+ *       - release it when replacing or detaching the window;
+ *       - release it when the listener is destroyed.
  *
- * 1. SetWindow() may be called outside the GS rendering thread.
+ * 5. Passing nullptr requests detachment of the currently retained
+ *    window. nullptr does not represent an acquired reference.
  *
- * 2. Implementations are responsible for serializing renderer and
- *    surface operations on the appropriate GS thread.
+ * 6. Passing the same pointer again does not cancel the ownership
+ *    transfer. The new call still carries a separate reference.
+ *    The implementation MUST release that additional reference
+ *    while preserving its previously retained reference.
  *
- * 3. Ownership transfers when SetWindow() accepts the argument.
- *    Actual renderer processing may be deferred by the implementation.
+ * 7. Ownership must remain valid while renderer work is queued.
+ *    Implementations must not capture an unowned ANativeWindow*
+ *    in deferred work.
  *
- * 4. This interface does not guarantee that renderer processing has
+ * THREADING CONTRACT
+ * ------------------
+ *
+ * 1. SetWindow() may be called from the Android UI thread or another
+ *    thread outside the GS rendering thread.
+ *
+ * 2. Renderer, EGL, Vulkan surface, and window-state operations
+ *    MUST be serialized on the appropriate GS execution thread.
+ *
+ * 3. Implementations are responsible for preserving the listener
+ *    object's lifetime while deferred GS work is pending.
+ *
+ * 4. This interface does not promise that renderer processing has
  *    completed when SetWindow() returns.
  *
- * Android reference source:
- * ANativeWindow_fromSurface() acquires a reference that must eventually
- * be released with ANativeWindow_release().
+ * 5. Implementations requiring completion before returning must
+ *    explicitly request and enforce synchronous GS dispatch.
+ *
+ * LIFECYCLE CONTRACT
+ * ------------------
+ *
+ * 1. A window replacement must stop using the previous window
+ *    before releasing its retained reference.
+ *
+ * 2. A detach operation must stop presentation and release the
+ *    renderer's native surface before releasing the retained window.
+ *
+ * 3. Renderer destruction must release all resources associated
+ *    with the retained window before releasing that window.
+ *
+ * ANDROID REFERENCE CONTRACT
+ * --------------------------
+ *
+ * ANativeWindow_fromSurface() returns an acquired reference.
+ * Every acquired reference must eventually be released with
+ * ANativeWindow_release().
  */
 class INativeWindowUpdateListener
 {
 public:
-    virtual ~INativeWindowUpdateListener() = default;
+    virtual ~INativeWindowUpdateListener() noexcept = default;
 
     /**
-     * @brief Updates or detaches the Android native window.
+     * @brief Replaces, updates, or detaches the Android native window.
      *
-     * @param window One transferred ANativeWindow reference, or nullptr
-     *               to detach the current window.
+     * @param window One transferred ANativeWindow reference, or
+     *               nullptr to detach the current window.
+     *
+     * @note The implementation assumes ownership of the supplied
+     *       reference. The caller must not release it afterward.
+     *
+     * @note Renderer operations must be serialized by the
+     *       implementation on the appropriate GS execution thread.
      */
     virtual void SetWindow(ANativeWindow* window) = 0;
 };
