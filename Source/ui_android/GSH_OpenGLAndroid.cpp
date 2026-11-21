@@ -46,9 +46,9 @@ CGSH_OpenGLAndroid::~CGSH_OpenGLAndroid()
     {
         CLog::GetInstance().Print(
             "glesandroid",
-            "[ORBIT2SX_EGL] CRITICAL: unable to transfer "
-            "unresolved EGL ownership. "
-            "Resources will be intentionally retained. "
+            "[ORBIT2SX_EGL] FATAL: unresolved EGL resources "
+            "could not be transferred to the cleanup manager. "
+            "Refusing to destroy renderer ownership records. "
             "display=%p context=%p surface=%p "
             "surfaceWindow=%p retiredSurfaces=%u\r\n",
             m_display,
@@ -58,14 +58,13 @@ CGSH_OpenGLAndroid::~CGSH_OpenGLAndroid()
             static_cast<unsigned int>(
                 m_retiredSurfaces.size()));
 
-        // Do not release references that may still be backing
-        // EGL surfaces. This is an emergency safety fallback.
-        m_surface = EGL_NO_SURFACE;
-        m_surfaceWindow = nullptr;
-        m_context = EGL_NO_CONTEXT;
-        m_display = EGL_NO_DISPLAY;
-
-        m_retiredSurfaces.clear();
+        // A failed ownership transfer must never be followed by
+        // destruction of the only remaining ownership records.
+        //
+        // This is an allocation-failure emergency path. Terminating
+        // is safer than silently losing live EGL handles and their
+        // paired ANativeWindow references.
+        std::terminate();
     }
     // Release the renderer's ordinary window reference.
     // Surface-specific references are independent.
