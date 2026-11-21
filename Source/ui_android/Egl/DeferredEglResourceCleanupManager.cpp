@@ -483,6 +483,18 @@ CDeferredEglResourceCleanupManager::Drain()
             ++iterator;
         }
     }
+    // Complete shutdown only after the final renderer has been
+    // unregistered and every deferred resource bundle is gone.
+    if(state.shutdownRequested &&
+       state.activeRenderers == 0 &&
+       state.pending.empty())
+    {
+        state.shutdownComplete = true;
+    }
+    else
+    {
+        state.shutdownComplete = false;
+    }
 
     return result;
 }
