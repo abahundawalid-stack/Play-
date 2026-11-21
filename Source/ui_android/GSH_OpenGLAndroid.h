@@ -1,5 +1,7 @@
 #pragma once
 
+#include <vector>
+
 #include "../gs/GSH_OpenGL/GSH_OpenGL.h"
 #include "opengl/OpenGlDef.h"
 #include "NativeWindowUpdateListener.h"
@@ -27,6 +29,14 @@ private:
     // Detach and destroy the current EGL surface safely.
     void DestroySurface();
 
+    // Destroys a surface without losing its handle on failure.
+    bool DestroySurfaceHandle(
+        EGLSurface surface,
+        EGLint* error = nullptr);
+
+    // Retries destruction of surfaces that previously failed cleanup.
+    void CleanupRetiredSurfaces();
+
     // Recreate the EGL display/context and OpenGL renderer.
     void RecoverEglSession();
 
@@ -49,4 +59,8 @@ private:
     EGLDisplay m_display = EGL_NO_DISPLAY;
 	EGLContext m_context = EGL_NO_CONTEXT;
 	EGLSurface m_surface = EGL_NO_SURFACE;
+
+    // EGL surfaces whose destruction previously failed.
+    // They must remain tracked until cleanup succeeds.
+    std::vector<EGLSurface> m_retiredSurfaces;
 };
