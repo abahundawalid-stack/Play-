@@ -14,15 +14,48 @@
 CGSH_OpenGLAndroid::CGSH_OpenGLAndroid(NativeWindowType window)
     : m_window(window)
 {
+    // Ownership of the supplied ANativeWindow reference is transferred
+    // to this renderer instance.
+    //
+    // The reference must remain alive for as long as EGL may use it.
+    // A null window is valid and represents a detached renderer.
 }
 
 CGSH_OpenGLAndroid::~CGSH_OpenGLAndroid()
 {
-	if(m_window != nullptr)
-	{
-		ANativeWindow_release(m_window);
-		m_window = nullptr;
-	}
+    // ---------------------------------------------------------
+    // 1. RELEASE GRAPHICS RESOURCES ON THE GS EXECUTION THREAD
+    // ---------------------------------------------------------
+    // Release() dispatches ReleaseImpl() through the GS handler's
+    // synchronization mechanism and waits for completion.
+    //
+    // This ensures that OpenGL resources, EGL surface, EGL context,
+    // and EGL display are released before the native window reference.
+    //
+    // ReleaseImpl() is designed to tolerate an already released
+    // or partially initialized EGL session.
+    Release();
+
+    // ---------------------------------------------------------
+    // 2. DETACH THE OWNED NATIVE WINDOW REFERENCE
+    // ---------------------------------------------------------
+    NativeWindowType windowToRelease = m_window;
+
+    // Clear the member before releasing the reference.
+    // This prevents accidental reuse of a reference that is
+    // no longer owned by this renderer.
+    m_window = nullptr;
+
+    // ---------------------------------------------------------
+    // 3. RELEASE THE NATIVE WINDOW EXACTLY ONCE
+    // ---------------------------------------------------------
+    if(windowToRelease != nullptr)
+    {
+        ANativeWindow_release(windowToRelease);
+        windowToRelease = nullptr;
+    }
+
+    // No EGL or OpenGL operation should be performed after this point.
 }
 
 CGSHandler::FactoryFunction CGSH_OpenGLAndroid::GetFactoryFunction(
