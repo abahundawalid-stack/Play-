@@ -382,6 +382,7 @@ void CGSH_OpenGLAndroid::InitializeImpl()
 
         m_surfaceRecoveryPending = true;
         return;
+    }
 
     CGSH_OpenGL::InitializeImpl();
     m_rendererInitialized = true;
@@ -703,7 +704,8 @@ void CGSH_OpenGLAndroid::ReleaseImpl()
                 m_context,
                 m_display);
         }
-
+    }
+	
     // ---------------------------------------------------------
     // 6. RESET LOCAL EGL CONFIGURATION
     // ---------------------------------------------------------
