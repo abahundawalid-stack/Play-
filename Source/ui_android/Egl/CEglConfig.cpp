@@ -312,7 +312,7 @@ bool CEglConfig::ChooseWindowConfig(
 
     if(totalConfigs <= 0)
     {
-        SetError(error, EGL_CONFIG_NOT_SUPPORTED);
+        SetError(error, EGL_BAD_MATCH);
         return false;
     }
 
@@ -343,7 +343,7 @@ bool CEglConfig::ChooseWindowConfig(
 
     if(returnedConfigs <= 0)
     {
-        SetError(error, EGL_CONFIG_NOT_SUPPORTED);
+        SetError(error, EGL_BAD_MATCH);
         return false;
     }
 
@@ -394,7 +394,7 @@ bool CEglConfig::ChooseWindowConfig(
 
     if(!hasBestCandidate)
     {
-        SetError(error, EGL_CONFIG_NOT_SUPPORTED);
+        SetError(error, EGL_BAD_MATCH);
         return false;
     }
 
