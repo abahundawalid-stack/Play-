@@ -10,6 +10,7 @@
 #include "Egl/EglDisplayManager.h"
 #include "Egl/CEglConfig.h"
 #include "Egl/CEglContextManager.h"
+#include "Egl/DeferredEglResourceCleanupManager.h"
 #include "AppConfig.h"
 #include "NativeShared.h"
 #include "Log.h"
