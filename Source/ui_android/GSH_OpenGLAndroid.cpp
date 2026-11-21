@@ -367,7 +367,17 @@ void CGSH_OpenGLAndroid::InitializeImpl()
             "glesandroid",
             "[ORBIT2SX_EGL] SetupContext failed during initialization.\r\n");
 
-        if(m_context != EGL_NO_CONTEXT)
+        // Retry cleanup of any replacement surface that failed
+        // during SetupContext().
+        CleanupRetiredSurfaces();
+
+        const bool surfacesClean =
+            m_surface == EGL_NO_SURFACE &&
+            m_retiredSurfaces.empty();
+
+        // Destroy the context only after all surfaces are clean.
+        if(surfacesClean &&
+           m_context != EGL_NO_CONTEXT)
         {
             EGLint destroyError = EGL_SUCCESS;
 
@@ -378,16 +388,23 @@ void CGSH_OpenGLAndroid::InitializeImpl()
             {
                 CLog::GetInstance().Print(
                     "glesandroid",
-                    "[ORBIT2SX_EGL] context cleanup failed "
+                    "[ORBIT2SX_EGL] initialization context cleanup failed; "
+                    "context retained. "
                     "error=0x%04X context=%p\r\n",
                     destroyError,
                     m_context);
             }
         }
-        m_config = nullptr;
-        m_nativeVisualId = 0;
 
-        if(m_context == EGL_NO_CONTEXT)
+        const bool contextClean =
+            m_context == EGL_NO_CONTEXT;
+
+        const bool allResourcesClean =
+            surfacesClean && contextClean;
+
+        // Release the display only when every EGL resource
+        // owned by this renderer has been destroyed.
+        if(allResourcesClean)
         {
             ReleaseEglDisplay();
         }
@@ -395,17 +412,26 @@ void CGSH_OpenGLAndroid::InitializeImpl()
         {
             CLog::GetInstance().Print(
                 "glesandroid",
-                "[ORBIT2SX_EGL] display lease retained "
-                "because context cleanup failed. "
-                "context=%p display=%p\r\n",
+                "[ORBIT2SX_EGL] initialization cleanup deferred. "
+                "display=%p context=%p surface=%p "
+                "retiredSurfaces=%u\r\n",
+                m_display,
                 m_context,
-                m_display);
+                m_surface,
+                static_cast<unsigned int>(m_retiredSurfaces.size()));
+        }
+
+        // Reset config only when display release succeeded.
+        if(m_display == EGL_NO_DISPLAY)
+        {
+            m_config = nullptr;
+            m_nativeVisualId = 0;
         }
 
         m_surfaceRecoveryPending = true;
         return;
     }
-
+	
     CGSH_OpenGL::InitializeImpl();
     m_rendererInitialized = true;
 
