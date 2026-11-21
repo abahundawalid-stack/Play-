@@ -1091,6 +1091,10 @@ void CGSH_OpenGLAndroid::ReleaseImpl()
                 static_cast<unsigned int>(
                     m_retiredSurfaces.size()));
         }
+        const auto deferredCleanupResult =
+            CDeferredEglResourceCleanupManager::Drain();
+
+        (void)deferredCleanupResult;
 		
         return;
     }
