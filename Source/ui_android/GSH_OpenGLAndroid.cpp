@@ -702,6 +702,19 @@ bool CGSH_OpenGLAndroid::DestroySurfaceHandle(
         currentDraw == surface ||
         currentRead == surface;
 
+    // A current surface must belong to this renderer's EGL display.
+    if(surfaceIsCurrent &&
+       currentContext != EGL_NO_CONTEXT &&
+       currentDisplay != m_display)
+    {
+        if(error != nullptr)
+        {
+            *error = EGL_BAD_DISPLAY;
+        }
+
+        return false;
+    }
+
     // This surface is current on another context.
     // Do not destroy it while that context is using it.
     if(surfaceIsCurrent &&
@@ -842,20 +855,7 @@ void CGSH_OpenGLAndroid::DestroySurface()
         "[ORBIT2SX_EGL] surface destroyed successfully "
         "surface=%p\r\n",
         surfaceToDestroy);
-}
-
-    if(eglDestroySurface(m_display, surfaceToDestroy) != EGL_TRUE)
-    {
-        const EGLint error = eglGetError();
-
-        CLog::GetInstance().Print(
-            "glesandroid",
-            "[ORBIT2SX_EGL] eglDestroySurface failed "
-            "error=0x%04X surface=%p\r\n",
-            error,
-            surfaceToDestroy);
-    }
-}
+}    
 
 void CGSH_OpenGLAndroid::ReleaseImpl()
 {
