@@ -1171,6 +1171,26 @@ void CGSH_OpenGLAndroid::ReleaseImpl()
         m_surface != EGL_NO_SURFACE ||
         m_surfaceWindow != nullptr ||
         !m_retiredSurfaces.empty();
+	
+    // All normal cleanup attempts have completed.
+    // Any remaining EGL resource must now have an explicit owner.
+    if(m_surfaceRecoveryPending)
+    {
+        if(!DeferOutstandingEglResources())
+        {
+            CLog::GetInstance().Print(
+                "glesandroid",
+                "[ORBIT2SX_EGL] deferred ownership transfer "
+                "failed after normal cleanup. "
+                "display=%p context=%p surface=%p "
+                "retiredSurfaces=%u\r\n",
+                m_display,
+                m_context,
+                m_surface,
+                static_cast<unsigned int>(
+                    m_retiredSurfaces.size()));
+        }
+    }
 
     CLog::GetInstance().Print(
         "glesandroid",
