@@ -209,11 +209,6 @@ void CGSH_OpenGLAndroid::InitializeImpl()
 
 	m_surfaceRecoveryPending = true;
 
-    static const EGLint contextAttribs[] = {
-        EGL_CONTEXT_CLIENT_VERSION, 3,
-        EGL_NONE
-    };
-    
     // ---------------------------------------------------------
     // ACQUIRE SHARED EGL DISPLAY
     // ---------------------------------------------------------
@@ -343,29 +338,7 @@ void CGSH_OpenGLAndroid::InitializeImpl()
         m_context,
         m_display,
         m_config);
-
-    if(m_context == EGL_NO_CONTEXT)
-    {
-        const EGLint error = eglGetError();
-
-        CLog::GetInstance().Print(
-            "glesandroid",
-            "[ORBIT2SX_EGL] eglCreateContext failed "
-            "error=0x%04X display=%p config=%p\r\n",
-            error,
-            m_display,
-            m_config);
-
-        m_context = EGL_NO_CONTEXT;
-        m_config = nullptr;
-        m_nativeVisualId = 0;
-
-        ReleaseEglDisplay();
-
-        m_surfaceRecoveryPending = true;
-        return;
-    }
-
+    
     if(!SetupContext())
     {
         CLog::GetInstance().Print(
@@ -390,11 +363,25 @@ void CGSH_OpenGLAndroid::InitializeImpl()
             }
         }
         m_config = nullptr;
-        ReleaseEglDisplay();
+        m_nativeVisualId = 0;
+
+        if(m_context == EGL_NO_CONTEXT)
+        {
+            ReleaseEglDisplay();
+        }
+        else
+        {
+            CLog::GetInstance().Print(
+                "glesandroid",
+                "[ORBIT2SX_EGL] display lease retained "
+                "because context cleanup failed. "
+                "context=%p display=%p\r\n",
+                m_context,
+                m_display);
+        }
 
         m_surfaceRecoveryPending = true;
         return;
-    }
 
     CGSH_OpenGL::InitializeImpl();
     m_rendererInitialized = true;
