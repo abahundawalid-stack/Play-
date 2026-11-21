@@ -259,6 +259,55 @@ namespace
     }
 }
 
+void CDeferredEglResourceCleanupManager::RegisterRenderer()
+{
+    DeferredEglState& state = GetState();
+
+    std::lock_guard<std::mutex> lock(state.mutex);
+
+    ++state.activeRenderers;
+
+    state.shutdownRequested = false;
+    state.shutdownComplete = false;
+}
+
+void CDeferredEglResourceCleanupManager::UnregisterRenderer()
+{
+    DeferredEglState& state = GetState();
+
+    std::lock_guard<std::mutex> lock(state.mutex);
+
+    if(state.activeRenderers == 0)
+    {
+        return;
+    }
+
+    --state.activeRenderers;
+
+    if(state.activeRenderers == 0)
+    {
+        state.shutdownRequested = true;
+        state.shutdownComplete = state.pending.empty();
+    }
+}
+
+CDeferredEglResourceCleanupManager::LifecycleStatus
+CDeferredEglResourceCleanupManager::GetLifecycleStatus()
+{
+    DeferredEglState& state = GetState();
+
+    std::lock_guard<std::mutex> lock(state.mutex);
+
+    LifecycleStatus status;
+
+    status.activeRenderers = state.activeRenderers;
+    status.pendingBundles = state.pending.size();
+    status.shutdownRequested = state.shutdownRequested;
+    status.shutdownComplete = state.shutdownComplete;
+
+    return status;
+}
+
 bool CDeferredEglResourceCleanupManager::Adopt(
     ResourceBundle&& bundle)
 {
