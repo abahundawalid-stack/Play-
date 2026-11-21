@@ -9,6 +9,7 @@
 #include "GSH_OpenGLAndroid.h"
 #include "Egl/EglDisplayManager.h"
 #include "Egl/CEglConfig.h"
+#include "Egl/CEglContextManager.h"
 #include "AppConfig.h"
 #include "NativeShared.h"
 #include "Log.h"
