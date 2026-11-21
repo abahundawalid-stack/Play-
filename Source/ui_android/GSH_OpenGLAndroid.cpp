@@ -19,6 +19,8 @@
 CGSH_OpenGLAndroid::CGSH_OpenGLAndroid(NativeWindowType window)
     : m_window(window)
 {
+    CDeferredEglResourceCleanupManager::RegisterRenderer();
+
     // Ownership of the supplied ANativeWindow reference is transferred
     // to this renderer instance.
     //
