@@ -61,95 +61,62 @@ CGSH_OpenGLAndroid::~CGSH_OpenGLAndroid()
     // No EGL or OpenGL operation should be performed after this point.
 }
 
-CGSHandler::FactoryFunction CGSH_OpenGLAndroid::GetFactoryFunction(
-    NativeWindowType window)
+CGSH_OpenGLAndroid::~CGSH_OpenGLAndroid()
 {
-    // ---------------------------------------------------------
-    // 1. DEFINE NATIVE WINDOW OWNERSHIP
-    // ---------------------------------------------------------
-    // The incoming reference is transferred to this factory.
-    //
-    // The shared_ptr owns that original reference and guarantees
-    // that it remains alive while any copy of the factory exists.
-    //
-    // Its custom deleter releases the reference exactly once,
-    // when the final shared owner is destroyed.
+    // Release graphics resources through the GS synchronization path.
+    Release();
 
-    auto releaseNativeWindow = [](ANativeWindow* ownedWindow) noexcept
+    // If EGL cleanup failed, do not release native-window references
+    // that may still be backing live EGL surfaces.
+    //
+    // This is a last-resort lifetime safeguard. It intentionally
+    // retains unresolved native-window references rather than risking
+    // a use-after-free inside the EGL driver.
+    const bool unresolvedSurfaceOwnership =
+        m_surface != EGL_NO_SURFACE ||
+        m_surfaceWindow != nullptr ||
+        !m_retiredSurfaces.empty();
+
+    if(unresolvedSurfaceOwnership)
     {
-        if(ownedWindow != nullptr)
+        CLog::GetInstance().Print(
+            "glesandroid",
+            "[ORBIT2SX_EGL] CRITICAL: renderer destroyed with "
+            "unresolved EGL surface ownership. Native-window "
+            "references are intentionally not released. "
+            "display=%p context=%p surface=%p surfaceWindow=%p "
+            "retiredSurfaces=%u\r\n",
+            m_display,
+            m_context,
+            m_surface,
+            m_surfaceWindow,
+            static_cast<unsigned int>(m_retiredSurfaces.size()));
+
+        // Do not call ANativeWindow_release() for m_surfaceWindow
+        // or any retired record's window here.
+        //
+        // The outstanding native references are deliberately left
+        // acquired as a safety fallback if EGL still uses them.
+        m_surfaceWindow = nullptr;
+
+        for(auto& retired : m_retiredSurfaces)
         {
-            ANativeWindow_release(ownedWindow);
+            retired.window = nullptr;
         }
-    };
 
-    std::shared_ptr<ANativeWindow> windowOwner;
-
-    if(window != nullptr)
-    {
-        windowOwner = std::shared_ptr<ANativeWindow>(
-            window,
-            releaseNativeWindow);
+        m_retiredSurfaces.clear();
     }
 
-    // ---------------------------------------------------------
-    // 2. RETURN A COPYABLE, OWNERSHIP-SAFE FACTORY
-    // ---------------------------------------------------------
-    // Capturing shared_ptr makes the factory safe to copy and
-    // keeps the original native window reference alive until
-    // the factory and all its copies have released ownership.
+    // Release the renderer's ordinary window reference.
+    // Surface-specific references are independent.
+    NativeWindowType windowToRelease = m_window;
+    m_window = nullptr;
 
-    return [windowOwner, releaseNativeWindow]() -> CGSHandler*
+    if(windowToRelease != nullptr)
     {
-        // -----------------------------------------------------
-        // 3. HANDLE DETACHED WINDOW
-        // -----------------------------------------------------
-        // A null window is valid. The renderer can be created
-        // without a surface and wait for SetWindow() later.
-
-        if(!windowOwner)
-        {
-            return new CGSH_OpenGLAndroid(nullptr);
-        }
-
-        ANativeWindow* handlerWindow = windowOwner.get();
-
-        // -----------------------------------------------------
-        // 4. ACQUIRE AN INDEPENDENT REFERENCE FOR THE RENDERER
-        // -----------------------------------------------------
-        // The renderer must own its own reference because its
-        // lifetime is independent from the factory's lifetime.
-
-        ANativeWindow_acquire(handlerWindow);
-
-        // Keep the acquired reference under temporary RAII
-        // ownership until renderer construction succeeds.
-        std::unique_ptr<ANativeWindow, decltype(releaseNativeWindow)>
-            handlerWindowOwner(
-                handlerWindow,
-                releaseNativeWindow);
-
-        // -----------------------------------------------------
-        // 5. CONSTRUCT RENDERER
-        // -----------------------------------------------------
-        // CGSH_OpenGLAndroid takes ownership of the transferred
-        // reference. If construction throws, unique_ptr releases
-        // the reference automatically.
-
-        auto* renderer = new CGSH_OpenGLAndroid(
-            handlerWindowOwner.get());
-
-        // -----------------------------------------------------
-        // 6. TRANSFER OWNERSHIP TO THE RENDERER
-        // -----------------------------------------------------
-        // The renderer destructor is now responsible for releasing
-        // this reference. Prevent the temporary unique_ptr from
-        // releasing it a second time.
-
-        handlerWindowOwner.release();
-
-        return renderer;
-    };
+        ANativeWindow_release(windowToRelease);
+        windowToRelease = nullptr;
+    }
 }
 
 void CGSH_OpenGLAndroid::ReleaseEglDisplay()
@@ -376,6 +343,7 @@ void CGSH_OpenGLAndroid::InitializeImpl()
 
         const bool surfacesClean =
             m_surface == EGL_NO_SURFACE &&
+            m_surfaceWindow == nullptr &&
             m_retiredSurfaces.empty();
 
         // Destroy the context only after all surfaces are clean.
