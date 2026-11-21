@@ -860,17 +860,27 @@ void CGSH_OpenGLAndroid::CleanupRetiredSurfaces()
 
     while(iterator != m_retiredSurfaces.end())
     {
-        const EGLSurface surface = *iterator;
+        const EGLSurface surface = iterator->surface;
+        NativeWindowType window = iterator->window;
 
         EGLint error = EGL_SUCCESS;
 
         if(DestroySurfaceHandle(surface, &error))
         {
+            // Release the paired native-window reference only after
+            // EGL confirms that the corresponding surface is destroyed.
+            if(window != nullptr)
+            {
+                ANativeWindow_release(window);
+                window = nullptr;
+            }
+
             CLog::GetInstance().Print(
                 "glesandroid",
                 "[ORBIT2SX_EGL] retired surface cleanup succeeded "
-                "surface=%p\r\n",
-                surface);
+                "surface=%p window=%p\r\n",
+                surface,
+                iterator->window);
 
             iterator = m_retiredSurfaces.erase(iterator);
         }
@@ -879,9 +889,10 @@ void CGSH_OpenGLAndroid::CleanupRetiredSurfaces()
             CLog::GetInstance().Print(
                 "glesandroid",
                 "[ORBIT2SX_EGL] retired surface cleanup failed "
-                "error=0x%04X surface=%p\r\n",
+                "error=0x%04X surface=%p window=%p\r\n",
                 error,
-                surface);
+                surface,
+                window);
 
             ++iterator;
         }
