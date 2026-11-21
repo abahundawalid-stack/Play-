@@ -173,6 +173,7 @@ bool CEglContextManager::MakeCurrent(
 
 bool CEglContextManager::ClearCurrent(
     EGLDisplay display,
+    EGLContext expectedContext,
     EGLint* error)
 {
     ClearError(error);
@@ -183,26 +184,48 @@ bool CEglContextManager::ClearCurrent(
         return false;
     }
 
-    // Nothing to detach on this thread.
-    if(eglGetCurrentContext() == EGL_NO_CONTEXT)
+    if(!IsValidContext(expectedContext))
+    {
+        SetError(error, EGL_BAD_CONTEXT);
+        return false;
+    }
+
+    const EGLContext currentContext = eglGetCurrentContext();
+
+    // Tidak ada context yang aktif pada thread ini.
+    if(currentContext == EGL_NO_CONTEXT)
     {
         return true;
     }
 
-    // ---------------------------------------------------------
-    // DETACH CURRENT DRAW/READ SURFACES AND CONTEXT
-    // ---------------------------------------------------------
+    // Jangan pernah melepas context milik renderer lain.
+    if(currentContext != expectedContext)
+    {
+        SetError(error, EGL_BAD_CONTEXT);
+        return false;
+    }
 
+    // Pastikan context aktif memang berasal dari display ini.
+    const EGLDisplay currentDisplay = eglGetCurrentDisplay();
+
+    if(currentDisplay != display)
+    {
+        SetError(error, EGL_BAD_DISPLAY);
+        return false;
+    }
+
+    // Lepaskan hanya context yang sudah diverifikasi.
     if(eglMakeCurrent(
            display,
            EGL_NO_SURFACE,
            EGL_NO_SURFACE,
            EGL_NO_CONTEXT) != EGL_TRUE)
     {
-        SetError(error, ConsumeEglError());
+        SetError(error, eglGetError());
         return false;
     }
 
+    // Verifikasi bahwa context benar-benar sudah dilepas.
     if(eglGetCurrentContext() != EGL_NO_CONTEXT)
     {
         SetError(error, EGL_BAD_CONTEXT);
@@ -244,11 +267,13 @@ bool CEglContextManager::Destroy(
 
     if(eglGetCurrentContext() == contextToDestroy)
     {
-        if(!ClearCurrent(display, error))
+        if(!ClearCurrent(
+               display,
+               contextToDestroy,
+               error))
         {
             return false;
         }
-    }
 
     // ---------------------------------------------------------
     // 2. DESTROY CONTEXT
