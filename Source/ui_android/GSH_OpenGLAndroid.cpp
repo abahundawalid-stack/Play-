@@ -264,7 +264,7 @@ void CGSH_OpenGLAndroid::ReleaseEglDisplay()
 
 void CGSH_OpenGLAndroid::InitializeImpl()
 { 
-    const auto cleanupResult =
+        const auto cleanupResult =
     CDeferredEglResourceCleanupManager::Drain();
 
     FRAMEWORK_MAYBE_UNUSED cleanupResult;
@@ -1023,6 +1023,11 @@ void CGSH_OpenGLAndroid::DestroySurface()
 
 void CGSH_OpenGLAndroid::ReleaseImpl()
 {
+        const auto cleanupResult =
+    CDeferredEglResourceCleanupManager::Drain();
+
+    FRAMEWORK_MAYBE_UNUSED cleanupResult;
+	
     // ---------------------------------------------------------
     // 1. CLEAR GRAPHICS DIAGNOSTICS
     // ---------------------------------------------------------
