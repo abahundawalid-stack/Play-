@@ -3,6 +3,7 @@
 #include <mutex>
 #include <android/native_window.h>
 #include <android/native_window_jni.h>
+#include <memory>
 
 #include "android/AssetManager.h"
 #include "android/ContentResolver.h"
@@ -91,24 +92,88 @@ extern "C" JNIEXPORT jint JNICALL JNI_OnLoad(
     JavaVM* vm,
     void* aReserved)
 {
-    Framework::CJavaVM::SetJavaVM(vm);
+    if(vm == nullptr)
+    {
+        return JNI_ERR;
+    }
 
-    java::net::URL_ClassInfo::GetInstance().PrepareClassInfo();
-    java::net::HttpURLConnection_ClassInfo::GetInstance().PrepareClassInfo();
-    java::io::InputStream_ClassInfo::GetInstance().PrepareClassInfo();
-    java::io::OutputStream_ClassInfo::GetInstance().PrepareClassInfo();
-    java::security::MessageDigest_ClassInfo::GetInstance().PrepareClassInfo();
-    javax::crypto::Mac_ClassInfo::GetInstance().PrepareClassInfo();
-    javax::crypto::spec::SecretKeySpec_ClassInfo::GetInstance().PrepareClassInfo();
+    JNIEnv* env = nullptr;
 
-    android::content::ContentResolver_ClassInfo::GetInstance().PrepareClassInfo();
-    android::database::Cursor_ClassInfo::GetInstance().PrepareClassInfo();
-    android::net::Uri_ClassInfo::GetInstance().PrepareClassInfo();
-    android::os::ParcelFileDescriptor_ClassInfo::GetInstance().PrepareClassInfo();
+    const jint envResult =
+        vm->GetEnv(
+            reinterpret_cast<void**>(&env),
+            JNI_VERSION_1_6);
 
-    com::virtualapplications::play::Bootable_ClassInfo::GetInstance().PrepareClassInfo();
+    if(envResult != JNI_OK || env == nullptr)
+    {
+        return JNI_ERR;
+    }
 
-    return JNI_VERSION_1_6;
+    try
+    {
+        Framework::CJavaVM::SetJavaVM(vm);
+
+        java::net::URL_ClassInfo::GetInstance().PrepareClassInfo();
+        java::net::HttpURLConnection_ClassInfo::GetInstance().PrepareClassInfo();
+        java::io::InputStream_ClassInfo::GetInstance().PrepareClassInfo();
+        java::io::OutputStream_ClassInfo::GetInstance().PrepareClassInfo();
+        java::security::MessageDigest_ClassInfo::GetInstance().PrepareClassInfo();
+        javax::crypto::Mac_ClassInfo::GetInstance().PrepareClassInfo();
+        javax::crypto::spec::SecretKeySpec_ClassInfo::GetInstance().PrepareClassInfo();
+
+        android::content::ContentResolver_ClassInfo::GetInstance().PrepareClassInfo();
+        android::database::Cursor_ClassInfo::GetInstance().PrepareClassInfo();
+        android::net::Uri_ClassInfo::GetInstance().PrepareClassInfo();
+        android::os::ParcelFileDescriptor_ClassInfo::GetInstance().PrepareClassInfo();
+
+        com::virtualapplications::play::Bootable_ClassInfo::GetInstance().PrepareClassInfo();
+
+        if(env->ExceptionCheck())
+        {
+            env->ExceptionDescribe();
+            env->ExceptionClear();
+
+            Framework::CJavaVM::SetJavaVM(nullptr);
+
+            return JNI_ERR;
+        }
+
+        Log_Print(
+            "JNI initialization completed. JNI version 1.6.\r\n");
+
+        return JNI_VERSION_1_6;
+    }
+    catch(const std::exception& exception)
+    {
+        Log_Error(
+            "JNI_OnLoad failed: %s\r\n",
+            exception.what());
+
+        if(env->ExceptionCheck())
+        {
+            env->ExceptionDescribe();
+            env->ExceptionClear();
+        }
+
+        Framework::CJavaVM::SetJavaVM(nullptr);
+
+        return JNI_ERR;
+    }
+    catch(...)
+    {
+        Log_Error(
+            "JNI_OnLoad failed with unknown native exception.\r\n");
+
+        if(env->ExceptionCheck())
+        {
+            env->ExceptionDescribe();
+            env->ExceptionClear();
+        }
+
+        Framework::CJavaVM::SetJavaVM(nullptr);
+
+        return JNI_ERR;
+    }
 }
 
 extern "C" JNIEXPORT void JNICALL
