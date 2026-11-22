@@ -59,13 +59,16 @@ public class EmulatorActivity extends Activity
             return;
         }
 
-        _resumePromptShown = true;
-
+        if(_resumePromptShown)
+        {
+            return;
+        }
+  
         if(!_core.hasState(AUTOSAVE_SLOT))
         {
             return;
         }
-
+ 
         _resumePromptShown = true;
 
         new AlertDialog.Builder(this)
