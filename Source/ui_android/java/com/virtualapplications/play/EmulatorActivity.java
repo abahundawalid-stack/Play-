@@ -61,7 +61,7 @@ public class EmulatorActivity extends Activity
 
         _resumePromptShown = true;
 
-        if(_core.hasState(AUTOSAVE_SLOT))
+        if(!_core.hasState(AUTOSAVE_SLOT))
         {
             return;
         }
@@ -136,7 +136,7 @@ public class EmulatorActivity extends Activity
     
     private void requestAutosave()
     {
-        if(_core.isVirtualMachineCreated())
+        if(!_core.isVirtualMachineCreated())
         {
             return;
         }
@@ -563,6 +563,8 @@ public class EmulatorActivity extends Activity
                     Constants.TAG,
                     "Interrupted while waiting for autosave shutdown.",
                     error);
+
+                _core.finishSession();
             }
 
             if(autosaveCompleted)
@@ -591,10 +593,8 @@ public class EmulatorActivity extends Activity
                     "Autosave did not finish. Native VM is retained " +
                     "to avoid destroying resources during an active save.");
             }
-        }
-
-        _core.finishSession();
-
+        }   
+        
         super.onDestroy();
     }
 
@@ -937,7 +937,7 @@ public class EmulatorActivity extends Activity
                 // 1. Hentikan eksekusi VM terlebih dahulu.
                 _core.pause();
 
-                _core.detachSurface(
+                _core.detachSurface();
                     null,
                     0,
                     0,
