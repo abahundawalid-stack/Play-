@@ -7,7 +7,7 @@
 
 using namespace BootablesDb;
 
-#define DATABASE_VERSION 3
+#define DATABASE_VERSION 4
 
 static const char* g_dbFileName = "bootables.db";
 
@@ -21,6 +21,7 @@ static const char* g_bootablesTableCreateStatement =
     "    lastBootedTime INTEGER DEFAULT 0,"
     "    overview TEXT DEFAULT '',"
     "    bootableType INTEGER DEFAULT 0"
+    "    favorite INTEGER NOT NULL DEFAULT 0"
     ")";
 
 CClient::CClient()
@@ -142,12 +143,21 @@ void CClient::SetCoverUrl(const fs::path& path, const char* coverUrl)
 	statement.StepNoResult();
 }
 
-void CClient::SetLastBootedTime(const fs::path& path, time_t lastBootedTime)
+void CClient::SetLastBootedTime(
+    const fs::path& path,
+    int64_t lastBootedTime)
 {
-	Framework::CSqliteStatement statement(m_db, "UPDATE bootables SET lastBootedTime = ? WHERE path = ?");
-	statement.BindInteger(1, lastBootedTime);
-	statement.BindText(2, Framework::PathUtils::GetNativeStringFromPath(path).c_str());
-	statement.StepNoResult();
+    Framework::CSqliteStatement statement(
+        m_db,
+        "UPDATE bootables SET lastBootedTime = ? WHERE path = ?");
+
+    statement.BindInteger(1, lastBootedTime);
+
+    statement.BindText(
+        2,
+        Framework::PathUtils::GetNativeStringFromPath(path).c_str());
+
+    statement.StepNoResult();
 }
 
 void CClient::SetOverview(const fs::path& path, const char* overview)
@@ -156,6 +166,23 @@ void CClient::SetOverview(const fs::path& path, const char* overview)
 	statement.BindText(1, overview, true);
 	statement.BindText(2, Framework::PathUtils::GetNativeStringFromPath(path).c_str());
 	statement.StepNoResult();
+}
+
+void CClient::SetFavorite(
+    const fs::path& path,
+    bool favorite)
+{
+    Framework::CSqliteStatement statement(
+        m_db,
+        "UPDATE bootables SET favorite = ? WHERE path = ?");
+
+    statement.BindInteger(1, favorite ? 1 : 0);
+
+    statement.BindText(
+        2,
+        Framework::PathUtils::GetNativeStringFromPath(path).c_str());
+
+    statement.StepNoResult();
 }
 
 BootableStateList CClient::GetGameStates(std::string discId)
@@ -207,9 +234,10 @@ Bootable CClient::ReadBootable(Framework::CSqliteStatement& statement)
 	bootable.title = reinterpret_cast<const char*>(sqlite3_column_text(statement, 2));
 	bootable.coverUrl = reinterpret_cast<const char*>(sqlite3_column_text(statement, 3));
 	bootable.overview = reinterpret_cast<const char*>(sqlite3_column_text(statement, 5));
-	bootable.lastBootedTime = sqlite3_column_int(statement, 4);
+	bootable.lastBootedTime = sqlite3_column_int64(statement, 4);
 	bootable.states = GetGameStates(bootable.discId);
 	bootable.bootableType = static_cast<BootableUtils::BOOTABLE_TYPE>(sqlite3_column_int(statement, 6));
+	bootable.favorite = sqlite3_column_int(statement, 7) != 0;
 	return bootable;
 }
 
@@ -250,7 +278,18 @@ void CClient::UpgradeDb()
 
 				currentVersion = 3;
 			}
-			break;
+			case 3:
+            {
+                Framework::CSqliteStatement statement(
+                    db,
+                    "ALTER TABLE bootables "
+                    "ADD COLUMN favorite INTEGER NOT NULL DEFAULT 0");
+
+                statement.StepNoResult();
+
+               currentVersion = 4;
+            }
+            break;
 			default:
 				fs::remove(m_dbPath);
 				return;
