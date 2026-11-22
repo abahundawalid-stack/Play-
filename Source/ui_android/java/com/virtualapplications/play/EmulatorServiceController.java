@@ -8,6 +8,9 @@ import android.os.Build;
 import android.os.IBinder;
 import android.util.Log;
 
+import java.util.concurrent.Callable;
+import java.util.concurrent.Future;
+
 /**
  * Activity-side controller for starting, binding, communicating with,
  * and shutting down EmulatorService.
@@ -134,7 +137,33 @@ public final class EmulatorServiceController
     }
 
     public void setEmulatorState(boolean running)
-    {
+    { 
+        public Future<?> submitBackgroundTask(Runnable task)
+        {
+            EmulatorService current = service;
+
+            if(current == null)
+            {
+                throw new IllegalStateException(
+                    "EmulatorService is not connected.");
+            }
+
+            return current.submitBackgroundTask(task);
+        } 
+
+        public <T> Future<T> submitBackgroundTask(Callable<T> task)
+        {  
+            EmulatorService current = service;
+
+            if(current == null)
+            {
+                throw new IllegalStateException(
+                    "EmulatorService is not connected.");
+            }
+
+            return current.submitBackgroundTask(task);
+        }
+        
         pendingRunning = running;
 
         EmulatorService current = service;
@@ -242,6 +271,11 @@ public final class EmulatorServiceController
         Log.w(
             TAG,
             "EmulatorService disconnected unexpectedly.");
+
+        if(pendingRunning)
+        {
+            startAndBind(gameTitle);
+        }  
     }
 
     @Override
@@ -266,6 +300,11 @@ public final class EmulatorServiceController
             TAG,
             "EmulatorService binding died. " +
             "A new Activity start is required to reconnect.");
+
+        if(pendingRunning)
+        {
+            startAndBind(gameTitle);
+        }  
     }
 
     @Override
