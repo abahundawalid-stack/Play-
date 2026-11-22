@@ -2,41 +2,105 @@
 
 #include <EGL/egl.h>
 
+#include <cstdint>
+#include <string>
+
 /**
- * @brief Process-wide reference-counted EGL display manager.
+ * @brief Process-wide owner of the initialized EGLDisplay.
  *
- * All Android OpenGL renderers that use EGL_DEFAULT_DISPLAY
- * must acquire and release the display through this class.
+ * Responsibilities:
+ * - Acquire and initialize the Android EGL display.
+ * - Share one initialized display between renderer instances.
+ * - Track legacy references and identity-based display leases.
+ * - Terminate EGL only after the final reference is released.
+ * - Expose EGL version, vendor, client API and extensions.
+ * - Provide thread-safe display diagnostics.
  *
- * Thread safety:
- * - Acquire() and Release() are serialized internally.
- * - The manager protects display initialization/termination.
+ * Non-responsibilities:
+ * - EGLConfig selection.
+ * - EGLContext creation or current-context management.
+ * - EGLSurface creation or destruction.
+ * - OpenGL ES capability detection.
+ *
+ * Threading:
+ * - Manager state and display lifecycle are protected internally.
  * - Context and surface operations remain the responsibility
- *   of the renderer's GS execution thread.
- *
- * Ownership:
- * - Every successful Acquire() creates exactly one lease.
- * - Every lease must be matched by exactly one Release().
- * - eglTerminate() is called only after the final lease is released.
+ *   of the renderer's EGL/GS execution thread.
  */
 class CEglDisplayManager final
 {
 public:
+    struct DisplayInfo
+    {
+        EGLint majorVersion = 0;
+        EGLint minorVersion = 0;
+
+        std::string version;
+        std::string vendor;
+        std::string clientApis;
+        std::string extensions;
+
+        std::uint64_t generation = 0;
+
+        bool initialized = false;
+    };
+
+    struct Diagnostics
+    {
+        EGLDisplay display = EGL_NO_DISPLAY;
+
+        unsigned int legacyReferences = 0;
+        unsigned int leaseReferences = 0;
+        unsigned int totalReferences = 0;
+
+        std::uint64_t generation = 0;
+        std::uint64_t initializationCount = 0;
+        std::uint64_t terminationCount = 0;
+
+        EGLint lastError = EGL_SUCCESS;
+
+        bool initialized = false;
+    };
+
     CEglDisplayManager() = delete;
     ~CEglDisplayManager() = delete;
 
     CEglDisplayManager(const CEglDisplayManager&) = delete;
-    CEglDisplayManager& operator=(const CEglDisplayManager&) = delete;
+    CEglDisplayManager& operator=(
+        const CEglDisplayManager&) = delete;
 
     /**
-     * @brief Acquire a shared initialized EGL display.
+     * @brief Acquire an identity-based display lease.
      *
-     * @param display Output EGL display. Set to EGL_NO_DISPLAY on failure.
-     * @param major Output EGL major version. Optional.
-     * @param minor Output EGL minor version. Optional.
-     * @param error Output EGL error. Optional.
+     * Every successful call produces one unique lease ID.
      *
-     * @return true when a display lease was successfully acquired.
+     * The caller must release the lease exactly once by calling
+     * ReleaseLease() with the same display and lease ID.
+     */
+    static bool AcquireLease(
+        EGLDisplay* display,
+        std::uint64_t* leaseId,
+        EGLint* major = nullptr,
+        EGLint* minor = nullptr,
+        EGLint* error = nullptr);
+
+    /**
+     * @brief Release an identity-based display lease.
+     *
+     * The lease ID is cleared only after successful release.
+     * If eglTerminate() fails, the lease remains active and
+     * the caller can retry the operation.
+     */
+    static bool ReleaseLease(
+        EGLDisplay display,
+        std::uint64_t* leaseId,
+        EGLint* error = nullptr);
+
+    /**
+     * @brief Legacy display acquisition API.
+     *
+     * Kept for compatibility with existing callers.
+     * New renderer code should use AcquireLease().
      */
     static bool Acquire(
         EGLDisplay* display,
@@ -45,31 +109,30 @@ public:
         EGLint* error = nullptr);
 
     /**
-     * @brief Release one previously acquired display lease.
+     * @brief Release one legacy reference.
      *
-     * The supplied display must be the exact display returned
-     * by the corresponding successful Acquire().
-     *
-     * @param display EGL display to release.
-     * @param error Output EGL error. Optional.
-     *
-     * @return true when the lease was released successfully.
+     * This function cannot release an identity-based lease.
      */
     static bool Release(
         EGLDisplay display,
         EGLint* error = nullptr);
 
-    /**
-     * @brief Return the current number of active display leases.
-     *
-     * Intended for diagnostics and tests.
-     */
     static unsigned int GetReferenceCount();
 
-    /**
-     * @brief Return the currently managed EGL display.
-     *
-     * Returns EGL_NO_DISPLAY when no lease is active.
-     */
     static EGLDisplay GetDisplay();
+
+    /**
+     * @brief Copy the currently cached display information.
+     */
+    static bool GetDisplayInfo(DisplayInfo* info);
+
+    /**
+     * @brief Check an EGL extension using exact token matching.
+     */
+    static bool HasExtension(const char* extension);
+
+    /**
+     * @brief Retrieve thread-safe manager diagnostics.
+     */
+    static Diagnostics GetDiagnostics();
 };
