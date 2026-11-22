@@ -119,6 +119,24 @@ public class MainActivity extends AppCompatActivity implements NavigationDrawerF
 
         return result;
     }
+
+    @Override
+    protected void onResume()
+    {
+        super.onResume();
+
+        if(gameInfo == null)
+            return;
+
+        Bootable[] bootables =
+                BootablesInterop.getBootables(sortMethod);
+
+        currentGames = bootables == null
+                ? new ArrayList<>()
+                : new ArrayList<>(Arrays.asList(bootables));
+
+        populateImages(currentGames);
+    }
     
     @Override
     protected void onCreate(Bundle savedInstanceState)
@@ -1030,6 +1048,15 @@ if(requestCode == g_folderPickerRequestCode &&
 
             Bootable[] bootables = getBootables(sortMethod);
 
+            if(bootables == null)
+            {
+                Log.e(
+                        Constants.TAG,
+                        "Game library returned null bootables.");
+
+               return new ArrayList<>();
+            }
+
             return new ArrayList<>(Arrays.asList(bootables));
         }
 
@@ -1111,7 +1138,7 @@ if(requestCode == g_folderPickerRequestCode &&
         {
             setLastBootedTime(
                     game.path,
-                    System.currentTimeMillis());
+                    System.currentTimeMillis() / 1000L
 
             try
             {
