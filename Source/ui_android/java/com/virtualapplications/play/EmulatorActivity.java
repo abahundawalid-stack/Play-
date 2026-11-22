@@ -335,18 +335,18 @@ public class EmulatorActivity extends Activity
                     return;
                 }
 
-                int frames = StatsManager.getFrames();
-                int drawCalls = StatsManager.getDrawCalls();
-
+                int frames = _core.getFrames();
+                int drawCalls = _core.getDrawCalls();
+                
                 int dcpf = frames > 0
                     ? drawCalls / frames
                     : 0;
 
                 String profilingInfo = "";
 
-                if(StatsManager.isProfiling())
+                if(_core.isProfiling())
                 {
-                    profilingInfo = StatsManager.getProfilingInfo();
+                    profilingInfo = _core.getProfilingInfo();
 
                     _profileTextView.setText(profilingInfo);
                 }
@@ -367,7 +367,7 @@ public class EmulatorActivity extends Activity
                     )
                 );
 
-                StatsManager.clearStats();             
+                _core.clearPerformanceStats();             
 
                 if(_activityRunning)
                 {
@@ -593,7 +593,7 @@ public class EmulatorActivity extends Activity
             }
         }
 
-        DiagnosticsManager.finishSession(this);
+        _core.finishSession();
 
         super.onDestroy();
     }
