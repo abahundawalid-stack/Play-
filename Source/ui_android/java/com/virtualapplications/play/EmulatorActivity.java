@@ -184,6 +184,10 @@ public class EmulatorActivity extends Activity
     private boolean _resumePromptShown = false;
     private boolean _inMultiWindowMode = false;
 
+    private EmulatorServiceController _serviceController;
+
+    private String _serviceGameTitle = "Play! Emulator";
+
     protected EmulatorDrawerFragment _drawerFragment;
 
     public static void RegisterPreferences()
@@ -199,6 +203,21 @@ public class EmulatorActivity extends Activity
     protected void onCreate(Bundle savedInstanceState)
     {
         super.onCreate(savedInstanceState);
+
+        _serviceController =
+        new EmulatorServiceController(this);
+
+        String serviceGamePath =
+        getIntent().getStringExtra("diagnostic_game_path");
+
+        if(serviceGamePath != null &&
+           !serviceGamePath.trim().isEmpty())
+        {
+            _serviceGameTitle =
+                DiagnosticsManager.getGameName(
+                    this,
+                    serviceGamePath);
+        }
 
         _resumePromptShown =
         ActivityStateController.restoreEmulatorResumePromptShown(
@@ -440,6 +459,11 @@ public class EmulatorActivity extends Activity
 
         updateVirtualMachineState();
 
+        if(_serviceController != null)
+        {
+            _serviceController.setEmulatorState(false);
+        }
+
         // Simpan setelah VM dijeda agar kondisi terakhir ikut tersimpan.
         requestAutosave();
 
@@ -448,6 +472,31 @@ public class EmulatorActivity extends Activity
         super.onPause();
     }
 
+    @Override
+    protected void onStart()
+    {
+        super.onStart();
+
+        if(_serviceController != null &&
+           NativeInterop.isVirtualMachineCreated())
+        {
+            _serviceController.startAndBind(
+                _serviceGameTitle);
+        }
+    }
+
+    @Override
+    protected void onStop()
+    {
+        if(_serviceController != null)
+        {
+            _serviceController.setEmulatorState(false);
+            _serviceController.unbind();
+        }
+
+        super.onStop();
+    }
+    
     @Override
     public void onResume()
     {
@@ -460,6 +509,11 @@ public class EmulatorActivity extends Activity
         _activityRunning = true;
 
         updateVirtualMachineState();
+
+        if(_serviceController != null)
+        {
+            _serviceController.setEmulatorState(true);
+        }
 
         startStatsTimer();
         _statsTimerHandler.removeCallbacks(_autosaveRunnable);
@@ -478,6 +532,12 @@ public class EmulatorActivity extends Activity
 
         requestAutosave();
         _autosaveExecutor.shutdown();
+
+        if(_serviceController != null)
+        {
+            _serviceController.shutdown();
+            _serviceController = null;
+        }
 
         DiagnosticsManager.finishSession(this);
 
