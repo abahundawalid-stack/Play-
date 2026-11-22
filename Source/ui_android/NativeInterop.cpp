@@ -464,6 +464,44 @@ Java_com_virtualapplications_play_NativeInterop_pauseVirtualMachine(
 }
 
 extern "C" JNIEXPORT void JNICALL
+Java_com_virtualapplications_play_NativeInterop_resetVirtualMachine(
+    JNIEnv* env,
+    jclass clazz)
+{
+    std::lock_guard<std::mutex> lock(
+        GetVirtualMachineMutex());
+
+    if(g_virtualMachine == nullptr)
+    {
+        ThrowJavaRuntimeException(
+            env,
+            "Cannot reset an uninitialized virtual machine.");
+
+        return;
+    }
+
+    try
+    {
+        ResetVirtualMachine();
+
+        Log_Print(
+            "Native virtual machine reset completed.\r\n");
+    }
+    catch(const std::exception& exception)
+    {
+        ThrowJavaRuntimeException(
+            env,
+            exception.what());
+    }
+    catch(...)
+    {
+        ThrowJavaRuntimeException(
+            env,
+            "Unknown native virtual machine reset failure.");
+    }
+}
+
+extern "C" JNIEXPORT void JNICALL
 Java_com_virtualapplications_play_NativeInterop_loadState(
     JNIEnv* env,
     jobject obj,
