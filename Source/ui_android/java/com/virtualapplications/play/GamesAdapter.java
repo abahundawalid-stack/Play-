@@ -109,12 +109,18 @@ public class GamesAdapter extends ArrayAdapter<Bootable>
 		}
 		viewHolder.childview.setOnLongClickListener(long_click);
 
-		if(!game.coverUrl.isEmpty())
-		{
-			gameInfo.setCoverImage(game.discId, viewHolder, game.coverUrl, pos);
-		}
+		String coverKey = game.getCoverKey();
 
-		viewHolder.childview.setOnClickListener(view -> {
+        if(coverKey != null && !coverKey.isEmpty())
+        {
+            gameInfo.setCoverImage(
+                    coverKey,
+                    viewHolder,
+                    game.coverUrl == null ? "" : game.coverUrl,
+                    pos);
+        }
+
+	    viewHolder.childview.setOnClickListener(view -> {
 			if(_activity.get() != null)
 			{
 				if(_activity.get() instanceof MainActivity)
