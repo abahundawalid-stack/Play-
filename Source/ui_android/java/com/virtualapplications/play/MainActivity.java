@@ -675,10 +675,7 @@ if(requestCode == g_folderPickerRequestCode &&
 
         if(item.getItemId() == MENU_PS2_FORENSIC)
         {
-            Intent forensicIntent =
-                    new Intent(this, ForensicAnalyzerActivity.class);
-
-            startActivity(forensicIntent);
+            ActivityNavigator.openForensicAnalyzer(this);
             return true;
         }
 
