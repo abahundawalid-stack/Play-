@@ -325,6 +325,65 @@ Java_com_virtualapplications_play_NativeInterop_createVirtualMachine(
     }
 }
 
+extern "C" JNIEXPORT void JNICALL
+Java_com_virtualapplications_play_NativeInterop_destroyVirtualMachine(
+    JNIEnv* env,
+    jobject obj)
+{
+    std::lock_guard<std::mutex> lock(
+        GetVirtualMachineMutex());
+
+    CPS2VM* vm = g_virtualMachine;
+
+    if(vm == nullptr)
+    {
+        return;
+    }
+
+    // Disconnect callbacks before the VM and its signals are destroyed.
+    g_OnGsNewFrameConnection.reset();
+    g_OnNewFrameConnection.reset();
+
+    try
+    {
+        // CPS2VM::Destroy() performs:
+        // - GS handler destruction
+        // - pad handler destruction
+        // - sound handler destruction
+        // - emulation-thread termination
+        // - emulation-thread join
+        // - VM subsystem destruction
+        vm->Destroy();
+    }
+    catch(const std::exception& exception)
+    {
+        ThrowJavaRuntimeException(
+            env,
+            exception.what());
+
+        return;
+    }
+    catch(...)
+    {
+        ThrowJavaRuntimeException(
+            env,
+            "Unknown native VM shutdown failure.");
+
+        return;
+    }
+
+    delete vm;
+
+    g_virtualMachine = nullptr;
+
+    g_currentGsHandlerId = -1;
+
+    ClearGraphicsDiagnostics();
+
+    Log_Print(
+        "Native virtual machine destroyed.\r\n");
+}
+
 extern "C" JNIEXPORT jboolean JNICALL
 Java_com_virtualapplications_play_NativeInterop_isVirtualMachineCreated(
     JNIEnv* env,
