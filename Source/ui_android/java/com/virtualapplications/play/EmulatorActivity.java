@@ -482,7 +482,7 @@ public class EmulatorActivity extends Activity
         super.onStart();
 
         if(_serviceController != null &&
-           NativeInterop.isVirtualMachineCreated())
+           _core.isVirtualMachineCreated())
         {
             _serviceController.startAndBind(
                 _serviceGameTitle);
