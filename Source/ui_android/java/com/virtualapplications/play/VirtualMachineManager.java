@@ -149,7 +149,7 @@ public class VirtualMachineManager
                 setLaunchStage(
                     "LAUNCH_FAILED: Emulator intent was not prepared");
 
-                DiagnosticsManager.finishSession(_ctx);
+                EmulatorCoreInterface.from(_ctx).finishSession();
 
                 displaySimpleMessage(
                     "Game Launch Failed",
