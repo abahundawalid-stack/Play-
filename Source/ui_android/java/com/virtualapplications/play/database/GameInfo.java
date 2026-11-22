@@ -24,6 +24,7 @@ import com.virtualapplications.play.GamesAdapter;
 import com.virtualapplications.play.ImageUtils;
 import com.virtualapplications.play.MainActivity;
 import com.virtualapplications.play.R;
+import com.virtualapplications.play.ActivityNavigator;
 
 public class GameInfo
 {
@@ -279,25 +280,14 @@ public class GameInfo
 		}
 	}
 
-	public OnLongClickListener configureLongClick(final Bootable gameFile)
-	{
-		return view -> {
-			new AlertDialog.Builder(mContext)
-					.setCancelable(true)
-					.setTitle(gameFile.title)
-					.setMessage(gameFile.overview)
-					.setNegativeButton(android.R.string.cancel, (dialog, which) ->
-							dialog.dismiss())
-					.setPositiveButton("Launch", (dialog, which) -> {
-						dialog.dismiss();
-						if(mContext instanceof MainActivity)
-						{
-							((MainActivity)mContext).launchGame(gameFile);
-						}
-					})
-					.create()
-					.show();
-			return true;
-		};
-	}
-}
+	public OnLongClickListener configureLongClick(
+        final Bootable gameFile)
+    {
+        return view -> {
+            ActivityNavigator.openGameDetails(
+                    mContext,
+                    gameFile);
+
+            return true;
+        };
+    }
