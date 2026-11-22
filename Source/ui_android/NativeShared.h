@@ -1,6 +1,7 @@
 #pragma once
 
 #include <jni.h>
+#include <mutex>
 #include <string>
 
 struct GraphicsDiagnostics
@@ -26,3 +27,25 @@ void SetGraphicsDiagnostics(
 void ClearGraphicsDiagnostics();
 
 GraphicsDiagnostics GetGraphicsDiagnostics();
+
+// Serializes access to the process-wide native VM pointer.
+// All JNI entry points that access g_virtualMachine must use this mutex.
+std::mutex& GetVirtualMachineMutex();
+
+// Converts Java UTF-16 strings into standard UTF-8.
+// Returns false when conversion fails or JNI reports an exception.
+bool GetStringFromJstringUtf8(
+    JNIEnv* env,
+    jstring javaString,
+    std::string* output);
+
+// Converts standard UTF-8 into a Java UTF-16 string.
+jstring NewJstringFromUtf8(
+    JNIEnv* env,
+    const std::string& value);
+
+// Raises java.lang.RuntimeException unless an exception is
+// already pending on the current JNI thread.
+void ThrowJavaRuntimeException(
+    JNIEnv* env,
+    const char* message);
