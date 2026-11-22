@@ -23,6 +23,17 @@
     <uses-permission
         android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
 
+    <!-- Foreground emulator service -->
+    <uses-permission
+        android:name="android.permission.FOREGROUND_SERVICE" />
+
+    <uses-permission
+        android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+  
+    <!-- Notification permission on Android 13+ -->
+    <uses-permission
+        android:name="android.permission.POST_NOTIFICATIONS" />
+    
     <!-- Renderer Android saat ini membutuhkan OpenGL ES 3.0. -->
     <uses-feature
         android:glEsVersion="0x00030000"
@@ -106,6 +117,13 @@
             android:resizeableActivity="true"
             android:theme="@android:style/Theme.NoTitleBar.Fullscreen" />
 
+        <service
+            android:name=".EmulatorService"
+            android:enabled="true"
+            android:exported="false"
+            android:stopWithTask="false"
+            android:foregroundServiceType="mediaPlayback" />
+        
         <activity
             android:name=".SettingsActivity"
             android:configChanges="orientation|locale|keyboard|keyboardHidden|navigation" />
