@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+#include <cstdint>
 
 #include "../gs/GSH_OpenGL/GSH_OpenGL.h"
 #include "opengl/OpenGlDef.h"
@@ -61,8 +62,12 @@ private:
     EGLint m_nativeVisualId = 0;
 
     EGLDisplay m_display = EGL_NO_DISPLAY;
-	EGLContext m_context = EGL_NO_CONTEXT;
-	EGLSurface m_surface = EGL_NO_SURFACE;
+
+    // Unique ownership identity returned by CEglDisplayManager.
+    std::uint64_t m_displayLeaseId = 0;
+  
+    EGLContext m_context = EGL_NO_CONTEXT;
+    EGLSurface m_surface = EGL_NO_SURFACE;
     
     // One retained native-window reference belongs to each EGL surface.
     // The reference must not be released until eglDestroySurface succeeds.
