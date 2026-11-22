@@ -941,7 +941,7 @@ public class EmulatorActivity extends Activity
         }
 
         @Override
-        public void onMultiWindowModeChanged
+        public void onMultiWindowModeChanged(
                 boolean isInMultiWindowMode,
                 Configuration newConfig)
         {
