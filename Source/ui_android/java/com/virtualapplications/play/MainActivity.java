@@ -1059,6 +1059,7 @@ if(requestCode == g_folderPickerRequestCode &&
 
     private void populateImages(List<Bootable> images)
     {
+        List<Bootable> visibleGames = filterGames(images);
         GridView gameGrid = findViewById(R.id.game_grid);
 
         if(gameGrid != null)
