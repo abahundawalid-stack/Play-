@@ -213,7 +213,11 @@ namespace
     {
         error = EGL_SUCCESS;
 
-        if(!bundle.ownsDisplayLease)
+        const bool ownsLease =
+            bundle.ownsDisplayLease ||
+            bundle.displayLeaseId != 0;
+
+        if(!ownsLease)
         {
             return true;
         }
@@ -224,18 +228,37 @@ namespace
             return false;
         }
 
-        if(bundle.context != EGL_NO_CONTEXT || HasSurface(bundle))
+        if(bundle.context != EGL_NO_CONTEXT ||
+           HasSurface(bundle))
         {
             error = EGL_BAD_ACCESS;
             return false;
         }
 
-        if(!CEglDisplayManager::Release(bundle.display, &error))
+        bool released = false;
+
+        if(bundle.displayLeaseId != 0)
+        {
+            released = CEglDisplayManager::ReleaseLease(
+                bundle.display,
+                &bundle.displayLeaseId,
+                &error);
+        }
+        else
+        {
+            // Compatibility path for bundles created by legacy callers.
+            released = CEglDisplayManager::Release(
+                bundle.display,
+                &error);
+        }
+ 
+        if(!released)
         {
             return false;
         }
 
         bundle.display = EGL_NO_DISPLAY;
+        bundle.displayLeaseId = 0;
         bundle.ownsDisplayLease = false;
 
         return true;
