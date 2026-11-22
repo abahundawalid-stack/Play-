@@ -367,7 +367,7 @@ bool GetStringFromJstringUtf8(
     return !env->ExceptionCheck();
 }
 
-jstring NewJstringFromUtf8(
+jstring NewJstringFromUtf8Shared(
     JNIEnv* env,
     const std::string& value)
 {
