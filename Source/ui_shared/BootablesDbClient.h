@@ -2,6 +2,8 @@
 
 #include <string>
 #include <vector>
+#include <cstdint>
+
 #include "filesystem_def.h"
 #include "Types.h"
 #include "Singleton.h"
@@ -25,7 +27,8 @@ namespace BootablesDb
 		std::string title;
 		std::string coverUrl;
 		std::string overview;
-		time_t lastBootedTime = 0;
+		int64_t lastBootedTime = 0;
+        bool favorite = false;
 		BootableStateList states;
 		BootableUtils::BOOTABLE_TYPE bootableType = BootableUtils::UNKNOWN;
 	};
@@ -53,10 +56,11 @@ namespace BootablesDb
 		void RegisterBootable(const fs::path&, const char*, const char*, BootableUtils::BOOTABLE_TYPE);
 		void UnregisterBootable(const fs::path&);
 
+        void SetFavorite(const fs::path&, bool);
 		void SetDiscId(const fs::path&, const char*);
 		void SetTitle(const fs::path&, const char*);
 		void SetCoverUrl(const fs::path&, const char*);
-		void SetLastBootedTime(const fs::path&, time_t);
+		void SetLastBootedTime(const fs::path&, int64_t);
 		void SetOverview(const fs::path& path, const char* overview);
 
 	private:
