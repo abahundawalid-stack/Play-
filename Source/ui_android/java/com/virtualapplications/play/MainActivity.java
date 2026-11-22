@@ -127,6 +127,16 @@ public class MainActivity extends AppCompatActivity implements NavigationDrawerF
     }
 
     @Override
+    protected void onSaveInstanceState(Bundle outState)
+    {
+        ActivityStateController.saveMainActivityState(
+                outState,
+                sortMethod);
+
+        super.onSaveInstanceState(outState);
+    }
+    
+    @Override
     public void onDestroy()
     {
         SharedPreferences prefs =
