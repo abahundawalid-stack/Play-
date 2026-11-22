@@ -345,6 +345,23 @@ void CGSH_OpenGLAndroid::InitializeImpl()
         return;
     }
 
+    CEglDisplayManager::DisplayInfo displayInfo{};
+
+    if(CEglDisplayManager::GetDisplayInfo(&displayInfo))
+    {
+        CLog::GetInstance().Print(
+            "glesandroid",
+            "[ORBIT2SX_EGL] display information "
+            "version=%s vendor=%s clientApis=%s "
+            "generation=%llu extensions=%s\r\n",
+            displayInfo.version.c_str(),
+            displayInfo.vendor.c_str(),
+            displayInfo.clientApis.c_str(),
+            static_cast<unsigned long long>(
+            displayInfo.generation),
+            displayInfo.extensions.c_str());
+    }
+	
     CLog::GetInstance().Print(
         "glesandroid",
         "[ORBIT2SX_EGL] shared display acquired "
