@@ -23,4 +23,13 @@ public class BootablesInterop
 	public static native void UnregisterBootable(String bootablePath);
 	public static native void fetchGameTitles();
 	public static native void PurgeInexistingFiles();
+	public static native void setTitle(
+            String bootablePath,
+            String title);
+    public static native void setDiscId(
+            String bootablePath,
+            String discId);
+    public static native void setFavorite(
+            String bootablePath,
+            boolean favorite);
 }
