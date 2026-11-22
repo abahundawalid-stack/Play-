@@ -120,7 +120,22 @@ public final class ActivityNavigator
         intent.putExtra(EXTRA_GAME_PATH, game.path);
         intent.putExtra(EXTRA_GAME_TITLE, game.title);
         intent.putExtra(EXTRA_GAME_OVERVIEW, game.overview);
-        intent.putExtra(EXTRA_GAME_DISC_ID, game.discId);
+        intent.putExtra(
+                "game.favorite",
+                game.favorite);
+
+        intent.putExtra(
+                "game.bootable_type",
+                game.bootableType);
+
+        intent.putExtra(
+                "game.compatibility",
+                game.compatibility);
+
+        intent.putExtra(
+                "game.cover_key",
+                game.getCoverKey());
+                intent.putExtra(EXTRA_GAME_DISC_ID, game.discId);
 
         startActivity(context, intent);
     }
