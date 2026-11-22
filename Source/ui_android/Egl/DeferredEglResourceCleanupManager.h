@@ -1,6 +1,7 @@
 #pragma once
 
 #include <EGL/egl.h>
+#include <cstdint>
 #include <android/native_window.h>
 
 #include <cstddef>
