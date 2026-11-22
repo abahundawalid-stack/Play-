@@ -398,36 +398,16 @@ private void Startup()
 
     private void displaySettingsActivity()
     {
-        Intent intent = new Intent(
-                getApplicationContext(),
-                SettingsActivity.class);
-
-        startActivityForResult(intent, g_settingsRequestCode);
+        ActivityNavigator.openSettings(
+                this,
+                g_settingsRequestCode);
     }
 
     private void displayFolderPicker()
     {
-        try
-        {
-            Intent intent =
-                    new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
-
-            intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-            intent.addFlags(Intent.FLAG_GRANT_PREFIX_URI_PERMISSION);
-            intent.addFlags(Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
-
-            intent.putExtra(Intent.EXTRA_LOCAL_ONLY, true);
-
-            startActivityForResult(intent, g_folderPickerRequestCode);
-        }
-        catch(Exception ex)
-        {
-            displaySimpleMessage(
-                    "Error",
-                    String.format(
-                            "Error occurred while trying to use ACTION_OPEN_DOCUMENT_TREE intent:\n%s",
-                            ex.toString()));
-        }
+        ActivityNavigator.openFileBrowser(
+                this,
+                g_folderPickerRequestCode);
     }
 
     @Override
@@ -561,30 +541,7 @@ if(requestCode == g_folderPickerRequestCode &&
 
     private void displayAboutDialog()
     {
-        Date buildDate = BuildConfig.buildTime;
-
-        String buildDateString =
-                new SimpleDateFormat(
-                        "yyyy/MM/dd K:mm a",
-                        Locale.getDefault()).format(buildDate);
-
-        String timestamp =
-                buildDateString.substring(11).startsWith("0:")
-                        ? buildDateString.replace("0:", "12:")
-                        : buildDateString;
-
-        String aboutMessage = String.format(
-                getString(R.string.about_play_emu) + "\n\n" +
-                getString(R.string.about_play_version) + " %s\n" +
-                getString(R.string.about_play_date) + " %s\n\n" +
-                getString(R.string.about_play_founder) +
-                "\nJean-Philip Desjardins",
-                BuildConfig.VERSION_NAME,
-                timestamp);
-
-        displaySimpleMessage(
-                getString(R.string.about_play),
-                aboutMessage);
+        ActivityNavigator.openAbout(this);
     }
 
     @Override
