@@ -326,8 +326,9 @@ void CGSH_OpenGLAndroid::InitializeImpl()
     EGLint eglMinorVersion = 0;
     EGLint eglError = EGL_SUCCESS;
 
-    if(!CEglDisplayManager::Acquire(
+    if(!CEglDisplayManager::AcquireLease(
            &m_display,
+           &m_displayLeaseId,
            &eglMajorVersion,
            &eglMinorVersion,
            &eglError))
