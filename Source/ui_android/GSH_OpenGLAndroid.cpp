@@ -105,6 +105,11 @@ bool CGSH_OpenGLAndroid::DeferOutstandingEglResources()
     bundle.display = m_display;
     bundle.context = m_context;
 
+    bundle.displayLeaseId = m_displayLeaseId;
+
+    bundle.ownsDisplayLease =
+        m_displayLeaseId != 0;
+	
     // This renderer owns exactly one lease for every successful
     // CEglDisplayManager::Acquire().
     bundle.ownsDisplayLease =
