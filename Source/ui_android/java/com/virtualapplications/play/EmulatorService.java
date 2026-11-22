@@ -153,6 +153,18 @@ public final class EmulatorService extends Service
         return super.onUnbind(intent);
     }
 
+    @Override
+    public void onTaskRemoved(Intent rootIntent)
+    {
+        Log.i(
+            TAG,
+            "Application task removed. Stopping emulator service.");
+
+        stopSession();
+
+        super.onTaskRemoved(rootIntent);
+    }
+    
     public void setEmulatorState(
         boolean running,
         String title)
