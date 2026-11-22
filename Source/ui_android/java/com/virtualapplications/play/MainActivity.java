@@ -57,6 +57,7 @@ public class MainActivity extends AppCompatActivity implements NavigationDrawerF
     private int sortMethod = SORT_NONE;
     private String navSubtitle;
     private Toolbar toolbar;
+    private boolean hasRestoredUiState;
 
     private static final int MENU_TEST_GET_BOOTABLES = 0x4A504F47;
     private static final int MENU_PS2_FORENSIC = 0x4A504F48;
