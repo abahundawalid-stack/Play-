@@ -52,43 +52,29 @@ public class VirtualMachineManager
                 _ctx.getString(R.string.launch_game_msg),
                 true);
         }
-
+      
         @Override
         protected Void doInBackground(Void... params)
         {
+            EmulatorCoreInterface core = null;
+
             try
             {
-                DiagnosticsManager.beginSession(
-                    _ctx,
-                    _bootablePath);
+                core = EmulatorCoreInterface.from(_ctx);
+
+                core.beginSession(_bootablePath);
 
                 setLaunchStage(
                     "INITIALIZING_ANDROID_RESOURCES");
 
-                Context appContext =
-                    _ctx.getApplicationContext();
-
-                NativeInterop.setFilesDirPath(
-                    appContext.getFilesDir().getAbsolutePath());
-
-                NativeInterop.setCacheDirPath(
-                    appContext.getCacheDir().getAbsolutePath());
-
-                NativeInterop.setAssetManager(
-                    appContext.getAssets());
-
-                NativeInterop.setContentResolver(
-                    appContext.getContentResolver());
+                core.initializePlatformResources();
 
                 setLaunchStage(
                     "CREATING_VIRTUAL_MACHINE");
 
-                if(!NativeInterop.isVirtualMachineCreated())
-                {
-                    NativeInterop.createVirtualMachine();
-                }
+                core.initialize();
 
-                if(!NativeInterop.isVirtualMachineCreated())
+                if(!core.isVirtualMachineCreated())
                 {
                     throw new IllegalStateException(
                         "Virtual machine was not created.");
@@ -100,21 +86,10 @@ public class VirtualMachineManager
                 setLaunchStage(
                     "CHECKING_BOOTABLE_TYPE");
 
-                if(BootablesInterop.IsBootableExecutablePath(
-                    _bootablePath))
-                {
-                    setLaunchStage(
-                        "LOADING_ELF");
+                setLaunchStage(
+                    "COORDINATING_GAME_BOOT");
 
-                    NativeInterop.loadElf(_bootablePath);
-                }
-                else
-                {
-                    setLaunchStage(
-                        "BOOTING_DISK_IMAGE");
-
-                    NativeInterop.bootDiskImage(_bootablePath);
-                }
+                core.boot(_bootablePath);
 
                 setLaunchStage(
                     "GAME_BOOT_RETURNED");
@@ -129,14 +104,25 @@ public class VirtualMachineManager
 
                 _bootCompleted = true;
             }
-            catch(Exception e)
+            catch(Exception error)
             {
-                _exception = e;
+                _exception = error;
+
+                if(core != null)
+                {
+                    core.recordFailure(
+                        "LAUNCH_FAILED",
+                        error);
+
+                    core.finishSession();
+                }
+                else
+                {
+                    DiagnosticsManager.finishSession(_ctx);
+                }
 
                 setLaunchStage(
-                    "LAUNCH_FAILED: " + e);
-
-                DiagnosticsManager.finishSession(_ctx);
+                    "LAUNCH_FAILED: " + error);
             }
 
             return null;
@@ -195,6 +181,7 @@ public class VirtualMachineManager
                     "EMULATOR_ACTIVITY_START_FAILED: " + e);
 
                 DiagnosticsManager.finishSession(_ctx);
+                EmulatorCoreInterface.from(_ctx).finishSession();
 
                 displaySimpleMessage(
                     "Emulator Activity Error",
@@ -212,7 +199,7 @@ public class VirtualMachineManager
             setLaunchStage(
                 "LAUNCH_CANCELLED");
 
-            DiagnosticsManager.finishSession(_ctx);
+            EmulatorCoreInterface.from(_ctx).finishSession();
 
             super.onCancelled();
         }
