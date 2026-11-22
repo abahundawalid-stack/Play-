@@ -9,6 +9,7 @@
 #include "xml/Writer.h"
 
 #include "InputManager.h"
+#include "NativeShared.h"
 
 #include "../PH_Generic.h"
 #include "../PS2VM.h"
