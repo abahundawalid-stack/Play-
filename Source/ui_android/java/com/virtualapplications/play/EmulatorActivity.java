@@ -185,6 +185,7 @@ public class EmulatorActivity extends Activity
     private boolean _resumePromptShown = false;
     private boolean _inMultiWindowMode = false;
 
+    private EmulatorCoreInterface _core;
     private EmulatorServiceController _serviceController;
 
     private String _serviceGameTitle = "Play! Emulator";
@@ -204,6 +205,8 @@ public class EmulatorActivity extends Activity
     protected void onCreate(Bundle savedInstanceState)
     {
         super.onCreate(savedInstanceState);
+
+        _core = EmulatorCoreInterface.from(this);
 
         _serviceController =
         new EmulatorServiceController(this);
