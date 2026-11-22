@@ -163,29 +163,20 @@ private void Startup()
     {
         Context appContext = getApplicationContext();
 
-        NativeInterop.setFilesDirPath(
-                appContext.getFilesDir().getAbsolutePath());
-
-        NativeInterop.setCacheDirPath(
-                appContext.getCacheDir().getAbsolutePath());
-
-        NativeInterop.setAssetManager(
-                appContext.getAssets());
-
-        NativeInterop.setContentResolver(
-                appContext.getContentResolver());
+        EmulatorCoreInterface.from(this)
+            .initializePlatformResources();
 
         Log.i(
-                Constants.TAG,
-                "JPOG_SCAN: Native Android resources initialized"
+            Constants.TAG,
+            "JPOG_SCAN: Native Android resources initialized"
         );
     }
     catch(Throwable ex)
     {
         Log.e(
-                Constants.TAG,
-                "JPOG_SCAN: Native initialization failed",
-                ex
+            Constants.TAG,
+            "JPOG_SCAN: Native initialization failed",
+            ex
         );
 
         displaySimpleMessage(
