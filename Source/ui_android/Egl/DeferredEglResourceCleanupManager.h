@@ -42,8 +42,11 @@ public:
         EGLDisplay display = EGL_NO_DISPLAY;
         EGLContext context = EGL_NO_CONTEXT;
 
-        // True only when this bundle owns one lease obtained
-        // from CEglDisplayManager::Acquire().
+        // Identity of the display lease owned by this bundle.
+        // Zero means that this bundle has no identity-based lease.
+        std::uint64_t displayLeaseId = 0;
+
+        // Retained for compatibility with existing bundle logic.
         bool ownsDisplayLease = false;
 
         std::vector<SurfaceResource> surfaces;
