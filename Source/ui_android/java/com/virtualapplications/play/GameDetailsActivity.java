@@ -30,6 +30,23 @@ public final class GameDetailsActivity extends Activity
         gameOverview = getIntent().getStringExtra(
                 ActivityNavigator.EXTRA_GAME_OVERVIEW);
 
+        String gameDiscId = getIntent().getStringExtra(
+        ActivityNavigator.EXTRA_GAME_DISC_ID);
+
+        boolean gameFavorite = getIntent().getBooleanExtra(
+                "game.favorite",
+                false);
+
+        int gameBootableType = getIntent().getIntExtra(
+                "game.bootable_type",
+                0);
+
+        String gameCompatibility = getIntent().getStringExtra(
+                "game.compatibility");
+
+        String gameCoverKey = getIntent().getStringExtra(
+                "game.cover_key");
+
         if(gamePath == null || gamePath.trim().isEmpty())
         {
             finish();
@@ -103,6 +120,18 @@ public final class GameDetailsActivity extends Activity
         scrollView.addView(root);
         setContentView(scrollView);
         setTitle(gameTitle);
+
+        BootablesInterop.setFavorite(
+                gamePath,
+                !gameFavorite);
+
+        BootablesInterop.setTitle(
+                gamePath,
+                newTitle);
+
+        BootablesInterop.setDiscId(
+                gamePath,
+                newDiscId);
     }
 
     private void launchSelectedGame(View view)
@@ -121,8 +150,8 @@ public final class GameDetailsActivity extends Activity
         }
 
         BootablesInterop.setLastBootedTime(
-                gamePath,
-                System.currentTimeMillis());
+                 gamePath,
+                 System.currentTimeMillis() / 1000L);
 
         Toast.makeText(
                 this,
