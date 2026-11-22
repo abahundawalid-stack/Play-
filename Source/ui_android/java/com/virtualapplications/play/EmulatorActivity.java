@@ -789,7 +789,8 @@ public class EmulatorActivity extends Activity
                     View.SYSTEM_UI_FLAG_FULLSCREEN |
                     View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
         }
-
+    }
+    
     private void updateVirtualMachineState()
     {
         if(!_surfaceCreated)
