@@ -104,47 +104,99 @@ public class GameInfo
 		saveImage(key, "", image);
 	}
 
-	public void saveImage(String key, String custom, Bitmap image)
-	{
-		addBitmapToMemoryCache(key, image);
-		String path = mContext.getExternalFilesDir(null) + "/covers/";
-		OutputStream fOut = null;
-		File file = new File(path, key + custom + ".jpg"); // the File to save to
-		if(!file.getParentFile().exists())
-		{
-			file.getParentFile().mkdir();
-		}
-		try
-		{
-			fOut = new FileOutputStream(file, false);
-			image.compress(Bitmap.CompressFormat.JPEG, 85, fOut); // saving the Bitmap to a file compressed as a JPEG with 85% compression rate
-			fOut.flush();
-		}
-		catch(IOException e)
-		{
-			e.printStackTrace();
-		}
-		finally
-		{
-			try
-			{
-				fOut.close();
-			}
-			catch(IOException ignored)
-			{
-			}
-		}
-	}
+	public void saveImage(
+            String key,
+            String custom,
+            Bitmap image)
+    {
+        if(key == null || image == null)
+            return;
 
-	public void deleteImage(String key, String custom)
-	{
-		String path = mContext.getExternalFilesDir(null) + "/covers/";
-		File file = new File(path, key + custom + ".jpg"); // the File to save to
-		if(file.exists())
-		{
-			file.delete();
-		}
-	}
+        String safeKey = key.replaceAll(
+                "[^A-Za-z0-9._-]",
+                "_");
+
+        File baseDirectory =
+                mContext.getExternalFilesDir(null);
+
+        if(baseDirectory == null)
+            return;
+
+        File coverDirectory =
+                new File(baseDirectory, "covers");
+
+        if(!coverDirectory.exists() &&
+           !coverDirectory.mkdirs())
+        {
+            return;
+        }
+
+        String suffix = custom == null ? "" : custom;
+
+        File file = new File(
+                coverDirectory,
+                safeKey + suffix + ".jpg");
+
+        removeBitmapFromMemCache(safeKey);
+
+        try(FileOutputStream output =
+                    new FileOutputStream(file, false))
+        {
+            boolean compressed = image.compress(
+                    Bitmap.CompressFormat.JPEG,
+                    85,
+                    output);
+
+            output.flush();
+
+            if(!compressed)
+            {
+                file.delete();
+                return;
+            }
+
+            addBitmapToMemoryCache(safeKey, image);
+        }
+        catch(IOException error)
+        {
+            file.delete();
+            error.printStackTrace();
+        }
+    }
+
+	public void deleteImage(
+            String key,
+            String custom)
+    {
+        if(key == null)
+            return;
+
+        String safeKey = key.replaceAll(
+                "[^A-Za-z0-9._-]",
+                "_");
+
+        removeBitmapFromMemCache(safeKey);
+
+        File baseDirectory =
+                mContext.getExternalFilesDir(null);
+
+        if(baseDirectory == null)
+            return;
+
+        File coverDirectory =
+                new File(baseDirectory, "covers");
+
+        String suffix = custom == null ? "" : custom;
+
+        File file = new File(
+                coverDirectory,
+                safeKey + suffix + ".jpg");
+
+        if(file.exists())
+        {
+            file.delete();
+        }
+    }
 
 	public void setCoverImage(String key, GamesAdapter.CoverViewHolder viewHolder, String boxart, int pos)
 	{
