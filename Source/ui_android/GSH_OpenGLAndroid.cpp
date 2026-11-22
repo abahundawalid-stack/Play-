@@ -196,6 +196,8 @@ bool CGSH_OpenGLAndroid::DeferOutstandingEglResources()
     // Ownership has now transferred successfully.
     // The renderer must never release these resources again.
     m_display = EGL_NO_DISPLAY;
+    m_displayLeaseId = 0;
+
     m_context = EGL_NO_CONTEXT;
     m_surface = EGL_NO_SURFACE;
 
