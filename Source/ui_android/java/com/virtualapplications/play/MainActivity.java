@@ -72,6 +72,54 @@ public class MainActivity extends AppCompatActivity implements NavigationDrawerF
     static final int g_dataFilesExportFolderPickerRequestCode = 0xBEF0;
     static final int g_dataFilesImportFolderPickerRequestCode = 0xBEF1;
 
+    private List<Bootable> filterGames(
+            List<Bootable> source)
+    {
+        List<Bootable> result = new ArrayList<>();
+
+        if(source == null)
+            return result;
+
+        String query = gameSearchQuery == null
+                ? ""
+                : gameSearchQuery.trim().toLowerCase(Locale.ROOT);
+
+        for(Bootable game : source)
+        {
+            if(game == null)
+                continue;
+
+            if(favoritesOnly && !game.favorite)
+                continue;
+
+            if(!query.isEmpty())
+            {
+                String title = game.title == null
+                        ? ""
+                        : game.title.toLowerCase(Locale.ROOT);
+
+                String serial = game.discId == null
+                        ? ""
+                        : game.discId.toLowerCase(Locale.ROOT);
+
+                String path = game.path == null
+                        ? ""
+                        : game.path.toLowerCase(Locale.ROOT);
+
+                if(!title.contains(query) &&
+                   !serial.contains(query) &&
+                   !path.contains(query))
+                {
+                    continue;
+                }
+            }
+
+            result.add(game);
+        }
+
+        return result;
+    }
+    
     @Override
     protected void onCreate(Bundle savedInstanceState)
     {
