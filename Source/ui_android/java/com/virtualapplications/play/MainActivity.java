@@ -72,9 +72,14 @@ public class MainActivity extends AppCompatActivity implements NavigationDrawerF
     {
         super.onCreate(savedInstanceState);
 
-        AppExitDiagnostics.installUncaughtExceptionLogger(this);
+        if(savedInstanceState != null)
+        {
+            sortMethod = ActivityStateController.restoreMainSortMethod(
+                    savedInstanceState,
+                    SORT_NONE);
 
-        AppExitDiagnostics.capturePreviousExit(this);
+            hasRestoredUiState = true;
+        }
 
         currentOrientation = getResources().getConfiguration().orientation;
 
@@ -184,7 +189,18 @@ private void Startup()
     SharedPreferences sp =
             PreferenceManager.getDefaultSharedPreferences(this);
 
-    sortMethod = sp.getInt("sortMethod.v2", SORT_NONE);
+    if(!hasRestoredUiState)
+    {
+        sortMethod = sp.getInt(
+                "sortMethod.v2",
+                SORT_NONE);
+    }
+    else
+    {
+        sp.edit()
+                .putInt("sortMethod.v2", sortMethod)
+                .apply();
+    }
 
     switch(sortMethod)
     {
