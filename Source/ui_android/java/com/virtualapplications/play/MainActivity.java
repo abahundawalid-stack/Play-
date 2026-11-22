@@ -550,6 +550,10 @@ if(requestCode == g_folderPickerRequestCode &&
     {
         super.onConfigurationChanged(newConfig);
 
+        ActivityLifecycleController.dispatchConfigurationChanged(
+                this,
+                newConfig);
+
         mNavigationDrawerFragment.onConfigurationChanged(newConfig);
 
         if(newConfig.orientation != currentOrientation)
@@ -560,6 +564,24 @@ if(requestCode == g_folderPickerRequestCode &&
             prepareFileListView(
                     currentGames != null && !currentGames.isEmpty());
         }
+    }
+
+    @Override
+    public void onMultiWindowModeChanged(
+            boolean isInMultiWindowMode,
+            Configuration newConfig)
+    {
+        super.onMultiWindowModeChanged(
+                isInMultiWindowMode,
+                newConfig);
+  
+        ActivityLifecycleController.dispatchMultiWindowModeChanged(
+                this,
+                isInMultiWindowMode);
+
+        ActivityLifecycleController.dispatchConfigurationChanged(
+                this,
+                newConfig);
     }
 
     @Override
