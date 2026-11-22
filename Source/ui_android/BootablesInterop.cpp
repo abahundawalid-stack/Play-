@@ -585,6 +585,48 @@ Java_com_virtualapplications_play_BootablesInterop_getBootables(
 			    bootableClassInfo.overview,
 			    overviewString);
 
+			env->SetLongField(
+                bootableJ,
+                bootableClassInfo.lastBootedTime,
+                static_cast<jlong>(bootable.lastBootedTime));
+
+            env->SetIntField(
+                bootableJ,
+                bootableClassInfo.bootableType,
+                static_cast<jint>(bootable.bootableType));
+
+            env->SetBooleanField(
+                bootableJ,
+                bootableClassInfo.favorite,
+                bootable.favorite);
+
+std::string compatibilityText;
+
+for(const auto& state : bootable.states)
+{
+    if(!compatibilityText.empty())
+    {
+        compatibilityText += "\n";
+    }
+
+    compatibilityText += state.name;
+}
+
+jstring compatibilityString =
+    NewJstringFromUtf8(env, compatibilityText);
+
+if(compatibilityString == nullptr ||
+   env->ExceptionCheck())
+{
+    env->PopLocalFrame(nullptr);
+    return nullptr;
+}
+
+env->SetObjectField(
+    bootableJ,
+    bootableClassInfo.compatibility,
+    compatibilityString);
+
 			if(env->ExceptionCheck())
 			{
 				env->PopLocalFrame(nullptr);
@@ -830,4 +872,105 @@ Java_com_virtualapplications_play_BootablesInterop_PurgeInexistingFiles(
 		Log_Error(
 		    "BootablesInterop::PurgeInexistingFiles: unknown native exception.\r\n");
 	}
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_virtualapplications_play_BootablesInterop_setTitle(
+    JNIEnv* env,
+    jclass clazz,
+    jstring pathString,
+    jstring titleString)
+{
+    try
+    {
+        fs::path path;
+        std::string title;
+
+        if(!GetBootablePath(env, pathString, &path))
+            return;
+
+        if(!JavaStringToUtf8(env, titleString, &title))
+            return;
+
+        BootablesDb::CClient::GetInstance().SetTitle(
+            path,
+            title.c_str());
+    }
+    catch(const std::exception& exception)
+    {
+        Log_Error(
+            "BootablesInterop::setTitle: %s\r\n",
+            exception.what());
+    }
+    catch(...)
+    {
+        Log_Error(
+            "BootablesInterop::setTitle: unknown native exception.\r\n");
+    }
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_virtualapplications_play_BootablesInterop_setDiscId(
+    JNIEnv* env,
+    jclass clazz,
+    jstring pathString,
+    jstring discIdString)
+{
+    try
+    {
+        fs::path path;
+        std::string discId;
+
+        if(!GetBootablePath(env, pathString, &path))
+            return;
+
+        if(!JavaStringToUtf8(env, discIdString, &discId))
+            return;
+
+        BootablesDb::CClient::GetInstance().SetDiscId(
+            path,
+            discId.c_str());
+    }
+    catch(const std::exception& exception)
+    {
+        Log_Error(
+            "BootablesInterop::setDiscId: %s\r\n",
+            exception.what());
+    }
+    catch(...)
+    {
+        Log_Error(
+            "BootablesInterop::setDiscId: unknown native exception.\r\n");
+    }
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_virtualapplications_play_BootablesInterop_setFavorite(
+    JNIEnv* env,
+    jclass clazz,
+    jstring pathString,
+    jboolean favorite)
+{
+    try
+    {
+        fs::path path;
+
+        if(!GetBootablePath(env, pathString, &path))
+            return;
+
+        BootablesDb::CClient::GetInstance().SetFavorite(
+            path,
+            favorite == JNI_TRUE);
+    }
+    catch(const std::exception& exception)
+    {
+        Log_Error(
+            "BootablesInterop::setFavorite: %s\r\n",
+            exception.what());
+    }
+    catch(...)
+    {
+        Log_Error(
+            "BootablesInterop::setFavorite: unknown native exception.\r\n");
+    }
 }
