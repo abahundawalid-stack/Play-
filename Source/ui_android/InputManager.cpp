@@ -206,6 +206,9 @@ namespace
 
 void CInputManager::SetButtonState(int buttonId, bool pressed)
 {
+    std::lock_guard<std::mutex> lock(
+        GetVirtualMachineMutex());
+    
     if(!IsValidButtonId(buttonId))
     {
         return;
@@ -238,6 +241,9 @@ void CInputManager::SetButtonState(int buttonId, bool pressed)
 
 void CInputManager::SetAxisState(int buttonId, float value)
 {
+    std::lock_guard<std::mutex> lock(
+        GetVirtualMachineMutex());
+    
     if(!IsValidButtonId(buttonId))
     {
         return;
