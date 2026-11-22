@@ -389,6 +389,9 @@ Java_com_virtualapplications_play_NativeInterop_isVirtualMachineCreated(
     JNIEnv* env,
     jobject obj)
 {
+    std::lock_guard<std::mutex> lock(
+        GetVirtualMachineMutex());
+    
     return g_virtualMachine != nullptr
         ? JNI_TRUE
         : JNI_FALSE;
@@ -400,6 +403,9 @@ Java_com_virtualapplications_play_NativeInterop_hasState(
     jobject obj,
     jint slot)
 {
+    std::lock_guard<std::mutex> lock(
+        GetVirtualMachineMutex());
+    
     if(g_virtualMachine == nullptr)
     {
         return JNI_FALSE;
@@ -434,6 +440,9 @@ Java_com_virtualapplications_play_NativeInterop_resumeVirtualMachine(
     JNIEnv* env,
     jobject obj)
 {
+    std::lock_guard<std::mutex> lock(
+        GetVirtualMachineMutex());
+    
     assert(g_virtualMachine != nullptr);
     if(g_virtualMachine == nullptr) return;
 
@@ -445,6 +454,9 @@ Java_com_virtualapplications_play_NativeInterop_pauseVirtualMachine(
     JNIEnv* env,
     jobject obj)
 {
+    std::lock_guard<std::mutex> lock(
+        GetVirtualMachineMutex());
+    
     assert(g_virtualMachine != nullptr);
     if(g_virtualMachine == nullptr) return;
 
@@ -457,6 +469,9 @@ Java_com_virtualapplications_play_NativeInterop_loadState(
     jobject obj,
     jint slot)
 {
+    std::lock_guard<std::mutex> lock(
+        GetVirtualMachineMutex());
+    
     assert(g_virtualMachine != nullptr);
     if(g_virtualMachine == nullptr) return;
 
@@ -482,6 +497,9 @@ Java_com_virtualapplications_play_NativeInterop_saveState(
     jobject obj,
     jint slot)
 {
+    std::lock_guard<std::mutex> lock(
+        GetVirtualMachineMutex());
+    
     assert(g_virtualMachine != nullptr);
     if(g_virtualMachine == nullptr) return;
 
@@ -507,6 +525,9 @@ Java_com_virtualapplications_play_NativeInterop_loadElf(
     jobject obj,
     jstring selectedFilePath)
 {
+    std::lock_guard<std::mutex> lock(
+        GetVirtualMachineMutex());
+    
     assert(g_virtualMachine != nullptr);
     if(g_virtualMachine == nullptr) return;
 
@@ -532,6 +553,9 @@ Java_com_virtualapplications_play_NativeInterop_bootDiskImage(
     jobject obj,
     jstring selectedFilePath)
 {
+    std::lock_guard<std::mutex> lock(
+        GetVirtualMachineMutex());
+    
     assert(g_virtualMachine != nullptr);
     if(g_virtualMachine == nullptr) return;
 
@@ -563,6 +587,9 @@ Java_com_virtualapplications_play_NativeInterop_setupGsHandler(
     jint height,
     jfloat refreshRate)
 {
+    std::lock_guard<std::mutex> lock(
+        GetVirtualMachineMutex());
+    
     ANativeWindow* nativeWindow = nullptr;
 
     if(surface != nullptr)
@@ -668,6 +695,9 @@ Java_com_virtualapplications_play_NativeInterop_notifyPreferencesChanged(
     JNIEnv* env,
     jobject obj)
 {
+    std::lock_guard<std::mutex> lock(
+        GetVirtualMachineMutex());
+    
     if(g_virtualMachine == nullptr)
     {
         return;
@@ -741,6 +771,9 @@ Java_com_virtualapplications_play_NativeInterop_getAudioDiagnostics(
     JNIEnv* env,
     jobject obj)
 {
+    std::lock_guard<std::mutex> lock(
+        GetVirtualMachineMutex());
+    
     // [0] OpenSL handler active: 1=yes, 0=no, -1=unknown
     // [1] Queued buffers
     // [2] Buffer capacity
