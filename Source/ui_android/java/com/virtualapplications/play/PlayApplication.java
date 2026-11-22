@@ -36,10 +36,19 @@ public final class PlayApplication extends Application
         services.register(ApplicationServiceRegistry.class, services);
         services.register(ApplicationState.class, applicationState);
         services.register(ApplicationConfiguration.class, configuration);
+
+        EmulatorCoreInterface emulatorCore =
+            new EmulatorCoreInterface(
+                this,
+                configuration);
+
+        services.register(
+            EmulatorCoreInterface.class,
+            emulatorCore);
+        
         services.register(ApplicationCompatibility.class, compatibility);
         services.register(ApplicationVersion.class, version);
-        services.register(
-            ApplicationShutdownCoordinator.class, shutdownCoordinator);
+        services.register(ApplicationShutdownCoordinator.class, shutdownCoordinator);
     }
 
     public ApplicationServiceRegistry getServices()
