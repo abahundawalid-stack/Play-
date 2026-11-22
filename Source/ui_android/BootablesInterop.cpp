@@ -309,6 +309,10 @@ namespace
 		       info.title != nullptr &&
 		       info.coverUrl != nullptr &&
 		       info.overview != nullptr;
+	           info.lastBootedTime != nullptr &&
+               info.bootableType != nullptr &&
+               info.favorite != nullptr &&
+               info.compatibility != nullptr;
 	}
 
 	void LogJniFailure(const char* operation)
