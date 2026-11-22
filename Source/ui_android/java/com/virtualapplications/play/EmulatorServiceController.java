@@ -66,16 +66,19 @@ public final class EmulatorServiceController
             EmulatorService.EXTRA_GAME_TITLE,
             gameTitle);
 
+        ComponentName startedComponent;
+
         try
         {
             if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
             {
-                applicationContext.startForegroundService(
-                    intent);
+                startedComponent =
+                    applicationContext.startForegroundService(intent);
             }
             else
             {
-                applicationContext.startService(intent);
+                startedComponent =
+                    applicationContext.startService(intent);
             }
         }
         catch(RuntimeException error)
@@ -84,6 +87,17 @@ public final class EmulatorServiceController
                 TAG,
                 "Unable to start EmulatorService.",
                 error);
+
+            return;
+        }
+
+        if(startedComponent == null)
+        {
+            Log.e(
+                TAG,
+                "Android did not return a started service component.");
+
+            return;
         }
 
         if(!bound)
