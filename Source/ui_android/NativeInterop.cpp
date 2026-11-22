@@ -233,37 +233,96 @@ Java_com_virtualapplications_play_NativeInterop_createVirtualMachine(
     JNIEnv* env,
     jobject obj)
 {
-    assert(g_virtualMachine == nullptr);
+    std::lock_guard<std::mutex> lock(
+        GetVirtualMachineMutex());
 
-    if(g_virtualMachine != nullptr) return;
+    if(g_virtualMachine != nullptr)
+    {
+        return;
+    }
 
-    g_virtualMachine = new CPS2VM();
+    std::unique_ptr<CPS2VM> vm;
 
-    g_virtualMachine->Initialize();
+    bool initialized = false;
 
-    g_virtualMachine->CreatePadHandler(
-        CPH_Generic::GetFactoryFunction());
+    try
+    {
+        vm.reset(new CPS2VM());
+
+        vm->Initialize();
+        initialized = true;
+
+        vm->CreatePadHandler(
+            CPH_Generic::GetFactoryFunction());
 
 #ifdef PROFILE
-    g_OnNewFrameConnection =
-        g_virtualMachine->OnNewFrame.Connect(
-            std::bind(
-                &CStatsManager::OnNewFrame,
-                &CStatsManager::GetInstance(),
-                g_virtualMachine));
+        g_OnNewFrameConnection =
+            vm->OnNewFrame.Connect(
+                std::bind(
+                    &CStatsManager::OnNewFrame,
+                    &CStatsManager::GetInstance(),
+                    vm.get()));
 #endif
 
-    CAppConfig::GetInstance().RegisterPreferenceInteger(
-        PREF_VIDEO_GS_HANDLER,
-        PREFERENCE_VALUE_VIDEO_GS_HANDLER_OPENGL);
+        CAppConfig::GetInstance().RegisterPreferenceInteger(
+            PREF_VIDEO_GS_HANDLER,
+            PREFERENCE_VALUE_VIDEO_GS_HANDLER_OPENGL);
 
-    CAppConfig::GetInstance().RegisterPreferenceBoolean(
-        PREF_AUDIO_ENABLEOUTPUT,
-        true);
+        CAppConfig::GetInstance().RegisterPreferenceBoolean(
+            PREF_AUDIO_ENABLEOUTPUT,
+            true);
 
-    CGSH_OpenGL::RegisterPreferences();
+        CGSH_OpenGL::RegisterPreferences();
 
-    g_currentGsHandlerId = -1;
+        g_currentGsHandlerId = -1;
+
+        g_virtualMachine = vm.release();
+
+        Log_Print(
+            "Native virtual machine initialized.\r\n");
+    }
+    catch(const std::exception& exception)
+    {
+        g_OnNewFrameConnection.reset();
+
+        if(initialized && vm != nullptr)
+        {
+            try
+            {
+                vm->Destroy();
+            }
+            catch(...)
+            {
+                Log_Error(
+                    "VM cleanup after initialization failure failed.\r\n");
+            }
+        }
+
+        ThrowJavaRuntimeException(
+            env,
+            exception.what());
+    }
+    catch(...)
+    {
+        g_OnNewFrameConnection.reset();
+
+        if(initialized && vm != nullptr)
+        {
+            try
+            {
+                vm->Destroy();
+            }
+            catch(...)
+            {
+                Log_Error(
+                    "VM cleanup after unknown initialization failure failed.\r\n");
+            }
+        }
+
+        ThrowJavaRuntimeException(
+            env,
+            "Unknown native VM initialization failure.");
+    }
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
