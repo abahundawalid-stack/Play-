@@ -19,6 +19,10 @@ namespace com
 				jfieldID title = NULL;
 				jfieldID coverUrl = NULL;
 				jfieldID overview = NULL;
+                jfieldID lastBootedTime = nullptr;
+                jfieldID bootableType = nullptr;
+                jfieldID favorite = nullptr;
+                jfieldID compatibility = nullptr;
 			};
 		}
 	}
