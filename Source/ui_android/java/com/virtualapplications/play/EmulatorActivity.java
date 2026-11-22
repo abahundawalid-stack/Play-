@@ -66,6 +66,8 @@ public class EmulatorActivity extends Activity
             return;
         }
 
+        _resumePromptShown = true;
+
         new AlertDialog.Builder(this)
             .setTitle("Autosave ditemukan")
             .setMessage(
@@ -546,6 +548,8 @@ public class EmulatorActivity extends Activity
 
         if(isFinishing() && !isChangingConfigurations())
         {
+            _core.finishSession();
+            
             boolean autosaveCompleted = false;
 
             try
@@ -562,9 +566,7 @@ public class EmulatorActivity extends Activity
                 Log.w(
                     Constants.TAG,
                     "Interrupted while waiting for autosave shutdown.",
-                    error);
-
-                _core.finishSession();
+                    error);       
             }
 
             if(autosaveCompleted)
@@ -937,11 +939,7 @@ public class EmulatorActivity extends Activity
                 // 1. Hentikan eksekusi VM terlebih dahulu.
                 _core.pause();
 
-                _core.detachSurface();
-                    null,
-                    0,
-                    0,
-                    0.0f);
+                _core.detachSurface();                 
             }
 
             // 2. Tandai Surface sudah tidak tersedia.
