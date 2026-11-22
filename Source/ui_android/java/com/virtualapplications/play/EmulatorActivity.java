@@ -925,43 +925,7 @@ public class EmulatorActivity extends Activity
                 validSurface
                     ? "ANDROID_SURFACE_CREATED_VALID"
                     : "ANDROID_SURFACE_CREATED_INVALID");
-        }
-
-        @Override
-        public void onConfigurationChanged(Configuration newConfig)
-        {
-            super.onConfigurationChanged(newConfig);
-
-            ActivityLifecycleController.dispatchConfigurationChanged(
-                    this,
-                    newConfig);
-  
-            setupWindow();
-            updateOnScreenWidgets();
-        }
-
-        @Override
-        public void onMultiWindowModeChanged(
-                boolean isInMultiWindowMode,
-                Configuration newConfig)
-        {
-            super.onMultiWindowModeChanged(
-                    isInMultiWindowMode,
-                    newConfig);
-
-            _inMultiWindowMode = isInMultiWindowMode;
-
-            ActivityLifecycleController.dispatchMultiWindowModeChanged(
-                    this,
-                    isInMultiWindowMode);
-
-            ActivityLifecycleController.dispatchConfigurationChanged(
-                    this,
-                    newConfig);
-
-            setupWindow();
-            updateOnScreenWidgets();
-        }
+        }    
         
         @Override
         public void surfaceDestroyed(SurfaceHolder holder)
@@ -985,11 +949,46 @@ public class EmulatorActivity extends Activity
                     0.0f);
             }
 
-            // 3. Tandai Surface sudah tidak tersedia.
+            // 2. Tandai Surface sudah tidak tersedia.
             _surfaceCreated = false;
 
             stopStatsTimer();
         }
+    }
 
+    @Override
+    public void onConfigurationChanged(Configuration newConfig)
+    {
+        super.onConfigurationChanged(newConfig);
+
+        ActivityLifecycleController.dispatchConfigurationChanged(
+                this,
+                newConfig);
+
+        setupWindow();
+        updateOnScreenWidgets();
+    }
+
+    @Override
+    public void onMultiWindowModeChanged(
+            boolean isInMultiWindowMode,
+            Configuration newConfig)
+    {
+        super.onMultiWindowModeChanged(
+                isInMultiWindowMode,
+                newConfig);
+
+        _inMultiWindowMode = isInMultiWindowMode;
+
+        ActivityLifecycleController.dispatchMultiWindowModeChanged(
+                this,
+                isInMultiWindowMode);
+
+        ActivityLifecycleController.dispatchConfigurationChanged(
+                this,
+                newConfig);
+
+        setupWindow();
+        updateOnScreenWidgets();
     }
 }
