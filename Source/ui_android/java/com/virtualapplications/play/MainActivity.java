@@ -20,6 +20,7 @@ import androidx.core.content.ContextCompat;
 import androidx.appcompat.app.*;
 import androidx.appcompat.app.ActionBar;
 import androidx.appcompat.widget.Toolbar;
+import androidx.appcompat.widget.SearchView;
 
 import android.util.Log;
 import android.view.*;
@@ -58,7 +59,11 @@ public class MainActivity extends AppCompatActivity implements NavigationDrawerF
     private String navSubtitle;
     private Toolbar toolbar;
     private boolean hasRestoredUiState;
+    private String gameSearchQuery = "";
+    private boolean favoritesOnly = false;
 
+    private static final int MENU_LIBRARY_SEARCH = 0x4A504F49;
+    private static final int MENU_LIBRARY_FAVORITES = 0x4A504F4A;
     private static final int MENU_TEST_GET_BOOTABLES = 0x4A504F47;
     private static final int MENU_PS2_FORENSIC = 0x4A504F48;
 
@@ -656,6 +661,64 @@ if(requestCode == g_folderPickerRequestCode &&
             restoreActionBar();
 
             menu.clear();
+
+            MenuItem searchItem = menu.add(
+                    Menu.NONE,
+                    MENU_LIBRARY_SEARCH,
+                    Menu.NONE,
+                    "Search games");
+
+            SearchView searchView = new SearchView(this);
+
+            searchView.setQueryHint("Search title, serial, or path");
+
+            searchView.setQuery(
+                    gameSearchQuery,
+                    false);
+
+            searchView.setOnQueryTextListener(
+                    new SearchView.OnQueryTextListener()
+                    {
+                        @Override
+                        public boolean onQueryTextSubmit(String query)
+                        {
+                            gameSearchQuery = query == null ? "" : query;
+                            populateImages(currentGames);
+                            return true;
+                        }
+
+                        @Override
+                        public boolean onQueryTextChange(String newText)
+                        {
+                            gameSearchQuery =
+                                    newText == null ? "" : newText;
+
+                            populateImages(currentGames);
+                            return true;
+                        }
+                    });
+
+            searchItem.setActionView(searchView);
+
+            searchItem.setShowAsAction(
+                    MenuItem.SHOW_AS_ACTION_IF_ROOM |
+                    MenuItem.SHOW_AS_ACTION_COLLAPSE_ACTION_VIEW);
+
+            MenuItem favoriteItem = menu.add(
+                    Menu.NONE,
+                    MENU_LIBRARY_FAVORITES,
+                    Menu.NONE,
+                    "Favorites only");
+
+            favoriteItem.setCheckable(true);
+            favoriteItem.setChecked(favoritesOnly);
+
+            favoriteItem.setOnMenuItemClickListener(item -> {
+                favoritesOnly = !favoritesOnly;
+                item.setChecked(favoritesOnly);
+                populateImages(currentGames);
+                return true;
+            });
 
             menu.add(
                     Menu.NONE,
