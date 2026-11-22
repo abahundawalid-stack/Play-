@@ -484,7 +484,8 @@ CDeferredEglResourceCleanupManager::Drain()
 
         // The display lease belongs to this bundle until its final
         // EGL resource has been successfully destroyed.
-        if(bundle.ownsDisplayLease)
+        if(bundle.ownsDisplayLease ||
+           bundle.displayLeaseId != 0)
         {
             if(!ReleaseBundleDisplay(bundle, error))
             {
