@@ -339,8 +339,9 @@ bool CDeferredEglResourceCleanupManager::Adopt(
         bundle.display != EGL_NO_DISPLAY ||
         bundle.context != EGL_NO_CONTEXT ||
         bundle.ownsDisplayLease ||
+        bundle.displayLeaseId != 0 ||
         !bundle.surfaces.empty();
-
+    
     if(!hasAnyResource)
     {
         return true;
