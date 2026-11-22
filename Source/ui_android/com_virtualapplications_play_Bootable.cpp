@@ -37,4 +37,36 @@ void Bootable_ClassInfo::PrepareClassInfo()
 	overview = env->GetFieldID(clazz, "overview", "Ljava/lang/String;");
 	Framework::CJavaVM::CheckException(env);
 	assert(overview != NULL);
+
+	lastBootedTime = env->GetFieldID(
+    clazz,
+    "lastBootedTime",
+    "J");
+
+    Framework::CJavaVM::CheckException(env);
+    assert(lastBootedTime != nullptr);
+
+    bootableType = env->GetFieldID(
+        clazz,
+        "bootableType",
+        "I");
+
+    Framework::CJavaVM::CheckException(env);
+    assert(bootableType != nullptr);
+
+    favorite = env->GetFieldID(
+        clazz,
+        "favorite",
+        "Z");
+
+    Framework::CJavaVM::CheckException(env);
+    assert(favorite != nullptr);
+
+    compatibility = env->GetFieldID(
+        clazz,
+        "compatibility",
+        "Ljava/lang/String;");
+
+    Framework::CJavaVM::CheckException(env);
+    assert(compatibility != nullptr);
 }
