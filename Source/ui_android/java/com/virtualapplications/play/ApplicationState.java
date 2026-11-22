@@ -32,26 +32,44 @@ public final class ApplicationState
 
     void onActivityStarted()
     {
-        int count = startedActivityCount.incrementAndGet();
-        if(count > 0)
-            state.set(ProcessState.FOREGROUND);
+        startedActivityCount.incrementAndGet();
+
+        updateVisibilityState(ProcessState.FOREGROUND);
     }
 
     void onActivityStopped()
     {
         int count;
+
         do
         {
             int current = startedActivityCount.get();
+
             count = current > 0 ? current - 1 : 0;
+
             if(startedActivityCount.compareAndSet(current, count))
                 break;
         }
         while(true);
 
-        state.set(count > 0
-            ? ProcessState.FOREGROUND
-            : ProcessState.BACKGROUND);
+        updateVisibilityState(
+                count > 0
+                        ? ProcessState.FOREGROUND
+                        : ProcessState.BACKGROUND);
+    }
+
+    private void updateVisibilityState(ProcessState nextState)
+    {
+        while(true)
+        {
+            ProcessState current = state.get();
+
+            if(current == ProcessState.SHUTTING_DOWN)
+                return;
+
+            if(state.compareAndSet(current, nextState))
+                return;
+        }
     }
 
     void markShuttingDown()
