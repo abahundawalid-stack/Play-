@@ -619,11 +619,8 @@ if(requestCode == g_folderPickerRequestCode &&
                 break;
 
             case 3:
-                Intent diagnosticsIntent =
-                        new Intent(this, DiagnosticsActivity.class);
-
-                startActivity(diagnosticsIntent);
-                break;
+                 ActivityNavigator.openDiagnostics(this);
+                 break;
         }
     }
 
