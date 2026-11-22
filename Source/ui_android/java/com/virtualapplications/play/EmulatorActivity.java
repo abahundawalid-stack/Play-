@@ -284,13 +284,9 @@ public class EmulatorActivity extends Activity
                 @Override
                 public void onSettingsSelected()
                 {
-                    Intent intent = new Intent(
-                        getApplicationContext(),
-                        SettingsActivity.class);
-
-                    startActivityForResult(
-                        intent,
-                        _settingsIntentRequestCode);
+                    ActivityNavigator.openSettings(
+                            EmulatorActivity.this,
+                            _settingsIntentRequestCode);
                 }
             }
         );
@@ -413,6 +409,16 @@ public class EmulatorActivity extends Activity
             requestCode, resultCode, data);
     }
 
+    @Override
+    protected void onSaveInstanceState(Bundle outState)
+    {
+        ActivityStateController.saveEmulatorActivityState(
+                outState,
+                _resumePromptShown);
+
+        super.onSaveInstanceState(outState);
+    }
+    
     @Override
     public void onWindowFocusChanged(boolean hasFocus)
     {
@@ -793,6 +799,42 @@ public class EmulatorActivity extends Activity
                 validSurface
                     ? "ANDROID_SURFACE_CREATED_VALID"
                     : "ANDROID_SURFACE_CREATED_INVALID");
+        }
+
+        @Override
+        public void onConfigurationChanged(Configuration newConfig)
+        {
+            super.onConfigurationChanged(newConfig);
+
+            ActivityLifecycleController.dispatchConfigurationChanged(
+                    this,
+                    newConfig);
+  
+            setupWindow();
+            updateOnScreenWidgets();
+        }
+
+        @Override
+        public void onMultiWindowModeChanged
+                boolean isInMultiWindowMode,
+                Configuration newConfig)
+        {
+            super.onMultiWindowModeChanged(
+                    isInMultiWindowMode,
+                    newConfig);
+
+            _inMultiWindowMode = isInMultiWindowMode;
+
+            ActivityLifecycleController.dispatchMultiWindowModeChanged(
+                    this,
+                    isInMultiWindowMode);
+
+            ActivityLifecycleController.dispatchConfigurationChanged(
+                    this,
+                    newConfig);
+
+            setupWindow();
+            updateOnScreenWidgets();
         }
         
         @Override
