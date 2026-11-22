@@ -6,6 +6,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import android.app.*;
 import android.content.Intent;
+import android.content.res.Configuration;
 import android.os.*;
 
 import androidx.drawerlayout.widget.DrawerLayout;
@@ -181,6 +182,7 @@ public class EmulatorActivity extends Activity
     private boolean _surfaceCreated = false;
     private boolean _activityRunning = false;
     private boolean _resumePromptShown = false;
+    private boolean _inMultiWindowMode = false;
 
     protected EmulatorDrawerFragment _drawerFragment;
 
@@ -197,6 +199,16 @@ public class EmulatorActivity extends Activity
     protected void onCreate(Bundle savedInstanceState)
     {
         super.onCreate(savedInstanceState);
+
+        _resumePromptShown =
+        ActivityStateController.restoreEmulatorResumePromptShown(
+                savedInstanceState,
+                false);
+
+        if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.N)
+        {
+            _inMultiWindowMode = isInMultiWindowMode();
+        }
 
         DiagnosticsManager.recordLaunchStage(
             this,
