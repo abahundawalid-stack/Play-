@@ -60,7 +60,8 @@ namespace
         return
             bundle.context == EGL_NO_CONTEXT &&
             !HasSurface(bundle) &&
-            !bundle.ownsDisplayLease;
+            !bundle.ownsDisplayLease &&
+            bundle.displayLeaseId == 0;
     }
 
     bool IsSurfaceCurrentOnCallingThread(
