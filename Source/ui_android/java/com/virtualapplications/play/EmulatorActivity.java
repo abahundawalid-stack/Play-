@@ -532,12 +532,70 @@ public class EmulatorActivity extends Activity
         _activityRunning = false;
 
         requestAutosave();
+
         _autosaveExecutor.shutdown();
 
         if(_serviceController != null)
         {
             _serviceController.shutdown();
             _serviceController = null;
+        }
+
+        if(isFinishing() && !isChangingConfigurations())
+        {
+            boolean autosaveCompleted = false;
+
+            try
+            {
+                autosaveCompleted =
+                    _autosaveExecutor.awaitTermination(
+                        15,
+                        TimeUnit.SECONDS);
+            }
+            catch(InterruptedException error)
+            {
+                Thread.currentThread().interrupt();
+
+                Log.w(
+                    Constants.TAG,
+                    "Interrupted while waiting for autosave shutdown.",
+                    error);
+            }
+
+            if(autosaveCompleted)
+            {
+                try
+                {
+                    if(NativeInterop.isVirtualMachineCreated())
+                    {
+                        NativeInterop.pauseVirtualMachine();
+
+                        NativeInterop.setupGsHandler(
+                            null,
+                            0,
+                            0,
+                            0.0f);
+
+                        NativeInterop.destroyVirtualMachine();
+                    }
+                }
+                catch(Exception error)
+                {
+                    Log.e(
+                        Constants.TAG,
+                        "Native VM shutdown failed.",
+                        error);
+                }
+            }
+            else
+            {
+                _autosaveExecutor.shutdownNow();
+
+                Log.e(
+                    Constants.TAG,
+                    "Autosave did not finish. Native VM is retained " +
+                    "to avoid destroying resources during an active save.");
+            }
         }
 
         DiagnosticsManager.finishSession(this);
