@@ -1,22 +1,35 @@
 package com.virtualapplications.play;
 
-import android.app.Activity;
-import android.app.Application;
-import android.os.Bundle;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-/** Performs process initialization once and wires Android Activity lifecycle. */
+/**
+ * Performs process initialization once and registers Activity lifecycle
+ * observation.
+ */
 public final class ApplicationInitializationCoordinator
 {
     private final PlayApplication application;
-    private final AtomicBoolean initialized = new AtomicBoolean(false);
 
-    ApplicationInitializationCoordinator(PlayApplication application)
+    private final ActivityLifecycleController activityLifecycleController;
+
+    private final AtomicBoolean initialized =
+            new AtomicBoolean(false);
+
+    ApplicationInitializationCoordinator(
+            PlayApplication application)
     {
         if(application == null)
+        {
             throw new IllegalArgumentException(
-                "Application must not be null.");
+                    "Application must not be null.");
+        }
+
         this.application = application;
+
+        this.activityLifecycleController =
+                new ActivityLifecycleController(
+                        application,
+                        application.getApplicationState());
     }
 
     public void initialize()
@@ -28,58 +41,38 @@ public final class ApplicationInitializationCoordinator
         {
             application.initializeCoreServices();
 
-            AppExitDiagnostics.installUncaughtExceptionLogger(application);
-            AppExitDiagnostics.capturePreviousExit(application);
+            AppExitDiagnostics.installUncaughtExceptionLogger(
+                    application);
 
-            application.registerActivityLifecycleCallbacks(
-                new Application.ActivityLifecycleCallbacks()
-                {
-                    @Override
-                    public void onActivityCreated(Activity activity, Bundle state) {}
+            AppExitDiagnostics.capturePreviousExit(
+                    application);
 
-                    @Override
-                    public void onActivityStarted(Activity activity)
-                    {
-                        application.getApplicationState().onActivityStarted();
-                    }
-
-                    @Override
-                    public void onActivityResumed(Activity activity) {}
-
-                    @Override
-                    public void onActivityPaused(Activity activity) {}
-
-                    @Override
-                    public void onActivityStopped(Activity activity)
-                    {
-                        application.getApplicationState().onActivityStopped();
-                    }
-
-                    @Override
-                    public void onActivitySaveInstanceState(
-                        Activity activity, Bundle state) {}
-
-                    @Override
-                    public void onActivityDestroyed(Activity activity) {}
-                });
+            activityLifecycleController.register();
 
             ApplicationLogger.info(
-                Constants.TAG, "Application Core initialized.");
+                    Constants.TAG,
+                    "Application Core initialized.");
         }
         catch(RuntimeException error)
         {
             initialized.set(false);
+
             ApplicationLogger.error(
-                Constants.TAG, "Application Core initialization failed.",
-                error);
+                    Constants.TAG,
+                    "Application Core initialization failed.",
+                    error);
+
             throw error;
         }
         catch(Error error)
         {
             initialized.set(false);
+
             ApplicationLogger.error(
-                Constants.TAG, "Fatal Application Core initialization error.",
-                error);
+                    Constants.TAG,
+                    "Fatal Application Core initialization error.",
+                    error);
+
             throw error;
         }
     }
@@ -87,5 +80,11 @@ public final class ApplicationInitializationCoordinator
     public boolean isInitialized()
     {
         return initialized.get();
+    }
+
+    public ActivityLifecycleController
+            getActivityLifecycleController()
+    {
+        return activityLifecycleController;
     }
 }
