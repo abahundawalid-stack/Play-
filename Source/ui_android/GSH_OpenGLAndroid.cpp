@@ -253,23 +253,39 @@ void CGSH_OpenGLAndroid::ReleaseEglDisplay()
 
     EGLint error = EGL_SUCCESS;
 
-    if(!CEglDisplayManager::Release(
-           displayToRelease,
-           &error))
+    bool released = false;
+
+    if(m_displayLeaseId != 0)
     {
-        // Preserve m_display so the same lease can be retried.
+        released = CEglDisplayManager::ReleaseLease(
+            displayToRelease,
+            &m_displayLeaseId,
+            &error);
+    }
+    else
+    {
+        // Compatibility fallback for a legacy acquisition.
+        released = CEglDisplayManager::Release(
+            displayToRelease,
+            &error);
+    }
+
+    if(!released)
+    {
+        // Preserve the display handle and lease identity.
         CLog::GetInstance().Print(
             "glesandroid",
             "[ORBIT2SX_EGL] shared display release failed; "
-            "display handle retained. "
-            "error=0x%04X display=%p references=%u\r\n",
+            "display and lease ownership retained. "
+            "error=0x%04X display=%p lease=%llu references=%u\r\n",
             error,
             displayToRelease,
+            static_cast<unsigned long long>(m_displayLeaseId),
             CEglDisplayManager::GetReferenceCount());
 
         return;
     }
-
+	
     // Clear the local handle only after successful lease release.
     m_display = EGL_NO_DISPLAY;
 
