@@ -102,15 +102,15 @@ CGSHandler::FactoryFunction CGSH_OpenGLAndroid::GetFactoryFunction(
     // ANativeWindow_fromSurface().
     //
     // Keep that reference alive until the factory is destroyed.
-    auto windowOwner = std::shared_ptr<NativeWindowType>(
-        window,
-        [](NativeWindowType ownedWindow)
+    auto windowOwner = std::shared_ptr<ANativeWindow>(
+    window,
+    [](ANativeWindow* ownedWindow)
+    {
+        if(ownedWindow != nullptr)
         {
-            if(ownedWindow != nullptr)
-            {
-                ANativeWindow_release(ownedWindow);
-            }
-        });
+            ANativeWindow_release(ownedWindow);
+        }
+    });
 
     return [windowOwner]()
     {
