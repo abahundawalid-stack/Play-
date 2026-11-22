@@ -41,7 +41,7 @@ public class EmulatorActivity extends Activity
                 return;
             }
 
-            if(NativeInterop.isVirtualMachineCreated())
+            if(_core.isVirtualMachineCreated())
             {
                 requestAutosave();
             }
@@ -61,7 +61,7 @@ public class EmulatorActivity extends Activity
 
         _resumePromptShown = true;
 
-        if(!NativeInterop.hasState(AUTOSAVE_SLOT))
+        if(_core.hasState(AUTOSAVE_SLOT))
         {
             return;
         }
@@ -73,13 +73,13 @@ public class EmulatorActivity extends Activity
                 "Apakah kamu ingin melanjutkan permainan terakhir?")
             .setPositiveButton("Continue", (dialog, which) ->
             {
-    NativeInterop.pauseVirtualMachine();
+        _core.pause();
 
                 new Thread(() ->
                 {
                     try
                     {
-    NativeInterop.loadState(AUTOSAVE_SLOT);
+    _core.loadState(AUTOSAVE_SLOT);
 
                         runOnUiThread(() ->
                         {
@@ -89,7 +89,7 @@ public class EmulatorActivity extends Activity
                                 return;
                             }
 
-    NativeInterop.resumeVirtualMachine();
+    _core.resume();
 
     Toast.makeText(
                                 this,
@@ -116,7 +116,7 @@ public class EmulatorActivity extends Activity
                               return;
                           }
 
-    NativeInterop.resumeVirtualMachine();
+    _core.resume();
 
         new AlertDialog.Builder(this)
             .setTitle("Gagal memuat autosave")
@@ -136,7 +136,7 @@ public class EmulatorActivity extends Activity
     
     private void requestAutosave()
     {
-        if(!NativeInterop.isVirtualMachineCreated())
+        if(_core.isVirtualMachineCreated())
         {
             return;
         }
@@ -152,7 +152,7 @@ public class EmulatorActivity extends Activity
            {
                try
                {
-    NativeInterop.saveState(AUTOSAVE_SLOT);
+    _core.saveState(AUTOSAVE_SLOT);
                   Log.i(Constants.TAG, "Autosave completed.");
                }
                catch(Exception e)
@@ -262,7 +262,7 @@ public class EmulatorActivity extends Activity
 
                     try
                     {
-                        NativeInterop.saveState(0);
+                        _core.saveState(0);
                     }
                     catch(Exception e)
                     {
@@ -287,7 +287,7 @@ public class EmulatorActivity extends Activity
 
                     try
                     {
-                        NativeInterop.loadState(0);
+                        _core.loadState(0);
                     }
                     catch(Exception e)
                     {
@@ -425,7 +425,7 @@ public class EmulatorActivity extends Activity
         if(requestCode == _settingsIntentRequestCode)
         {
             updateOnScreenWidgets();
-            NativeInterop.notifyPreferencesChanged();
+            _core.notifyPreferencesChanged();
         }
 
         super.onActivityResult(
@@ -569,17 +569,9 @@ public class EmulatorActivity extends Activity
             {
                 try
                 {
-                    if(NativeInterop.isVirtualMachineCreated())
+                    if(_core.isVirtualMachineCreated())
                     {
-                        NativeInterop.pauseVirtualMachine();
-
-                        NativeInterop.setupGsHandler(
-                            null,
-                            0,
-                            0,
-                            0.0f);
-
-                        NativeInterop.destroyVirtualMachine();
+                        _core.shutdown();
                     }
                 }
                 catch(Exception error)
@@ -814,7 +806,7 @@ public class EmulatorActivity extends Activity
 
         if(_activityRunning)
         {
-            NativeInterop.resumeVirtualMachine();
+            _core.resume();
 
             DiagnosticsManager.recordLaunchStage(
                 this,
@@ -822,7 +814,7 @@ public class EmulatorActivity extends Activity
         }
         else
         {
-            NativeInterop.pauseVirtualMachine();
+            _core.pause();
 
             DiagnosticsManager.recordLaunchStage(
                 this,
@@ -893,7 +885,7 @@ public class EmulatorActivity extends Activity
                 .getDefaultDisplay()
                 .getRefreshRate();
 
-            NativeInterop.setupGsHandler(
+            _core.attachSurface(
                 surface,
                 width,
                 height,
@@ -940,12 +932,12 @@ public class EmulatorActivity extends Activity
                 EmulatorActivity.this,
                 "ANDROID_SURFACE_DESTROYED");
 
-            if(NativeInterop.isVirtualMachineCreated())
+            if(_core.isVirtualMachineCreated())
             {
                 // 1. Hentikan eksekusi VM terlebih dahulu.
-                NativeInterop.pauseVirtualMachine();
+                _core.pause();
 
-                NativeInterop.setupGsHandler(
+                _core.detachSurface(
                     null,
                     0,
                     0,
