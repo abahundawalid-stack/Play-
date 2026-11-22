@@ -135,35 +135,9 @@ public final class EmulatorServiceController
             }
         }
     }
-
+    
     public void setEmulatorState(boolean running)
-    { 
-        public Future<?> submitBackgroundTask(Runnable task)
-        {
-            EmulatorService current = service;
-
-            if(current == null)
-            {
-                throw new IllegalStateException(
-                    "EmulatorService is not connected.");
-            }
-
-            return current.submitBackgroundTask(task);
-        } 
-
-        public <T> Future<T> submitBackgroundTask(Callable<T> task)
-        {  
-            EmulatorService current = service;
-
-            if(current == null)
-            {
-                throw new IllegalStateException(
-                    "EmulatorService is not connected.");
-            }
-
-            return current.submitBackgroundTask(task);
-        }
-        
+    {
         pendingRunning = running;
 
         EmulatorService current = service;
@@ -174,6 +148,32 @@ public final class EmulatorServiceController
                 pendingRunning,
                 gameTitle);
         }
+    }
+
+    public Future<?> submitBackgroundTask(Runnable task)
+    {
+        EmulatorService current = service;
+
+        if(current == null)
+        {
+            throw new IllegalStateException(
+                "EmulatorService is not connected.");
+        }
+
+        return current.submitBackgroundTask(task);
+    }
+
+    public <T> Future<T> submitBackgroundTask(Callable<T> task)
+    {
+        EmulatorService current = service;
+
+        if(current == null)
+        {
+            throw new IllegalStateException(
+                "EmulatorService is not connected.");
+        }
+
+        return current.submitBackgroundTask(task);
     }
 
     public boolean isBound()
