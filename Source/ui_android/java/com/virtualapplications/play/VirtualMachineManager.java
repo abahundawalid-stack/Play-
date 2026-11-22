@@ -180,7 +180,6 @@ public class VirtualMachineManager
                 setLaunchStage(
                     "EMULATOR_ACTIVITY_START_FAILED: " + e);
 
-                DiagnosticsManager.finishSession(_ctx);
                 EmulatorCoreInterface.from(_ctx).finishSession();
 
                 displaySimpleMessage(
