@@ -95,6 +95,38 @@ CGSH_OpenGLAndroid::~CGSH_OpenGLAndroid()
         lifecycle.shutdownComplete ? 1 : 0);
 }
 
+CGSHandler::FactoryFunction CGSH_OpenGLAndroid::GetFactoryFunction(
+    NativeWindowType window)
+{
+    // Factory takes ownership of the reference returned by
+    // ANativeWindow_fromSurface().
+    //
+    // Keep that reference alive until the factory is destroyed.
+    auto windowOwner = std::shared_ptr<NativeWindowType>(
+        window,
+        [](NativeWindowType ownedWindow)
+        {
+            if(ownedWindow != nullptr)
+            {
+                ANativeWindow_release(ownedWindow);
+            }
+        });
+
+    return [windowOwner]()
+    {
+        NativeWindowType handlerWindow = windowOwner.get();
+
+        // The renderer receives its own independent reference.
+        if(handlerWindow != nullptr)
+        {
+            ANativeWindow_acquire(handlerWindow);
+        }
+
+        // CGSH_OpenGLAndroid takes ownership of handlerWindow.
+        return new CGSH_OpenGLAndroid(handlerWindow);
+    };
+}
+
 bool CGSH_OpenGLAndroid::DeferOutstandingEglResources()
 {
     using CleanupManager =
