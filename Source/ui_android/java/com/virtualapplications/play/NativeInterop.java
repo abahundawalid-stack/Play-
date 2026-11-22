@@ -32,7 +32,9 @@ public class NativeInterop
     public static native void resumeVirtualMachine();
 
     public static native void pauseVirtualMachine();
-
+    
+    public static native void resetVirtualMachine();
+    
     public static native void loadState(int slot);
 
     public static native void saveState(int slot);
