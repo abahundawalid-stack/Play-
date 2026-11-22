@@ -40,7 +40,7 @@ bool GetStringFromJstringUtf8(
     std::string* output);
 
 // Converts standard UTF-8 into a Java UTF-16 string.
-jstring NewJstringFromUtf8(
+jstring NewJstringFromUtf8Shared(
     JNIEnv* env,
     const std::string& value);
 
