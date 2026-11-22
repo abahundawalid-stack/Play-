@@ -347,6 +347,16 @@ bool CDeferredEglResourceCleanupManager::Adopt(
         return true;
     }
 
+    if(bundle.displayLeaseId != 0)
+    {
+        if(bundle.display == EGL_NO_DISPLAY)
+        {
+            return false;
+        }
+
+        bundle.ownsDisplayLease = true;
+    }
+    
     DeferredEglState& state = GetState();
 
     std::lock_guard<std::mutex> lock(state.mutex);
