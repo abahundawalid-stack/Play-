@@ -3,19 +3,19 @@ package com.virtualapplications.play;
 public class Constants
 {
     public static String TAG = "ORBIT2SX";
-	public static final int READ_WRITE_PERMISSION = 0;
+    public static final int READ_WRITE_PERMISSION = 0;
 
-	/**
-	 * Preferences
-	 */
-	public static final String PREF_EMU_GENERAL_SHOWFPS = "ui.showfps";
-	public static final String PREF_EMU_GENERAL_SHOWVIRTUALPAD = "ui.showvirtualpad";
+    /**
+     * Preferences
+     */
+    public static final String PREF_EMU_GENERAL_SHOWFPS = "ui.showfps";
+    public static final String PREF_EMU_GENERAL_SHOWVIRTUALPAD = "ui.showvirtualpad";
 
-	public static final String PREF_UI_CATEGORY_STORAGE = "ui.storage";
-	public static final String PREF_UI_RESCAN = "ui.rescan";
-	public static final String PREF_UI_CLEAR_UNAVAILABLE = "ui.clear_unavailable";
-	public static final String PREF_UI_CLEAR_CACHE = "ui.clearcache";
-	public static final String PREF_UI_EXPORT_DATA_FILES = "ui.datafiles.export";
-	public static final String PREF_UI_IMPORT_DATA_FILES = "ui.datafiles.import";
-	public static final String PREF_UI_THEME_SELECTION = "ui.theme_selection";
+    public static final String PREF_UI_CATEGORY_STORAGE = "ui.storage";
+    public static final String PREF_UI_RESCAN = "ui.rescan";
+    public static final String PREF_UI_CLEAR_UNAVAILABLE = "ui.clear_unavailable";
+    public static final String PREF_UI_CLEAR_CACHE = "ui.clearcache";
+    public static final String PREF_UI_EXPORT_DATA_FILES = "ui.datafiles.export";
+    public static final String PREF_UI_IMPORT_DATA_FILES = "ui.datafiles.import";
+    public static final String PREF_UI_THEME_SELECTION = "ui.theme_selection";
 }
