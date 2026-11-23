@@ -179,7 +179,7 @@ extern "C" JNIEXPORT jint JNICALL JNI_OnLoad(
 extern "C" JNIEXPORT void JNICALL
 Java_com_virtualapplications_play_NativeInterop_setFilesDirPath(
     JNIEnv* env,
-    jobject obj,
+    jclass clazz,
     jstring dirPathString)
 {
     auto dirPath = env->GetStringUTFChars(dirPathString, 0);
@@ -190,7 +190,7 @@ Java_com_virtualapplications_play_NativeInterop_setFilesDirPath(
 extern "C" JNIEXPORT void JNICALL
 Java_com_virtualapplications_play_NativeInterop_setCacheDirPath(
     JNIEnv* env,
-    jobject obj,
+    jclass clazz,
     jstring dirPathString)
 {
     auto dirPath = env->GetStringUTFChars(dirPathString, 0);
@@ -201,7 +201,7 @@ Java_com_virtualapplications_play_NativeInterop_setCacheDirPath(
 extern "C" JNIEXPORT void JNICALL
 Java_com_virtualapplications_play_NativeInterop_setAssetManager(
     JNIEnv* env,
-    jobject obj,
+    jclass clazz,
     jobject assetManagerJava)
 {
     auto assetManager =
@@ -231,7 +231,7 @@ Java_com_virtualapplications_play_NativeInterop_setContentResolver(
 extern "C" JNIEXPORT void JNICALL
 Java_com_virtualapplications_play_NativeInterop_createVirtualMachine(
     JNIEnv* env,
-    jobject obj)
+    jclass clazz)
 {
     std::lock_guard<std::mutex> lock(
         GetVirtualMachineMutex());
@@ -328,7 +328,7 @@ Java_com_virtualapplications_play_NativeInterop_createVirtualMachine(
 extern "C" JNIEXPORT void JNICALL
 Java_com_virtualapplications_play_NativeInterop_destroyVirtualMachine(
     JNIEnv* env,
-    jobject obj)
+    jclass clazz)
 {
     std::lock_guard<std::mutex> lock(
         GetVirtualMachineMutex());
@@ -387,7 +387,7 @@ Java_com_virtualapplications_play_NativeInterop_destroyVirtualMachine(
 extern "C" JNIEXPORT jboolean JNICALL
 Java_com_virtualapplications_play_NativeInterop_isVirtualMachineCreated(
     JNIEnv* env,
-    jobject obj)
+    jclass clazz)
 {
     std::lock_guard<std::mutex> lock(
         GetVirtualMachineMutex());
@@ -400,7 +400,7 @@ Java_com_virtualapplications_play_NativeInterop_isVirtualMachineCreated(
 extern "C" JNIEXPORT jboolean JNICALL
 Java_com_virtualapplications_play_NativeInterop_hasState(
     JNIEnv* env,
-    jobject obj,
+    jclass clazz,
     jint slot)
 {
     std::lock_guard<std::mutex> lock(
@@ -438,7 +438,7 @@ Java_com_virtualapplications_play_NativeInterop_hasState(
 extern "C" JNIEXPORT void JNICALL
 Java_com_virtualapplications_play_NativeInterop_resumeVirtualMachine(
     JNIEnv* env,
-    jobject obj)
+    jclass clazz)
 {
     std::lock_guard<std::mutex> lock(
         GetVirtualMachineMutex());
@@ -452,7 +452,7 @@ Java_com_virtualapplications_play_NativeInterop_resumeVirtualMachine(
 extern "C" JNIEXPORT void JNICALL
 Java_com_virtualapplications_play_NativeInterop_pauseVirtualMachine(
     JNIEnv* env,
-    jobject obj)
+    jclass clazz)
 {
     std::lock_guard<std::mutex> lock(
         GetVirtualMachineMutex());
@@ -504,7 +504,7 @@ Java_com_virtualapplications_play_NativeInterop_resetVirtualMachine(
 extern "C" JNIEXPORT void JNICALL
 Java_com_virtualapplications_play_NativeInterop_loadState(
     JNIEnv* env,
-    jobject obj,
+    jclass clazz,
     jint slot)
 {
     std::lock_guard<std::mutex> lock(
@@ -532,7 +532,7 @@ Java_com_virtualapplications_play_NativeInterop_loadState(
 extern "C" JNIEXPORT void JNICALL
 Java_com_virtualapplications_play_NativeInterop_saveState(
     JNIEnv* env,
-    jobject obj,
+    jclass clazz,
     jint slot)
 {
     std::lock_guard<std::mutex> lock(
@@ -560,7 +560,7 @@ Java_com_virtualapplications_play_NativeInterop_saveState(
 extern "C" JNIEXPORT void JNICALL
 Java_com_virtualapplications_play_NativeInterop_loadElf(
     JNIEnv* env,
-    jobject obj,
+    jclass clazz,
     jstring selectedFilePath)
 {
     std::lock_guard<std::mutex> lock(
@@ -588,7 +588,7 @@ Java_com_virtualapplications_play_NativeInterop_loadElf(
 extern "C" JNIEXPORT void JNICALL
 Java_com_virtualapplications_play_NativeInterop_bootDiskImage(
     JNIEnv* env,
-    jobject obj,
+    jclass clazz,
     jstring selectedFilePath)
 {
     std::lock_guard<std::mutex> lock(
@@ -731,7 +731,7 @@ Java_com_virtualapplications_play_NativeInterop_setupGsHandler(
 extern "C" JNIEXPORT void JNICALL
 Java_com_virtualapplications_play_NativeInterop_notifyPreferencesChanged(
     JNIEnv* env,
-    jobject obj)
+    jclass clazz)
 {
     std::lock_guard<std::mutex> lock(
         GetVirtualMachineMutex());
@@ -757,7 +757,7 @@ Java_com_virtualapplications_play_NativeInterop_notifyPreferencesChanged(
 extern "C" JNIEXPORT jobjectArray JNICALL
 Java_com_virtualapplications_play_NativeInterop_getGraphicsDiagnostics(
     JNIEnv* env,
-    jobject obj)
+    jclass clazz)
 {
     const GraphicsDiagnostics diagnostics =
         GetGraphicsDiagnostics();
@@ -807,7 +807,7 @@ Java_com_virtualapplications_play_NativeInterop_getGraphicsDiagnostics(
 extern "C" JNIEXPORT jlongArray JNICALL
 Java_com_virtualapplications_play_NativeInterop_getAudioDiagnostics(
     JNIEnv* env,
-    jobject obj)
+    jclass clazz)
 {
     std::lock_guard<std::mutex> lock(
         GetVirtualMachineMutex());
