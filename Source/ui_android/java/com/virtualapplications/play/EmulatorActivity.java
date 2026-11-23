@@ -193,7 +193,7 @@ public class EmulatorActivity extends Activity
     private EmulatorCoreInterface _core;
     private EmulatorServiceController _serviceController;
 
-    private String _serviceGameTitle = "Play! Emulator";
+    private String _serviceGameTitle = "ORBIT2SX Emulator";
 
     protected EmulatorDrawerFragment _drawerFragment;
 
