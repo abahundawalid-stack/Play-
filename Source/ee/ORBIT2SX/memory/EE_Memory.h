@@ -51,15 +51,16 @@ struct RegionInfo
     bool writable;
 };
 
-// Owns only EE backing stores. VU local memories remain owned by their VU
-// devices and are exposed later through the memory-region dispatcher.
-// The class is intentionally not internally synchronized; callers must
-// serialize concurrent access through the future EE bus/coherency layer.
+// Owns EE backing stores only.
+// VU local memory remains owned by its VU device.
+// External synchronization is required for concurrent access.
 class EE_Memory final
 {
 public:
     EE_Memory();
-    explicit EE_Memory(const Configuration& configuration);
+
+    EE_Memory(const EE_Memory&) = delete;
+    EE_Memory& operator=(const EE_Memory&) = delete;
 
     Status Initialize(const Configuration& configuration);
     void Shutdown();
@@ -67,25 +68,11 @@ public:
 
     Status GetRegionInfo(Region region, RegionInfo& info) const;
 
-    // This layer is byte-addressable storage. CPU instruction alignment and
-    // architectural exceptions are enforced by the transaction/CPU layer.
-    Status ReadBytes(
-        Region region,
-        std::size_t offset,
-        void* destination,
-        std::size_t length) const;
-
-    Status WriteBytes(
-        Region region,
-        std::size_t offset,
-        const void* source,
-        std::size_t length);
-
-    Status Fill(
-        Region region,
-        std::size_t offset,
-        std::size_t length,
-        std::uint8_t value);
+    // CPU alignment and architectural exceptions belong to
+    // the transaction/CPU layer, not this byte-addressable store.
+    Status ReadBytes(Region region, std::size_t offset, void* destination, std::size_t length) const;
+    Status WriteBytes(Region region, std::size_t offset, const void* source, std::size_t length);
+    Status Fill(Region region, std::size_t offset, std::size_t length, std::uint8_t value);
 
     Status Copy(
         Region destinationRegion,
@@ -107,7 +94,6 @@ public:
     Status Write128(Region region, std::size_t offset, const UInt128& value);
 
     Status LoadBios(const void* source, std::size_t length);
-
     Status ClearWritableRegions(std::uint8_t value);
 
 private:
