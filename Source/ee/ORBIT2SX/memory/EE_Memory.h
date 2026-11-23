@@ -58,6 +58,7 @@ class EE_Memory final
 {
 public:
     EE_Memory();
+    explicit EE_Memory(const Configuration& configuration);
 
     EE_Memory(const EE_Memory&) = delete;
     EE_Memory& operator=(const EE_Memory&) = delete;
