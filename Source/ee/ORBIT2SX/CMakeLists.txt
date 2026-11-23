@@ -7,3 +7,4 @@ if(ORBIT2SX_BUILD_TESTS)
 endif()
 
 add_subdirectory(memory)
+add_subdirectory(memory_map)
