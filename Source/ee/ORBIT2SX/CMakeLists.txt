@@ -8,3 +8,4 @@ endif()
 
 add_subdirectory(memory)
 add_subdirectory(memory_map)
+add_subdirectory(memory_bus)
