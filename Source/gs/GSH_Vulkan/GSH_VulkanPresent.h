@@ -18,6 +18,7 @@ namespace GSH_Vulkan
         void SetPresentationViewport(const CGSHandler::PRESENTATION_VIEWPORT&);
         void DoPresent(const CGSHandler::DISPLAY_INFO&);
         void OnSurfaceDetached();
+        bool IsSurfaceLost() const noexcept { return m_surfaceLost; }
   
 	private:
 		enum BLEND_MODE
