@@ -177,8 +177,7 @@
 	<string name="gameinfo_edit_activity_gamecover_default">Default</string>
 
 	<string name="permission_dialog_title">Permission Request</string>
-	<string name="permission_dialog_summary">Play! needs storage access (read/write). Without it, Play! won\'t be able to find your games or save your progress.</string>
-
+	<string name="permission_dialog_summary">ORBIT2SX needs storage access (read/write). Without it, ORBIT2SX won't be able to find your games or save your progress.</string>
 	<!-- Data Files Import/Export -->
 	<string name="datafiles_export_title">Data Files Export</string>
 	<string name="datafiles_import_title">Data Files Import</string>
