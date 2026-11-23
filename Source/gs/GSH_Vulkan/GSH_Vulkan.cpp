@@ -381,6 +381,10 @@ std::vector<VkPhysicalDevice> CGSH_Vulkan::GetPhysicalDevices()
 
 uint32 CGSH_Vulkan::GetPhysicalDeviceIndex(const std::vector<VkPhysicalDevice>& physicalDevices) const
 {
+	if(!CDeviceInfo::GetInstance().HasAvailableDevices())
+    {
+        return static_cast<uint32>(physicalDevices.size());
+    }
 	auto selectedDevice = CDeviceInfo::GetInstance().GetSelectedDevice();
 	for(uint32 i = 0; i < physicalDevices.size(); i++)
 	{
@@ -394,8 +398,11 @@ uint32 CGSH_Vulkan::GetPhysicalDeviceIndex(const std::vector<VkPhysicalDevice>& 
 			return i;
 		}
 	}
-	assert(false);
-	return 0;
+	CLog::GetInstance().Print(
+        LOG_NAME,
+        "Vulkan device yang dipilih tidak ditemukan dalam daftar physical device hasil enumerasi.\r\n");
+
+    return static_cast<uint32>(physicalDevices.size());
 }
 
 std::vector<uint32_t> CGSH_Vulkan::GetRenderQueueFamilies(VkPhysicalDevice physicalDevice)
