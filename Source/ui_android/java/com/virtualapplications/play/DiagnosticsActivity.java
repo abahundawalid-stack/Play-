@@ -73,7 +73,7 @@ public class DiagnosticsActivity extends Activity
 
         TextView title = new TextView(this);
 
-        title.setText("ANALISA PERFORMA PLAY!");
+        title.setText("ANALISA PERFORMA ORBIT2SX");
         title.setTextSize(21);
         title.setPadding(0, 0, 0, 16);
 
