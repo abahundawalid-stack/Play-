@@ -2038,3 +2038,8 @@ void CGSH_Vulkan::OnSurfaceChanged()
     // CPresent membuat render pass dan swapchain sesuai format baru.
     m_present = std::make_shared<GSH_Vulkan::CPresent>(m_context);
 }
+
+bool CGSH_Vulkan::IsPresentationSurfaceLost() const noexcept
+{
+    return m_present != nullptr && m_present->IsSurfaceLost();
+}
