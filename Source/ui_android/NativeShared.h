@@ -32,11 +32,12 @@ GraphicsDiagnostics GetGraphicsDiagnostics();
 // All JNI entry points that access g_virtualMachine must use this mutex.
 std::mutex& GetVirtualMachineMutex();
 
-// Converts Java UTF-16 strings into standard UTF-8.
-// Returns false when conversion fails or JNI reports an exception.
-GetRequiredStringFromJstringUtf8(
+// Converts a required Java string to standard UTF-8.
+// Rejects null, empty, and embedded-NUL values.
+bool GetRequiredStringFromJstringUtf8(
     JNIEnv* env,
     jstring javaString,
+    const char* errorMessage,
     std::string* output);
 
 // Converts standard UTF-8 into a Java UTF-16 string.
