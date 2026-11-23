@@ -2009,9 +2009,12 @@ void CGSH_Vulkan::OnSurfaceChanged()
 
     if(surfaceFormats.empty())
     {
+        CLog::GetInstance().Print(
+            LOG_NAME,
+            "Tidak tersedia Vulkan surface format; inisialisasi presentation dilewati.\r\n");
         return;
     }
-
+	
     auto selectedFormat = surfaceFormats.begin();
 
     for(auto it = surfaceFormats.begin();
