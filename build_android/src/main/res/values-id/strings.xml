@@ -3,8 +3,8 @@
 
 	<!-- Application Navigation -->
 
-	<string name="about_play">Tentang Play!</string>
-	<string name="about_play_emu">Play! PlayStation 2 Emulator</string>
+	<string name="about_play">Tentang ORBIT2SX</string>
+    <string name="about_play_emu">ORBIT2SX Emulator PlayStation 2</string>
 	<string name="about_play_version">Versi:</string>
 	<string name="about_play_date">Tanggal:</string>
 	<string name="about_play_founder">Dibuat oleh</string>
@@ -155,5 +155,4 @@
 	<string name="gameinfo_edit_activity_gamecover_default">Default</string>
 
 	<string name="permission_dialog_title">Permintaan Izin</string>
-	<string name="permission_dialog_summary">Play! membutuhkan akses penyimpanan (read/write). Tanpa itu, Play! tdk akan bisa mencari permainan atau menyimpan progressmu.</string>
-</resources>
+	<string name="permission_dialog_summary">ORBIT2SX membutuhkan akses penyimpanan (baca/tulis). Tanpa izin tersebut, ORBIT2SX tidak dapat menemukan game atau menyimpan progres permainan.</string>
