@@ -3,8 +3,8 @@
 
 	<!-- Application Navigation -->
 
-	<string name="about_play">About Play!</string>
-	<string name="about_play_emu">Play! PlayStation 2 Emulator</string>
+	<string name="about_play">About ORBIT2SX</string>
+    <string name="about_play_emu">ORBIT2SX PlayStation 2 Emulator</string>
 	<string name="about_play_version">Version:</string>
 	<string name="about_play_date">Date:</string>
 	<string name="about_play_founder">Created by</string>
