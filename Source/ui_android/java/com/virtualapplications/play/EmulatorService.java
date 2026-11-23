@@ -18,7 +18,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * Android foreground service for an active Play! emulator session.
+ * Android foreground service for an active ORBIT2SX emulator session.
  *
  * IMPORTANT:
  * This service does not own the virtual machine, graphics renderer,
@@ -58,8 +58,8 @@ public final class EmulatorService extends Service
     private volatile boolean foregroundStarted = false;
 
     private volatile String gameTitle =
-        "Play! Emulator";
-
+    "ORBIT2SX Emulator";
+    
     public final class LocalBinder extends Binder
     {
         public EmulatorService getService()
@@ -293,11 +293,11 @@ public final class EmulatorService extends Service
         NotificationChannel channel =
             new NotificationChannel(
                 CHANNEL_ID,
-                "Play! Emulator",
+                "ORBIT2SX Emulator",
                 NotificationManager.IMPORTANCE_LOW);
 
         channel.setDescription(
-            "Status of the active Play! emulator session.");
+            "Status of the active ORBIT2SX emulator session.");
 
         channel.setShowBadge(false);
 
