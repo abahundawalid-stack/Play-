@@ -125,21 +125,50 @@ void CGSH_Vulkan::InitializeImpl()
 	m_context->instance = &m_instance;
 
 	auto physicalDevices = GetPhysicalDevices();
-	assert(!physicalDevices.empty());
-	auto physicalDeviceIndex = GetPhysicalDeviceIndex(physicalDevices);
-	m_context->physicalDevice = physicalDevices[physicalDeviceIndex];
+    if(physicalDevices.empty())
+    {
+        CLog::GetInstance().Print(
+            LOG_NAME,
+            "Tidak ditemukan Vulkan physical device; inisialisasi renderer dibatalkan.\r\n");
+        return;
+    }
 
+    auto physicalDeviceIndex = GetPhysicalDeviceIndex(physicalDevices);
+    if(physicalDeviceIndex >= physicalDevices.size())
+    {
+        CLog::GetInstance().Print(
+            LOG_NAME,
+            "Vulkan physical device yang dipilih tidak tersedia; inisialisasi renderer dibatalkan.\r\n");
+        return;
+    }
+
+    m_context->physicalDevice = physicalDevices[physicalDeviceIndex];
+	
 	auto renderQueueFamilies = GetRenderQueueFamilies(m_context->physicalDevice);
-	assert(!renderQueueFamilies.empty());
-	auto renderQueueFamily = renderQueueFamilies[0];
-
+    if(renderQueueFamilies.empty())
+    {
+        CLog::GetInstance().Print(
+            LOG_NAME,
+            "Tidak ada graphics queue family yang mendukung Android surface; inisialisasi renderer dibatalkan.\r\n");
+        return;
+    }
+ 
+    auto renderQueueFamily = renderQueueFamilies[0];
+	
 	m_instance.vkGetPhysicalDeviceMemoryProperties(m_context->physicalDevice, &m_context->physicalDeviceMemoryProperties);
 
 	if(m_context->surface)
 	{
 		auto surfaceFormats = GetDeviceSurfaceFormats(m_context->physicalDevice);
-		assert(surfaceFormats.size() > 0);
-		int surfaceFormatIndex = 0;
+        if(surfaceFormats.empty())
+        {
+            CLog::GetInstance().Print(
+                LOG_NAME,
+                "Vulkan physical device yang dipilih tidak menyediakan format untuk Android surface; inisialisasi renderer dibatalkan.\r\n");
+            return;
+        }
+
+        int surfaceFormatIndex = 0;
 		//Look for a suitable surface format
 		for(int i = 0; i < surfaceFormats.size(); i++)
 		{
