@@ -300,20 +300,20 @@ namespace
 	}
 
 	bool IsBootableClassInfoValid(
-	    const com::virtualapplications::play::Bootable_ClassInfo& info)
-	{
-		return info.clazz != nullptr &&
-		       info.init != nullptr &&
-		       info.path != nullptr &&
-		       info.discId != nullptr &&
-		       info.title != nullptr &&
-		       info.coverUrl != nullptr &&
-		       info.overview != nullptr;
-	           info.lastBootedTime != nullptr &&
+        const com::virtualapplications::play::Bootable_ClassInfo& info)
+    {
+        return info.clazz != nullptr &&
+               info.init != nullptr &&
+               info.path != nullptr &&
+               info.discId != nullptr &&
+               info.title != nullptr &&
+               info.coverUrl != nullptr &&
+               info.overview != nullptr &&
+               info.lastBootedTime != nullptr &&
                info.bootableType != nullptr &&
                info.favorite != nullptr &&
                info.compatibility != nullptr;
-	}
+    }
 
 	void LogJniFailure(const char* operation)
 	{
