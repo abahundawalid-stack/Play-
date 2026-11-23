@@ -4,6 +4,7 @@
 #include "GSH_VulkanAndroid.h"
 #include "vulkan/StructDefs.h"
 #include "AppConfig.h"
+#include "Log.h"
 
 CGSH_VulkanAndroid::CGSH_VulkanAndroid(ANativeWindow* window)
     : m_window(window)
@@ -106,6 +107,47 @@ void CGSH_VulkanAndroid::ReleaseImpl()
 
 void CGSH_VulkanAndroid::PresentBackbuffer()
 {
+    // CPresent melaporkan VK_ERROR_SURFACE_LOST_KHR melalui status ini.
+    // Buat ulang Android VkSurfaceKHR dan resource presentation pada
+    // GS thread sebelum frame berikutnya dikirim ke GPU.
+    if(!m_rendererInitialized || !IsPresentationSurfaceLost())
+    {
+        return;
+    }
+
+    CLog::GetInstance().Print(
+        "vulkanandroid",
+        "[PLAY_VULKAN] Presentation surface hilang; membuat ulang Android surface.\r\n");
+
+    OnSurfaceChanging();
+
+    if(m_instance.IsEmpty() || m_context == nullptr)
+    {
+        CLog::GetInstance().Print(
+            "vulkanandroid",
+            "[PLAY_VULKAN] Pemulihan surface dibatalkan: Vulkan instance/context tidak tersedia.\r\n");
+        return;
+    }
+
+    // CreateSurface menghancurkan VkSurfaceKHR lama sebelum membuat
+    // penggantinya dari referensi ANativeWindow yang sedang dimiliki.
+    CreateSurface();
+
+    if(m_window == nullptr ||
+       m_context->surface == VK_NULL_HANDLE)
+    {
+        CLog::GetInstance().Print(
+            "vulkanandroid",
+            "[PLAY_VULKAN] Pembuatan ulang Android VkSurfaceKHR gagal; presentation tetap dihentikan sementara.\r\n");
+        return;
+    }
+
+    OnSurfaceChanged();
+    UpdateViewport();
+
+    CLog::GetInstance().Print(
+        "vulkanandroid",
+        "[PLAY_VULKAN] Pemulihan Android surface selesai; resource presentation telah dibuat ulang.\r\n");
 }
 
 void CGSH_VulkanAndroid::SetWindow(ANativeWindow* window)
