@@ -34,7 +34,7 @@ std::mutex& GetVirtualMachineMutex();
 
 // Converts Java UTF-16 strings into standard UTF-8.
 // Returns false when conversion fails or JNI reports an exception.
-bool GetStringFromJstringUtf8(
+GetRequiredStringFromJstringUtf8(
     JNIEnv* env,
     jstring javaString,
     std::string* output);
