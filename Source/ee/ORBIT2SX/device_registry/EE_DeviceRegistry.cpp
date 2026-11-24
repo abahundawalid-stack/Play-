@@ -260,16 +260,16 @@ DeviceResult EE_DeviceRegistry::RegisterDevice(
         return validationResult;
     }
 
-    Entry entry;
-    entry.id = registration.id;
-    entry.name = registration.name;
-    entry.device = registration.device;
-    entry.regions = registration.regions;
-    entry.dependencies = registration.dependencies;
-    entry.state = DeviceState::Registered;
-
     try
     {
+        Entry entry;
+        entry.id = registration.id;
+        entry.name = registration.name;
+        entry.device = registration.device;
+        entry.regions = registration.regions;
+        entry.dependencies = registration.dependencies;
+        entry.state = DeviceState::Registered;
+
         m_entries.push_back(entry);
     }
     catch(...)
@@ -281,7 +281,7 @@ DeviceResult EE_DeviceRegistry::RegisterDevice(
     }
 
     m_lastStatus = DeviceStatus::Ok;
-    return MakeResult(DeviceStatus::Ok, registration.id);
+    return MakeResult(DeviceStatus::Ok, registration.id);   
 }
 
 DeviceResult EE_DeviceRegistry::UnregisterDevice(DeviceId id)
