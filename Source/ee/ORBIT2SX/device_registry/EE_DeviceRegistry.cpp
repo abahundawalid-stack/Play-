@@ -1,6 +1,7 @@
 #include "EE_DeviceRegistry.h"
 
 #include <algorithm>
+#include <exception>
 #include <utility>
 
 namespace ORBIT2SX
@@ -42,20 +43,26 @@ EE_DeviceRegistry::EE_DeviceRegistry(
       m_startupOrder(),
       m_started(false),
       m_faulted(false),
+      m_stopConfirmed(false),
       m_lastStatus(DeviceStatus::Ok)
 {
 }
 
-EE_DeviceRegistry::~EE_DeviceRegistry()
+EE_DeviceRegistry::~EE_DeviceRegistry() noexcept
 {
-    // The registry does not own device objects.
-    // Device objects and the memory bus must outlive this registry.
+    // Destruction is permitted only after an explicit successful Stop().
     //
-    // Best-effort cleanup is performed here. Production shutdown
-    // should explicitly call Stop() and inspect its result first.
-    if(m_started || m_faulted)
+    // Never attempt cleanup here:
+    // - Stop() can fail.
+    // - The destructor cannot return a DeviceResult.
+    // - The bus may still contain pointers to registered devices.
+    //
+    // Terminate rather than silently destroy registry metadata while
+    // external resources or bus attachments may still be alive.
+
+    if(!m_stopConfirmed || HasPendingCleanup())
     {
-        Stop();
+        std::terminate();
     }
 }
 
