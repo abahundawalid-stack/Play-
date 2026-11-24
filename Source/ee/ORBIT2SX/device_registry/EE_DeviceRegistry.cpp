@@ -170,6 +170,18 @@ bool EE_DeviceRegistry::ValidateRegistration(
         return false;
     }
 
+    for(std::size_t i = 0; i < m_entries.size(); ++i)
+    {
+        if(m_entries[i].device == registration.device)
+        {
+            result = MakeResult(
+                DeviceStatus::DeviceAlreadyRegistered,
+                registration.id);
+
+            return false;
+        }
+    }
+    
     // --------------------------------------------------------
     // Unique device ID
     // --------------------------------------------------------
