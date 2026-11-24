@@ -160,16 +160,15 @@ bool EE_DeviceRegistry::ValidateRegistration(
             return false;
         }
 
-        if(ContainsRegion(
-               std::vector<MemoryMap::RegionId>(
-                   registration.regions.begin(),
-                   registration.regions.begin() + i),
-               region))
+        for(std::size_t previous = 0; previous < i; ++previous)
         {
-            result = MakeResult(
-                DeviceStatus::RegionAlreadyRegistered,
-                registration.id);
-            return false;
+            if(registration.regions[previous] == region)
+            {
+                result = MakeResult(
+                    DeviceStatus::RegionAlreadyRegistered,
+                    registration.id);
+                return false;
+            }
         }
 
         if(m_memoryBus.IsDeviceAttached(region))
