@@ -466,17 +466,34 @@ DeviceResult EE_DeviceRegistry::RollbackStartup(
     const std::vector<std::size_t>& initializedEntries,
     DeviceResult originalFailure)
 {
+    DeviceResult cleanupFailure = MakeResult(DeviceStatus::Ok);
+
     for(std::size_t i = initializedEntries.size(); i > 0; --i)
     {
         Entry& entry = m_entries[initializedEntries[i - 1]];
-        StopEntry(entry);
+
+        const DeviceResult result = StopEntry(entry);
+
+        if(result.status != DeviceStatus::Ok &&
+           cleanupFailure.status == DeviceStatus::Ok)
+        {
+            cleanupFailure = result;
+        }
     }
 
     m_started = false;
-    m_faulted = false;
     m_startupOrder.clear();
 
+    if(cleanupFailure.status != DeviceStatus::Ok)
+    {
+        m_faulted = true;
+        m_lastStatus = cleanupFailure.status;
+        return cleanupFailure;
+    }
+
+    m_faulted = false;
     m_lastStatus = originalFailure.status;
+
     return originalFailure;
 }
 
