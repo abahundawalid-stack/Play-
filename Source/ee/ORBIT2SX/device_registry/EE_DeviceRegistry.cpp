@@ -118,14 +118,28 @@ bool EE_DeviceRegistry::ValidateRegistration(
     const DeviceRegistration& registration,
     DeviceResult& result) const
 {
-    if(!IsValidDeviceId(registration.id) ||
-       registration.name.empty() ||
-       registration.device == nullptr)
+    for(std::size_t i = 0; i < registration.dependencies.size(); ++i)
     {
-        result = MakeResult(
-            DeviceStatus::InvalidArgument,
-            registration.id);
-        return false;
+        const DeviceId dependency = registration.dependencies[i];
+
+        if(dependency == registration.id)
+        {
+            result = MakeResult(
+                DeviceStatus::SelfDependency,
+                registration.id);
+            return false;
+        }
+
+        for(std::size_t previous = 0; previous < i; ++previous)
+        {
+            if(registration.dependencies[previous] == dependency)
+            {
+                result = MakeResult(
+                    DeviceStatus::DuplicateDependency,
+                    registration.id);
+                return false;
+            }
+        }
     }
 
     if(FindEntryIndex(registration.id) != m_entries.size())
