@@ -1,8 +1,10 @@
 #include "../EE_DeviceRegistry.h"
 
-#include <cassert>
 #include <cstddef>
 #include <cstdint>
+#include <cstdlib>
+#include <iostream>
+#include <string>
 #include <vector>
 
 using namespace ORBIT2SX::EE;
@@ -10,26 +12,64 @@ using namespace ORBIT2SX::EE;
 namespace
 {
 
+int g_failures = 0;
+
+#define CHECK(expression)                                      \
+    do                                                         \
+    {                                                          \
+        if(!(expression))                                      \
+        {                                                      \
+            std::cerr << "FAILED: " << #expression             \
+                      << " at " << __FILE__                    \
+                      << ":" << __LINE__ << std::endl;         \
+            ++g_failures;                                      \
+        }                                                      \
+    } while(false)
+
+struct Event
+{
+    int device;
+    char operation;
+};
+
 class TestDevice final : public DeviceRegistry::IEEDevice
 {
 public:
     TestDevice(
         int deviceId,
-        std::vector<int>& events,
-        bool failInitialize = false)
+        std::vector<Event>& events)
         : m_deviceId(deviceId),
           m_events(events),
-          m_failInitialize(failInitialize),
+          m_failInitialize(false),
+          m_failReset(false),
+          m_failShutdown(false),
           m_initialized(false)
     {
     }
 
+    void SetInitializeFailure(bool value)
+    {
+        m_failInitialize = value;
+    }
+
+    void SetResetFailure(bool value)
+    {
+        m_failReset = value;
+    }
+
+    void SetShutdownFailure(bool value)
+    {
+        m_failShutdown = value;
+    }
+
     Bus::DeviceStatus Initialize() override
     {
-        m_events.push_back(m_deviceId * 10 + 1);
+        m_events.push_back(Event{m_deviceId, 'I'});
 
         if(m_failInitialize)
         {
+            // Simulate partial resource allocation.
+            m_initialized = true;
             return Bus::DeviceStatus::InternalError;
         }
 
@@ -39,18 +79,25 @@ public:
 
     Bus::DeviceStatus Reset() override
     {
-        if(!m_initialized)
+        m_events.push_back(Event{m_deviceId, 'R'});
+
+        if(!m_initialized || m_failReset)
         {
             return Bus::DeviceStatus::AccessFault;
         }
 
-        m_events.push_back(m_deviceId * 10 + 2);
         return Bus::DeviceStatus::Ok;
     }
 
     Bus::DeviceStatus Shutdown() override
     {
-        m_events.push_back(m_deviceId * 10 + 3);
+        m_events.push_back(Event{m_deviceId, 'S'});
+
+        if(m_failShutdown)
+        {
+            return Bus::DeviceStatus::InternalError;
+        }
+
         m_initialized = false;
         return Bus::DeviceStatus::Ok;
     }
@@ -86,193 +133,345 @@ public:
 
 private:
     int m_deviceId;
-    std::vector<int>& m_events;
+    std::vector<Event>& m_events;
+
     bool m_failInitialize;
+    bool m_failReset;
+    bool m_failShutdown;
     bool m_initialized;
 };
 
 DeviceRegistry::DeviceRegistration MakeRegistration(
     DeviceRegistry::DeviceId id,
-    const char* name,
+    const std::string& name,
     DeviceRegistry::IEEDevice* device,
     MemoryMap::RegionId region)
 {
     DeviceRegistry::DeviceRegistration registration;
+
     registration.id = id;
     registration.name = name;
     registration.device = device;
     registration.regions.push_back(region);
+
     return registration;
 }
+
+bool IsEvent(
+    const std::vector<Event>& events,
+    std::size_t index,
+    int device,
+    char operation)
+{
+    return index < events.size() &&
+           events[index].device == device &&
+           events[index].operation == operation;
+}
+
+// ------------------------------------------------------------
+// TEST: REGISTRATION VALIDATION
+// ------------------------------------------------------------
+
+void TestRegistrationValidation()
+{
+    Memory::EE_Memory memory;
+    Memory::Configuration configuration;
+
+    CHECK(memory.Initialize(configuration) == Memory::Status::Ok);
+
+    Bus::EE_MemoryBus bus(memory);
+    DeviceRegistry::EE_DeviceRegistry registry(bus);
+
+    std::vector<Event> events;
+    TestDevice device(1, events);
+
+    DeviceRegistry::DeviceRegistration invalid;
+
+    invalid.id = 0;
+    invalid.name = "InvalidId";
+    invalid.device = &device;
+
+    CHECK(
+        registry.RegisterDevice(invalid).status ==
+        DeviceRegistry::DeviceStatus::InvalidArgument);
+
+    invalid.id = 1;
+    invalid.name.clear();
+
+    CHECK(
+        registry.RegisterDevice(invalid).status ==
+        DeviceRegistry::DeviceStatus::InvalidArgument);
+
+    invalid.name = "NullDevice";
+    invalid.device = nullptr;
+
+    CHECK(
+        registry.RegisterDevice(invalid).status ==
+        DeviceRegistry::DeviceStatus::InvalidArgument);
+
+    DeviceRegistry::DeviceRegistration valid =
+        MakeRegistration(
+            1,
+            "ValidDevice",
+            &device,
+            MemoryMap::RegionId::EeMmio);
+
+    CHECK(
+        registry.RegisterDevice(valid).status ==
+        DeviceRegistry::DeviceStatus::Ok);
+
+    CHECK(
+        registry.RegisterDevice(valid).status ==
+        DeviceRegistry::DeviceStatus::DuplicateDeviceId);
+
+    CHECK(registry.GetDeviceCount() == 1);
+
+    memory.Shutdown();
+}
+
+// ------------------------------------------------------------
+// TEST: FORWARD DEPENDENCY AND STARTUP/SHUTDOWN ORDER
+// ------------------------------------------------------------
 
 void TestDependencyOrderAndLifecycle()
 {
     Memory::EE_Memory memory;
     Memory::Configuration configuration;
 
-    assert(memory.Initialize(configuration) == Memory::Status::Ok);
+    CHECK(memory.Initialize(configuration) == Memory::Status::Ok);
 
     Bus::EE_MemoryBus bus(memory);
     DeviceRegistry::EE_DeviceRegistry registry(bus);
 
-    std::vector<int> events;
+    std::vector<Event> events;
 
-    TestDevice baseDevice(1, events);
-    TestDevice dependentDevice(2, events);
+    TestDevice base(1, events);
+    TestDevice dependent(2, events);
 
-    // Register the dependent first to prove that registration order
-    // does not determine initialization order.
-    DeviceRegistry::DeviceRegistration dependent =
+    DeviceRegistry::DeviceRegistration dependentRegistration =
         MakeRegistration(
             2,
-            "DependentDevice",
-            &dependentDevice,
+            "Dependent",
+            &dependent,
             MemoryMap::RegionId::GsPrivilegedRegisters);
 
-    dependent.dependencies.push_back(1);
+    dependentRegistration.dependencies.push_back(1);
 
-    assert(
-        registry.RegisterDevice(dependent).status ==
+    CHECK(
+        registry.RegisterDevice(dependentRegistration).status ==
         DeviceRegistry::DeviceStatus::Ok);
 
-    DeviceRegistry::DeviceRegistration base =
+    DeviceRegistry::DeviceRegistration baseRegistration =
         MakeRegistration(
             1,
-            "BaseDevice",
-            &baseDevice,
+            "Base",
+            &base,
             MemoryMap::RegionId::EeMmio);
 
-    assert(
-        registry.RegisterDevice(base).status ==
+    CHECK(
+        registry.RegisterDevice(baseRegistration).status ==
         DeviceRegistry::DeviceStatus::Ok);
 
-    assert(registry.GetDeviceCount() == 2);
-    assert(registry.ContainsDevice(1));
-    assert(registry.ContainsDevice(2));
+    CHECK(registry.GetDeviceCount() == 2);
+    CHECK(registry.ContainsDevice(1));
+    CHECK(registry.ContainsDevice(2));
 
-    assert(
+    CHECK(
         registry.Start().status ==
         DeviceRegistry::DeviceStatus::Ok);
 
-    assert(registry.IsStarted());
+    CHECK(registry.IsStarted());
+    CHECK(!registry.IsFaulted());
 
-    assert(events.size() == 2);
-    assert(events[0] == 11);
-    assert(events[1] == 21);
+    CHECK(IsEvent(events, 0, 1, 'I'));
+    CHECK(IsEvent(events, 1, 2, 'I'));
 
-    assert(bus.IsDeviceAttached(MemoryMap::RegionId::EeMmio));
-    assert(bus.IsDeviceAttached(
-        MemoryMap::RegionId::GsPrivilegedRegisters));
-
-    assert(
+    CHECK(
         registry.GetDeviceState(1) ==
         DeviceRegistry::DeviceState::Running);
 
-    assert(
+    CHECK(
+        registry.GetDeviceState(2) ==
+        DeviceRegistry::DeviceState::Running);
+
+    CHECK(bus.IsDeviceAttached(MemoryMap::RegionId::EeMmio));
+
+    CHECK(
+        bus.IsDeviceAttached(
+            MemoryMap::RegionId::GsPrivilegedRegisters));
+
+    CHECK(
         registry.ResetAll().status ==
         DeviceRegistry::DeviceStatus::Ok);
 
-    assert(events.size() == 4);
-    assert(events[2] == 12);
-    assert(events[3] == 22);
+    CHECK(IsEvent(events, 2, 1, 'R'));
+    CHECK(IsEvent(events, 3, 2, 'R'));
 
-    assert(
+    CHECK(
         registry.Stop().status ==
         DeviceRegistry::DeviceStatus::Ok);
 
-    assert(!registry.IsStarted());
-    assert(!registry.IsFaulted());
+    CHECK(!registry.IsStarted());
+    CHECK(!registry.IsFaulted());
 
-    assert(!bus.IsDeviceAttached(MemoryMap::RegionId::EeMmio));
-    assert(!bus.IsDeviceAttached(
-        MemoryMap::RegionId::GsPrivilegedRegisters));
+    CHECK(!bus.IsDeviceAttached(MemoryMap::RegionId::EeMmio));
 
-    // Shutdown must occur in reverse dependency order.
-    assert(events.size() == 6);
-    assert(events[4] == 23);
-    assert(events[5] == 13);
+    CHECK(
+        !bus.IsDeviceAttached(
+            MemoryMap::RegionId::GsPrivilegedRegisters));
 
-    assert(
+    CHECK(IsEvent(events, 4, 2, 'S'));
+    CHECK(IsEvent(events, 5, 1, 'S'));
+
+    CHECK(
         registry.GetDeviceState(1) ==
         DeviceRegistry::DeviceState::Stopped);
 
     memory.Shutdown();
 }
 
+// ------------------------------------------------------------
+// TEST: ONE DEVICE, MULTIPLE REGIONS
+// ------------------------------------------------------------
+
+void TestMultipleRegionsPerDevice()
+{
+    Memory::EE_Memory memory;
+    Memory::Configuration configuration;
+
+    CHECK(memory.Initialize(configuration) == Memory::Status::Ok);
+
+    Bus::EE_MemoryBus bus(memory);
+    DeviceRegistry::EE_DeviceRegistry registry(bus);
+
+    std::vector<Event> events;
+    TestDevice vu0(10, events);
+
+    DeviceRegistry::DeviceRegistration registration;
+
+    registration.id = 10;
+    registration.name = "VU0";
+    registration.device = &vu0;
+
+    registration.regions.push_back(
+        MemoryMap::RegionId::Vu0MicroMemory);
+
+    registration.regions.push_back(
+        MemoryMap::RegionId::Vu0DataMemory);
+
+    CHECK(
+        registry.RegisterDevice(registration).status ==
+        DeviceRegistry::DeviceStatus::Ok);
+
+    CHECK(
+        registry.Start().status ==
+        DeviceRegistry::DeviceStatus::Ok);
+
+    CHECK(
+        bus.IsDeviceAttached(
+            MemoryMap::RegionId::Vu0MicroMemory));
+
+    CHECK(
+        bus.IsDeviceAttached(
+            MemoryMap::RegionId::Vu0DataMemory));
+
+    CHECK(
+        registry.Stop().status ==
+        DeviceRegistry::DeviceStatus::Ok);
+
+    CHECK(
+        !bus.IsDeviceAttached(
+            MemoryMap::RegionId::Vu0MicroMemory));
+
+    CHECK(
+        !bus.IsDeviceAttached(
+            MemoryMap::RegionId::Vu0DataMemory));
+
+    memory.Shutdown();
+}
+
+// ------------------------------------------------------------
+// TEST: REGION OWNERSHIP CONFLICT
+// ------------------------------------------------------------
+
 void TestDuplicateRegionRejected()
 {
     Memory::EE_Memory memory;
     Memory::Configuration configuration;
 
-    assert(memory.Initialize(configuration) == Memory::Status::Ok);
+    CHECK(memory.Initialize(configuration) == Memory::Status::Ok);
 
     Bus::EE_MemoryBus bus(memory);
     DeviceRegistry::EE_DeviceRegistry registry(bus);
 
-    std::vector<int> events;
+    std::vector<Event> events;
 
     TestDevice first(1, events);
     TestDevice second(2, events);
 
-    DeviceRegistry::DeviceRegistration registrationA =
+    DeviceRegistry::DeviceRegistration firstRegistration =
         MakeRegistration(
             1,
             "First",
             &first,
             MemoryMap::RegionId::EeMmio);
 
-    DeviceRegistry::DeviceRegistration registrationB =
+    DeviceRegistry::DeviceRegistration secondRegistration =
         MakeRegistration(
             2,
             "Second",
             &second,
             MemoryMap::RegionId::EeMmio);
 
-    assert(
-        registry.RegisterDevice(registrationA).status ==
+    CHECK(
+        registry.RegisterDevice(firstRegistration).status ==
         DeviceRegistry::DeviceStatus::Ok);
 
-    assert(
-        registry.RegisterDevice(registrationB).status ==
+    CHECK(
+        registry.RegisterDevice(secondRegistration).status ==
         DeviceRegistry::DeviceStatus::RegionAlreadyRegistered);
 
-    assert(registry.GetDeviceCount() == 1);
+    CHECK(registry.GetDeviceCount() == 1);
 
     memory.Shutdown();
 }
+
+// ------------------------------------------------------------
+// TEST: DEPENDENCY VALIDATION
+// ------------------------------------------------------------
 
 void TestMissingDependencyRejectedAtStart()
 {
     Memory::EE_Memory memory;
     Memory::Configuration configuration;
 
-    assert(memory.Initialize(configuration) == Memory::Status::Ok);
+    CHECK(memory.Initialize(configuration) == Memory::Status::Ok);
 
     Bus::EE_MemoryBus bus(memory);
     DeviceRegistry::EE_DeviceRegistry registry(bus);
 
-    std::vector<int> events;
+    std::vector<Event> events;
     TestDevice device(1, events);
 
     DeviceRegistry::DeviceRegistration registration =
         MakeRegistration(
             1,
-            "MissingDependencyDevice",
+            "MissingDependency",
             &device,
             MemoryMap::RegionId::EeMmio);
 
     registration.dependencies.push_back(999);
 
-    assert(
+    CHECK(
         registry.RegisterDevice(registration).status ==
         DeviceRegistry::DeviceStatus::Ok);
 
-    assert(
+    CHECK(
         registry.Start().status ==
         DeviceRegistry::DeviceStatus::MissingDependency);
 
-    assert(events.empty());
-    assert(!registry.IsStarted());
+    CHECK(events.empty());
+    CHECK(!registry.IsStarted());
 
     memory.Shutdown();
 }
@@ -282,12 +481,12 @@ void TestDependencyCycleRejected()
     Memory::EE_Memory memory;
     Memory::Configuration configuration;
 
-    assert(memory.Initialize(configuration) == Memory::Status::Ok);
+    CHECK(memory.Initialize(configuration) == Memory::Status::Ok);
 
     Bus::EE_MemoryBus bus(memory);
     DeviceRegistry::EE_DeviceRegistry registry(bus);
 
-    std::vector<int> events;
+    std::vector<Event> events;
 
     TestDevice first(1, events);
     TestDevice second(2, events);
@@ -309,79 +508,318 @@ void TestDependencyCycleRejected()
     registrationA.dependencies.push_back(2);
     registrationB.dependencies.push_back(1);
 
-    assert(
+    CHECK(
         registry.RegisterDevice(registrationA).status ==
         DeviceRegistry::DeviceStatus::Ok);
 
-    assert(
+    CHECK(
         registry.RegisterDevice(registrationB).status ==
         DeviceRegistry::DeviceStatus::Ok);
 
-    assert(
+    CHECK(
         registry.Start().status ==
         DeviceRegistry::DeviceStatus::DependencyCycle);
 
-    assert(events.empty());
-    assert(!registry.IsStarted());
+    CHECK(events.empty());
+    CHECK(!registry.IsStarted());
 
     memory.Shutdown();
 }
+
+void TestUnregisterDependencyInUse()
+{
+    Memory::EE_Memory memory;
+    Memory::Configuration configuration;
+
+    CHECK(memory.Initialize(configuration) == Memory::Status::Ok);
+
+    Bus::EE_MemoryBus bus(memory);
+    DeviceRegistry::EE_DeviceRegistry registry(bus);
+
+    std::vector<Event> events;
+
+    TestDevice base(1, events);
+    TestDevice dependent(2, events);
+
+    DeviceRegistry::DeviceRegistration baseRegistration =
+        MakeRegistration(
+            1,
+            "Base",
+            &base,
+            MemoryMap::RegionId::EeMmio);
+
+    DeviceRegistry::DeviceRegistration dependentRegistration =
+        MakeRegistration(
+            2,
+            "Dependent",
+            &dependent,
+            MemoryMap::RegionId::GsPrivilegedRegisters);
+
+    dependentRegistration.dependencies.push_back(1);
+
+    CHECK(
+        registry.RegisterDevice(baseRegistration).status ==
+        DeviceRegistry::DeviceStatus::Ok);
+
+    CHECK(
+        registry.RegisterDevice(dependentRegistration).status ==
+        DeviceRegistry::DeviceStatus::Ok);
+
+    CHECK(
+        registry.UnregisterDevice(1).status ==
+        DeviceRegistry::DeviceStatus::DependencyInUse);
+
+    CHECK(
+        registry.UnregisterDevice(2).status ==
+        DeviceRegistry::DeviceStatus::Ok);
+
+    CHECK(
+        registry.UnregisterDevice(1).status ==
+        DeviceRegistry::DeviceStatus::Ok);
+
+    memory.Shutdown();
+}
+
+// ------------------------------------------------------------
+// TEST: PARTIAL INITIALIZATION ROLLBACK
+// ------------------------------------------------------------
 
 void TestStartupRollback()
 {
     Memory::EE_Memory memory;
     Memory::Configuration configuration;
 
-    assert(memory.Initialize(configuration) == Memory::Status::Ok);
+    CHECK(memory.Initialize(configuration) == Memory::Status::Ok);
 
     Bus::EE_MemoryBus bus(memory);
     DeviceRegistry::EE_DeviceRegistry registry(bus);
 
-    std::vector<int> events;
+    std::vector<Event> events;
 
     TestDevice first(1, events);
-    TestDevice second(2, events, true);
+    TestDevice second(2, events);
 
-    DeviceRegistry::DeviceRegistration registrationA =
+    second.SetInitializeFailure(true);
+
+    DeviceRegistry::DeviceRegistration firstRegistration =
         MakeRegistration(
             1,
             "First",
             &first,
             MemoryMap::RegionId::EeMmio);
 
-    DeviceRegistry::DeviceRegistration registrationB =
+    DeviceRegistry::DeviceRegistration secondRegistration =
         MakeRegistration(
             2,
             "Second",
             &second,
             MemoryMap::RegionId::GsPrivilegedRegisters);
 
-    registrationB.dependencies.push_back(1);
+    secondRegistration.dependencies.push_back(1);
 
-    assert(
-        registry.RegisterDevice(registrationA).status ==
+    CHECK(
+        registry.RegisterDevice(firstRegistration).status ==
         DeviceRegistry::DeviceStatus::Ok);
 
-    assert(
-        registry.RegisterDevice(registrationB).status ==
+    CHECK(
+        registry.RegisterDevice(secondRegistration).status ==
         DeviceRegistry::DeviceStatus::Ok);
 
-    assert(
+    CHECK(
         registry.Start().status ==
         DeviceRegistry::DeviceStatus::InitializationFailed);
 
-    assert(!registry.IsStarted());
-    assert(!registry.IsFaulted());
+    CHECK(!registry.IsStarted());
+    CHECK(!registry.IsFaulted());
 
-    // First initializes, second fails, then first is shut down.
-    assert(events.size() == 3);
-    assert(events[0] == 11);
-    assert(events[1] == 21);
-    assert(events[2] == 13);
+    // First initialized.
+    CHECK(IsEvent(events, 0, 1, 'I'));
 
-    assert(!bus.IsDeviceAttached(MemoryMap::RegionId::EeMmio));
-    assert(!bus.IsDeviceAttached(
-        MemoryMap::RegionId::GsPrivilegedRegisters));
+    // Second initialization failed after partial allocation.
+    CHECK(IsEvent(events, 1, 2, 'I'));
+
+    // The failing device is cleaned first.
+    CHECK(IsEvent(events, 2, 2, 'S'));
+
+    // Then the previously initialized dependency is cleaned.
+    CHECK(IsEvent(events, 3, 1, 'S'));
+
+    CHECK(
+        !bus.IsDeviceAttached(
+            MemoryMap::RegionId::EeMmio));
+
+    CHECK(
+        !bus.IsDeviceAttached(
+            MemoryMap::RegionId::GsPrivilegedRegisters));
+
+    memory.Shutdown();
+}
+
+// ------------------------------------------------------------
+// TEST: SHUTDOWN FAILURE AND RETRY
+// ------------------------------------------------------------
+
+void TestShutdownFailureCanBeRetried()
+{
+    Memory::EE_Memory memory;
+    Memory::Configuration configuration;
+
+    CHECK(memory.Initialize(configuration) == Memory::Status::Ok);
+
+    Bus::EE_MemoryBus bus(memory);
+    DeviceRegistry::EE_DeviceRegistry registry(bus);
+
+    std::vector<Event> events;
+    TestDevice device(1, events);
+
+    DeviceRegistry::DeviceRegistration registration =
+        MakeRegistration(
+            1,
+            "RetryDevice",
+            &device,
+            MemoryMap::RegionId::EeMmio);
+
+    CHECK(
+        registry.RegisterDevice(registration).status ==
+        DeviceRegistry::DeviceStatus::Ok);
+
+    CHECK(
+        registry.Start().status ==
+        DeviceRegistry::DeviceStatus::Ok);
+
+    device.SetShutdownFailure(true);
+
+    CHECK(
+        registry.Stop().status ==
+        DeviceRegistry::DeviceStatus::ShutdownFailed);
+
+    CHECK(!registry.IsStarted());
+    CHECK(registry.IsFaulted());
+
+    // Endpoint must already be detached even though Shutdown failed.
+    CHECK(
+        !bus.IsDeviceAttached(
+            MemoryMap::RegionId::EeMmio));
+
+    device.SetShutdownFailure(false);
+
+    CHECK(
+        registry.Stop().status ==
+        DeviceRegistry::DeviceStatus::Ok);
+
+    CHECK(!registry.IsFaulted());
+
+    CHECK(
+        registry.GetDeviceState(1) ==
+        DeviceRegistry::DeviceState::Stopped);
+
+    memory.Shutdown();
+}
+
+// ------------------------------------------------------------
+// TEST: RESET FAILURE REQUIRES STOP
+// ------------------------------------------------------------
+
+void TestResetFailureTransitionsRegistryToFaulted()
+{
+    Memory::EE_Memory memory;
+    Memory::Configuration configuration;
+
+    CHECK(memory.Initialize(configuration) == Memory::Status::Ok);
+
+    Bus::EE_MemoryBus bus(memory);
+    DeviceRegistry::EE_DeviceRegistry registry(bus);
+
+    std::vector<Event> events;
+    TestDevice device(1, events);
+
+    DeviceRegistry::DeviceRegistration registration =
+        MakeRegistration(
+            1,
+            "ResetFailureDevice",
+            &device,
+            MemoryMap::RegionId::EeMmio);
+
+    CHECK(
+        registry.RegisterDevice(registration).status ==
+        DeviceRegistry::DeviceStatus::Ok);
+
+    CHECK(
+        registry.Start().status ==
+        DeviceRegistry::DeviceStatus::Ok);
+
+    device.SetResetFailure(true);
+
+    CHECK(
+        registry.ResetAll().status ==
+        DeviceRegistry::DeviceStatus::ResetFailed);
+
+    CHECK(registry.IsStarted());
+    CHECK(registry.IsFaulted());
+
+    CHECK(
+        registry.Start().status ==
+        DeviceRegistry::DeviceStatus::RegistryFaulted);
+
+    CHECK(
+        registry.Stop().status ==
+        DeviceRegistry::DeviceStatus::Ok);
+
+    CHECK(!registry.IsStarted());
+    CHECK(!registry.IsFaulted());
+
+    memory.Shutdown();
+}
+
+// ------------------------------------------------------------
+// TEST: RESTART AFTER CLEAN STOP
+// ------------------------------------------------------------
+
+void TestRestartAfterStop()
+{
+    Memory::EE_Memory memory;
+    Memory::Configuration configuration;
+
+    CHECK(memory.Initialize(configuration) == Memory::Status::Ok);
+
+    Bus::EE_MemoryBus bus(memory);
+    DeviceRegistry::EE_DeviceRegistry registry(bus);
+
+    std::vector<Event> events;
+    TestDevice device(1, events);
+
+    DeviceRegistry::DeviceRegistration registration =
+        MakeRegistration(
+            1,
+            "RestartableDevice",
+            &device,
+            MemoryMap::RegionId::EeMmio);
+
+    CHECK(
+        registry.RegisterDevice(registration).status ==
+        DeviceRegistry::DeviceStatus::Ok);
+
+    CHECK(
+        registry.Start().status ==
+        DeviceRegistry::DeviceStatus::Ok);
+
+    CHECK(
+        registry.Stop().status ==
+        DeviceRegistry::DeviceStatus::Ok);
+
+    CHECK(
+        registry.Start().status ==
+        DeviceRegistry::DeviceStatus::Ok);
+
+    CHECK(registry.IsStarted());
+
+    CHECK(
+        registry.GetDeviceState(1) ==
+        DeviceRegistry::DeviceState::Running);
+
+    CHECK(
+        registry.Stop().status ==
+        DeviceRegistry::DeviceStatus::Ok);
 
     memory.Shutdown();
 }
@@ -390,11 +828,33 @@ void TestStartupRollback()
 
 int main()
 {
+    TestRegistrationValidation();
     TestDependencyOrderAndLifecycle();
+    TestMultipleRegionsPerDevice();
     TestDuplicateRegionRejected();
+
     TestMissingDependencyRejectedAtStart();
     TestDependencyCycleRejected();
-    TestStartupRollback();
+    TestUnregisterDependencyInUse();
 
-    return 0;
+    TestStartupRollback();
+    TestShutdownFailureCanBeRetried();
+    TestResetFailureTransitionsRegistryToFaulted();
+    TestRestartAfterStop();
+
+    if(g_failures != 0)
+    {
+        std::cerr
+            << "EE_DeviceRegistry tests failed: "
+            << g_failures
+            << std::endl;
+
+        return EXIT_FAILURE;
+    }
+
+    std::cout
+        << "All EE_DeviceRegistry tests passed."
+        << std::endl;
+
+    return EXIT_SUCCESS;
 }
