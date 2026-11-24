@@ -359,6 +359,10 @@ DeviceResult EE_DeviceRegistry::RegisterDevice(
         entry.attachedRegionCount = 0;
 
         m_entries.push_back(std::move(entry));
+
+        // Registry configuration changed.
+        // A new explicit Stop() is required before destruction.
+        m_stopConfirmed = false;        
     }
     catch(...)
     {
