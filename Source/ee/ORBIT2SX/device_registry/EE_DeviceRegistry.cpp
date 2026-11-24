@@ -530,9 +530,26 @@ DeviceResult EE_DeviceRegistry::Start()
         return MakeResult(DeviceStatus::InternalError);
     }
 
-    for(std::size_t i = 0; i < startupOrder.size(); ++i)
+        for(std::size_t i = 0; i < startupOrder.size(); ++i)
     {
-        Entry& entry = m_entries[startupOrder[i]];
+        const std::size_t entryIndex = startupOrder[i];
+
+        try
+        {
+            // Include the current entry before initialization so that
+            // partial initialization or partial attachment is cleaned up.
+            initializedEntries.push_back(entryIndex);
+        }
+        catch(...)
+        {
+            return RollbackStartup(
+                initializedEntries,
+                MakeResult(
+                    DeviceStatus::InternalError,
+                    m_entries[entryIndex].id));
+        }
+
+        Entry& entry = m_entries[entryIndex];
 
         const DeviceResult result = InitializeAndAttach(entry);
 
@@ -540,13 +557,7 @@ DeviceResult EE_DeviceRegistry::Start()
         {
             return RollbackStartup(initializedEntries, result);
         }
-
-        initializedEntries.push_back(startupOrder[i]);
-    }
-
-    m_startupOrder = startupOrder;
-    m_started = true;
-    m_faulted = false;
+    }        
 
     for(std::size_t i = 0; i < m_startupOrder.size(); ++i)
     {
