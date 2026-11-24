@@ -46,6 +46,7 @@ enum class DeviceStatus : std::uint8_t
 
     InvalidArgument,
     DuplicateDeviceId,
+    DeviceAlreadyRegistered,
     DeviceNotFound,
     RegistryAlreadyStarted,
     RegistryNotStarted,
@@ -261,8 +262,11 @@ private:
 
     DeviceResult StopEntry(Entry& entry);
 
+    DeviceResult StopEntriesInReverseOrder(
+        const std::vector<std::size_t>& order);
+
     DeviceResult RollbackStartup(
-        const std::vector<std::size_t>& touchedEntries,
+        std::vector<std::size_t>& touchedEntries,
         DeviceResult originalFailure);
 
     // --------------------------------------------------------
