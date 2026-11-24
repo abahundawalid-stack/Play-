@@ -426,8 +426,23 @@ DeviceResult EE_DeviceRegistry::InitializeAndAttach(Entry& entry)
 
         if(busResult.status != Bus::BusStatus::Ok)
         {
-            DetachEntry(entry);
-            ShutdownEntry(entry);
+            const DeviceResult detachResult = DetachEntry(entry);
+
+            // Never destroy or shut down a device while an endpoint
+            // belonging to it may still be attached to the bus.
+            if(detachResult.status != DeviceStatus::Ok)
+            {
+                entry.state = DeviceState::Faulted;
+                return detachResult;
+            }
+
+            const DeviceResult shutdownResult = ShutdownEntry(entry);
+
+            if(shutdownResult.status != DeviceStatus::Ok)
+            {
+                entry.state = DeviceState::Faulted;
+                return shutdownResult;
+            }
 
             entry.state = DeviceState::Faulted;
 
