@@ -16,43 +16,78 @@ namespace DeviceRegistry
 
 using DeviceId = std::uint32_t;
 
+// ------------------------------------------------------------
+// DEVICE LIFECYCLE INTERFACE
+// ------------------------------------------------------------
+
+class IEEDevice : public Bus::IEEBusDevice
+{
+public:
+    virtual ~IEEDevice() {}
+
+    // May allocate internal resources.
+    virtual Bus::DeviceStatus Initialize() = 0;
+
+    // Restores the device to its initial operational state.
+    virtual Bus::DeviceStatus Reset() = 0;
+
+    // Releases resources acquired during Initialize().
+    // Must be safe to call after a partially failed Initialize().
+    virtual Bus::DeviceStatus Shutdown() = 0;
+};
+
+// ------------------------------------------------------------
+// REGISTRY STATUS
+// ------------------------------------------------------------
+
 enum class DeviceStatus : std::uint8_t
 {
     Ok = 0,
+
     InvalidArgument,
     DuplicateDeviceId,
     DeviceNotFound,
-    DeviceAlreadyRegistered,
     RegistryAlreadyStarted,
     RegistryNotStarted,
     RegistryFaulted,
+
     InvalidRegion,
     RegionNotDeviceOwned,
     RegionAlreadyRegistered,
     RegionAlreadyAttached,
+
     MissingDependency,
     DuplicateDependency,
     SelfDependency,
     DependencyInUse,
     DependencyCycle,
+
     InitializationFailed,
     ResetFailed,
     ShutdownFailed,
     BusAttachmentFailed,
+
     InternalError
 };
 
 enum class DeviceState : std::uint8_t
 {
-    Registered = 0,
+    Unknown = 0,
+    Registered,
     Initializing,
     Initialized,
+    Attaching,
     Attached,
     Running,
+    Resetting,
     Stopping,
     Stopped,
     Faulted
 };
+
+// ------------------------------------------------------------
+// RESULT
+// ------------------------------------------------------------
 
 struct DeviceResult
 {
@@ -60,39 +95,40 @@ struct DeviceResult
     Bus::BusStatus busStatus;
     Bus::DeviceStatus busDeviceStatus;
     DeviceId deviceId;
+
+    bool IsOk() const
+    {
+        return status == DeviceStatus::Ok;
+    }
 };
+
+// ------------------------------------------------------------
+// REGISTRATION DESCRIPTION
+// ------------------------------------------------------------
 
 struct DeviceRegistration
 {
     DeviceId id;
     std::string name;
 
-    // Non-owning pointer. The device object must outlive this registry entry.
-    class IEEDevice* device;
+    // Non-owning pointer.
+    // The device must outlive the registry and its bus attachment.
+    IEEDevice* device;
 
-    // Regions exposed by this device through EE_MemoryBus.
+    // Bus regions owned by this device.
+    // Empty is allowed for devices without direct EE bus regions.
     std::vector<MemoryMap::RegionId> regions;
 
-    // Dependencies must be registered before Start().
+    // Dependencies must exist when Start() is called.
+    // Registration order itself is not significant.
     std::vector<DeviceId> dependencies;
 
     DeviceRegistration();
 };
 
-class IEEDevice : public Bus::IEEBusDevice
-{
-public:
-    virtual ~IEEDevice() {}
-
-    // Called once when the registry starts.
-    virtual Bus::DeviceStatus Initialize() = 0;
-
-    // Called by ResetAll() in dependency order.
-    virtual Bus::DeviceStatus Reset() = 0;
-
-    // Called during rollback or registry shutdown.
-    virtual Bus::DeviceStatus Shutdown() = 0;
-};
+// ------------------------------------------------------------
+// EE DEVICE REGISTRY
+// ------------------------------------------------------------
 
 class EE_DeviceRegistry final
 {
@@ -104,22 +140,32 @@ public:
     EE_DeviceRegistry(const EE_DeviceRegistry&) = delete;
     EE_DeviceRegistry& operator=(const EE_DeviceRegistry&) = delete;
 
-    // Registration is allowed only while the registry is stopped.
-    DeviceResult RegisterDevice(const DeviceRegistration& registration);
+    // --------------------------------------------------------
+    // REGISTRATION
+    // --------------------------------------------------------
 
-    // Removal is allowed only while the registry is stopped.
+    DeviceResult RegisterDevice(
+        const DeviceRegistration& registration);
+
     DeviceResult UnregisterDevice(DeviceId id);
 
-    // Initializes devices, attaches bus endpoints and enters Running state.
-    // Startup follows dependency order.
+    // --------------------------------------------------------
+    // LIFECYCLE
+    // --------------------------------------------------------
+
+    // Initializes and attaches all devices in dependency order.
     DeviceResult Start();
 
-    // Resets all devices in dependency order.
+    // Resets all running devices in dependency order.
     DeviceResult ResetAll();
 
-    // Stops devices in reverse dependency order.
-    // All devices are processed even if one shutdown operation fails.
+    // Detaches and shuts down devices in reverse dependency order.
+    // Can also retry cleanup after a previous failure.
     DeviceResult Stop();
+
+    // --------------------------------------------------------
+    // INSPECTION
+    // --------------------------------------------------------
 
     bool IsStarted() const;
     bool IsFaulted() const;
@@ -140,15 +186,27 @@ private:
         DeviceId id;
         std::string name;
         IEEDevice* device;
+
         std::vector<MemoryMap::RegionId> regions;
         std::vector<DeviceId> dependencies;
 
         DeviceState state;
-        bool initialized;
+
+        // Set before Initialize() is called.
+        // Remains true until Shutdown() succeeds.
+        // This also tracks partially initialized devices.
+        bool shutdownRequired;
+
+        // Number of successfully attached regions.
+        // Attachments are always made in registration order.
         std::size_t attachedRegionCount;
 
         Entry();
     };
+
+    // --------------------------------------------------------
+    // RESULT HELPERS
+    // --------------------------------------------------------
 
     static DeviceResult MakeResult(
         DeviceStatus status,
@@ -158,6 +216,12 @@ private:
         DeviceStatus status,
         DeviceId id,
         const Bus::BusResult& busResult);
+
+    DeviceResult Remember(DeviceResult result);
+
+    // --------------------------------------------------------
+    // VALIDATION
+    // --------------------------------------------------------
 
     static bool IsValidDeviceId(DeviceId id);
 
@@ -177,25 +241,41 @@ private:
         const DeviceRegistration& registration,
         DeviceResult& result) const;
 
+    // --------------------------------------------------------
+    // DEPENDENCY RESOLUTION
+    // --------------------------------------------------------
+
     bool BuildStartupOrder(
         std::vector<std::size_t>& order,
         DeviceResult& result) const;
 
+    // --------------------------------------------------------
+    // DEVICE OPERATIONS
+    // --------------------------------------------------------
+
     DeviceResult InitializeAndAttach(Entry& entry);
-
-    DeviceResult RollbackStartup(
-        const std::vector<std::size_t>& initializedEntries,
-        DeviceResult originalFailure);
-
-    DeviceResult StopEntry(Entry& entry);
 
     DeviceResult DetachEntry(Entry& entry);
 
     DeviceResult ShutdownEntry(Entry& entry);
 
+    DeviceResult StopEntry(Entry& entry);
+
+    DeviceResult RollbackStartup(
+        const std::vector<std::size_t>& touchedEntries,
+        DeviceResult originalFailure);
+
+    // --------------------------------------------------------
+    // STATE
+    // --------------------------------------------------------
+
     Bus::EE_MemoryBus& m_memoryBus;
 
+    // Owns Entry metadata only.
+    // Device objects remain externally owned.
     std::vector<Entry> m_entries;
+
+    // Entry indices in dependency-safe startup order.
     std::vector<std::size_t> m_startupOrder;
 
     bool m_started;
