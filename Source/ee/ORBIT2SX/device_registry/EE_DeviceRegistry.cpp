@@ -990,7 +990,32 @@ DeviceResult EE_DeviceRegistry::Stop()
     return Remember(
         MakeResult(DeviceStatus::Ok));
 }
-    
+
+// ============================================================
+// PENDING CLEANUP VALIDATION
+// ============================================================
+
+bool EE_DeviceRegistry::HasPendingCleanup() const
+{
+    if(m_started || m_faulted || !m_startupOrder.empty())
+    {
+        return true;
+    }
+
+    for(std::size_t i = 0; i < m_entries.size(); ++i)
+    {
+        const Entry& entry = m_entries[i];
+
+        if(entry.shutdownRequired ||
+           entry.attachedRegionCount != 0)
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 // ============================================================
 // INSPECTION API
 // ============================================================
