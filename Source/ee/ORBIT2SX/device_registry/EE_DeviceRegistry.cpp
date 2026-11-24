@@ -359,7 +359,6 @@ DeviceResult EE_DeviceRegistry::RegisterDevice(
         entry.attachedRegionCount = 0;
 
         m_entries.push_back(std::move(entry));
-
         // Registry configuration changed.
         // A new explicit Stop() is required before destruction.
         m_stopConfirmed = false;        
@@ -432,6 +431,9 @@ DeviceResult EE_DeviceRegistry::UnregisterDevice(DeviceId id)
     }
 
     m_entries.erase(m_entries.begin() + index);
+    // Registry configuration changed.
+    // Require another explicit successful Stop() before destruction.
+    m_stopConfirmed = false;
 
     return Remember(
         MakeResult(DeviceStatus::Ok, id));
