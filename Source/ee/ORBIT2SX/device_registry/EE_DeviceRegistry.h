@@ -32,7 +32,10 @@ public:
     virtual Bus::DeviceStatus Reset() = 0;
 
     // Releases resources acquired during Initialize().
-    // Must be safe to call after a partially failed Initialize().
+    // Must be safe after a partially failed Initialize().
+    // If this function returns failure, it must also be safe to call
+    // Shutdown() again: implementations must tolerate partially
+    // released resources and must not double-free them on retry.
     virtual Bus::DeviceStatus Shutdown() = 0;
 };
 
@@ -112,8 +115,9 @@ struct DeviceRegistration
     DeviceId id;
     std::string name;
 
-    // Non-owning pointer.
-    // The device must outlive the registry and its bus attachment.
+    // Non-owning pointer. The subsystem/composition root that creates
+    // the device owns it and must keep it alive until the registry has
+    // successfully stopped and detached every region for that device.
     IEEDevice* device;
 
     // Bus regions owned by this device.
