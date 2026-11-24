@@ -901,11 +901,33 @@ DeviceResult EE_DeviceRegistry::Stop()
     }
 
     // --------------------------------------------------------
-    // Second: recover any partially initialized entries
+    // Second: recover entries that were not in startup order.
+    //
+    // This covers partially initialized entries left behind by
+    // a failed startup rollback.
+    //
+    // Entries already processed above must not be called twice
+    // during the same Stop() invocation.
     // --------------------------------------------------------
 
     for(std::size_t i = 0; i < m_entries.size(); ++i)
     {
+        bool alreadyProcessed = false;
+
+        for(std::size_t j = 0; j < m_startupOrder.size(); ++j)
+        {
+            if(m_startupOrder[j] == i)
+            {
+                alreadyProcessed = true;
+                break;
+            }
+        }
+
+        if(alreadyProcessed)
+        {
+            continue;
+        }
+
         Entry& entry = m_entries[i];
 
         if(!entry.shutdownRequired &&
@@ -922,6 +944,7 @@ DeviceResult EE_DeviceRegistry::Stop()
         }
     }
 
+    // Clear runtime ordering only after all cleanup attempts.
     m_started = false;
     m_startupOrder.clear();
 
