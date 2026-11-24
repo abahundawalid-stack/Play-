@@ -135,12 +135,76 @@ struct DeviceRegistration
 // EE DEVICE REGISTRY
 // ------------------------------------------------------------
 
+// ------------------------------------------------------------
+// THREAD SAFETY CONTRACT
+// ------------------------------------------------------------
+//
+// This class is NOT thread-safe.
+// No internal mutex is used.
+//
+// The owner must externally serialize every call to:
+// - RegisterDevice()
+// - UnregisterDevice()
+// - Start()
+// - ResetAll()
+// - Stop()
+// - All inspection methods.
+//
+// Access to the associated EE_MemoryBus that can attach, detach,
+// inspect, or dispatch through device endpoints must use the SAME
+// external serialization policy.
+//
+// Do not race bus access against registry lifecycle operations.
+//
+// Device callbacks (Initialize, Reset, Shutdown, Read, Write) must
+// not recursively call registry mutation/lifecycle methods.
+//
+// In particular, Initialize(), Reset(), and Shutdown() must not call:
+// - RegisterDevice()
+// - UnregisterDevice()
+// - Start()
+// - ResetAll()
+// - Stop()
+//
+// The registry does not lock around callbacks. Violating this
+// contract can cause data races, iterator invalidation, or
+// inconsistent device lifecycle state.
+//
+// ------------------------------------------------------------
+// OWNERSHIP AND DESTRUCTION CONTRACT
+// ------------------------------------------------------------
+//
+// The registry owns Entry metadata only.
+// It does NOT own registered device objects or EE_MemoryBus.
+//
+// The composition root/subsystem creates and owns every IEEDevice.
+//
+// EE_MemoryBus and every registered device must outlive this registry.
+//
+// Call Stop() explicitly and check its DeviceResult before destroying:
+// - The registry
+// - Any registered device
+// - The EE_MemoryBus
+//
+// If Stop() fails, keep the registry, bus, and every registered
+// device alive. Correct the underlying failure and call Stop() again.
+//
+// Destroying the registry without a successful explicit Stop(), or
+// while lifecycle cleanup remains pending, is a fatal programming
+// error. The destructor calls std::terminate().
+//
+// The destructor does NOT perform best-effort cleanup and cannot
+// report cleanup failures.
+
 class EE_DeviceRegistry final
 {
 public:
     explicit EE_DeviceRegistry(Bus::EE_MemoryBus& memoryBus);
 
-    ~EE_DeviceRegistry();
+    // A successful explicit Stop() is required before destruction.
+    // Destruction with pending cleanup or without Stop confirmation
+    // terminates the process.
+    ~EE_DeviceRegistry() noexcept;
 
     EE_DeviceRegistry(const EE_DeviceRegistry&) = delete;
     EE_DeviceRegistry& operator=(const EE_DeviceRegistry&) = delete;
@@ -277,6 +341,8 @@ private:
     // STATE
     // --------------------------------------------------------
 
+    bool HasPendingCleanup() const;
+
     Bus::EE_MemoryBus& m_memoryBus;
 
     // Owns Entry metadata only.
@@ -288,6 +354,11 @@ private:
 
     bool m_started;
     bool m_faulted;
+
+    // Becomes true only after Stop() explicitly succeeds.
+    // Registration or a new startup attempt invalidates this
+    // confirmation and requires another successful Stop().
+    bool m_stopConfirmed;
 
     DeviceStatus m_lastStatus;
 };
