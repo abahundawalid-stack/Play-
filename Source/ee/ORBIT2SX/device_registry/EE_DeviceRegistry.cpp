@@ -853,6 +853,9 @@ DeviceResult EE_DeviceRegistry::Start()
             MakeResult(DeviceStatus::RegistryFaulted));
     }
 
+    // A startup attempt invalidates the previous Stop confirmation.
+    // Even a failed startup attempt must be followed by explicit Stop().
+    m_stopConfirmed = false;
     std::vector<std::size_t> startupOrder;
 
     DeviceResult orderResult =
@@ -986,12 +989,18 @@ DeviceResult EE_DeviceRegistry::Stop()
     if(!stopResult.IsOk())
     {
         // Keep startup order for a safe retry.
+        // Do not confirm destruction safety.
         m_faulted = true;
+        m_stopConfirmed = false;
+
         return Remember(stopResult);
     }
 
+    // All devices have been detached and shut down successfully.
     m_startupOrder.clear();
+
     m_faulted = false;
+    m_stopConfirmed = true;
 
     return Remember(
         MakeResult(DeviceStatus::Ok));
