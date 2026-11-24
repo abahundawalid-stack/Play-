@@ -711,40 +711,113 @@ DeviceResult EE_DeviceRegistry::StopEntry(Entry& entry)
 // STARTUP ROLLBACK
 // ============================================================
 
-DeviceResult EE_DeviceRegistry::RollbackStartup(
-    const std::vector<std::size_t>& touchedEntries,
-    DeviceResult originalFailure)
+DeviceResult EE_DeviceRegistry::StopEntriesInReverseOrder(
+    const std::vector<std::size_t>& order)
 {
-    DeviceResult cleanupFailure =
+    std::vector<bool> blocked;
+
+    try
+    {
+        blocked.assign(m_entries.size(), false);
+    }
+    catch(...)
+    {
+        return MakeResult(DeviceStatus::InternalError);
+    }
+
+    DeviceResult firstFailure =
         MakeResult(DeviceStatus::Ok);
 
-    // Reverse order: dependents are cleaned before dependencies.
-    for(std::size_t i = touchedEntries.size(); i > 0; --i)
+    // Stop dependents before their dependencies.
+    for(std::size_t i = order.size(); i > 0; --i)
     {
-        Entry& entry = m_entries[touchedEntries[i - 1]];
+        const std::size_t entryIndex = order[i - 1];
 
-        const DeviceResult cleanupResult = StopEntry(entry);
-
-        if(!cleanupResult.IsOk() &&
-           cleanupFailure.IsOk())
+        if(entryIndex >= m_entries.size())
         {
-            cleanupFailure = cleanupResult;
+            if(firstFailure.IsOk())
+            {
+                firstFailure =
+                    MakeResult(DeviceStatus::InternalError);
+            }
+
+            continue;
+        }
+
+        Entry& entry = m_entries[entryIndex];
+
+        // A dependent that could not stop still needs its
+        // dependencies. Those dependencies must remain alive.
+        if(blocked[entryIndex])
+        {
+            for(std::size_t d = 0;
+                d < entry.dependencies.size();
+                ++d)
+            {
+                const std::size_t dependencyIndex =
+                    FindEntryIndex(entry.dependencies[d]);
+
+                if(dependencyIndex < m_entries.size())
+                {
+                    blocked[dependencyIndex] = true;
+                }
+            }
+
+            continue;
+        }
+
+        const DeviceResult result = StopEntry(entry);
+
+        if(!result.IsOk())
+        {
+            if(firstFailure.IsOk())
+            {
+                firstFailure = result;
+            }
+
+            // Propagate the block to direct dependencies.
+            // It propagates transitively when each blocked
+            // dependency is encountered later in this loop.
+            for(std::size_t d = 0;
+                d < entry.dependencies.size();
+                ++d)
+            {
+                const std::size_t dependencyIndex =
+                    FindEntryIndex(entry.dependencies[d]);
+
+                if(dependencyIndex < m_entries.size())
+                {
+                    blocked[dependencyIndex] = true;
+                }
+            }
         }
     }
 
+    return firstFailure;
+}
+
+DeviceResult EE_DeviceRegistry::RollbackStartup(
+    std::vector<std::size_t>& touchedEntries,
+    DeviceResult originalFailure)
+{
+    const DeviceResult cleanupFailure =
+        StopEntriesInReverseOrder(touchedEntries);
+
     m_started = false;
-    m_startupOrder.clear();
 
     if(!cleanupFailure.IsOk())
     {
+        // Preserve the original dependency order so that a later
+        // Stop() retry can safely resume cleanup.
+        m_startupOrder.swap(touchedEntries);
+
         m_faulted = true;
-        m_lastStatus = cleanupFailure.status;
 
         return cleanupFailure;
     }
 
+    m_startupOrder.clear();
     m_faulted = false;
-    m_lastStatus = originalFailure.status;
 
     return originalFailure;
 }
@@ -892,85 +965,25 @@ DeviceResult EE_DeviceRegistry::ResetAll()
 
 DeviceResult EE_DeviceRegistry::Stop()
 {
-    DeviceResult firstFailure =
-        MakeResult(DeviceStatus::Ok);
+    const DeviceResult stopResult =
+        StopEntriesInReverseOrder(m_startupOrder);
 
-    // --------------------------------------------------------
-    // First: reverse dependency order
-    // --------------------------------------------------------
-
-    for(std::size_t i = m_startupOrder.size(); i > 0; --i)
-    {
-        Entry& entry =
-            m_entries[m_startupOrder[i - 1]];
-
-        const DeviceResult result = StopEntry(entry);
-
-        if(!result.IsOk() && firstFailure.IsOk())
-        {
-            firstFailure = result;
-        }
-    }
-
-    // --------------------------------------------------------
-    // Second: recover entries that were not in startup order.
-    //
-    // This covers partially initialized entries left behind by
-    // a failed startup rollback.
-    //
-    // Entries already processed above must not be called twice
-    // during the same Stop() invocation.
-    // --------------------------------------------------------
-
-    for(std::size_t i = 0; i < m_entries.size(); ++i)
-    {
-        bool alreadyProcessed = false;
-
-        for(std::size_t j = 0; j < m_startupOrder.size(); ++j)
-        {
-            if(m_startupOrder[j] == i)
-            {
-                alreadyProcessed = true;
-                break;
-            }
-        }
-
-        if(alreadyProcessed)
-        {
-            continue;
-        }
-
-        Entry& entry = m_entries[i];
-
-        if(!entry.shutdownRequired &&
-           entry.attachedRegionCount == 0)
-        {
-            continue;
-        }
-
-        const DeviceResult result = StopEntry(entry);
-
-        if(!result.IsOk() && firstFailure.IsOk())
-        {
-            firstFailure = result;
-        }
-    }
-
-    // Clear runtime ordering only after all cleanup attempts.
     m_started = false;
-    m_startupOrder.clear();
 
-    m_faulted = !firstFailure.IsOk();
-
-    if(m_faulted)
+    if(!stopResult.IsOk())
     {
-        return Remember(firstFailure);
+        // Keep startup order for a safe retry.
+        m_faulted = true;
+        return Remember(stopResult);
     }
+
+    m_startupOrder.clear();
+    m_faulted = false;
 
     return Remember(
         MakeResult(DeviceStatus::Ok));
 }
-
+    
 // ============================================================
 // INSPECTION API
 // ============================================================
